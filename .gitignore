@@ -81,3 +81,4 @@ config.yml
 
 # Cached crosswalks
 /crosswalks-cache
+docs
