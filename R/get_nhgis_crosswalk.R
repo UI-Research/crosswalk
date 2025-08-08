@@ -1,42 +1,3 @@
-# nhgis_crosswalks = c(
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_blk2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_bg2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_tr2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_co2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp1990_bg2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp1990_tr2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp1990_co2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr1990_tr2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr1990_co2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_blk2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_bg2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_tr2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_co2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2000_bg2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2000_tr2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2000_co2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2000_tr2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2000_co2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_blk2020.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_bg2020.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_tr2020.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_co2020.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2010_bg2020.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2010_tr2020.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2010_co2020.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2010_tr2020.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2010_co2020.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_blk2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_bg2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_tr2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_co2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2020_bg2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2020_tr2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2020_co2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_tr2010.zip",
-#     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_co2010.zip"
-# )
-
 #' Standardize Geography Names
 #'
 #' Internal helper function to convert various geography name spellings to standard codes.
@@ -47,7 +8,11 @@
 #' @keywords internal
 standardize_geography <- function(geography, context = "source") {
   # Convert to lowercase and remove extra whitespace
-  geography <- geography |> stringr::str_to_lower() |> stringr::str_squish() |> stringr::str_trim()
+  geography <- geography |>
+    stringr::str_to_lower() |>
+    stringr::str_squish() |>
+    stringr::str_trim() |>
+    stringr::str_replace_all("_", " ")
 
   # Define mapping for different spellings
   geography_mapping <- list(
@@ -96,7 +61,7 @@ standardize_geography <- function(geography, context = "source") {
 
     # Validate based on context (source vs target geographies have different options)
     if (context == "source") {
-      valid_geogs <- c("blk", "bgp", "tr")
+      valid_geogs <- c("blk", "bg", "tr")
       if (standardized %in% valid_geogs) {
         return(standardized)
       }
@@ -113,204 +78,260 @@ standardize_geography <- function(geography, context = "source") {
 
 #' List Available NHGIS Crosswalks
 #'
-#' Returns a data frame of all available NHGIS geographic crosswalks with their
+#' Returns a tibble of all available NHGIS geographic crosswalks with their
 #' corresponding parameters that can be used with get_nhgis_crosswalk().
 #'
-#' @return A data frame with columns:
+#' @return A tibble with columns:
 #'   \itemize{
 #'     \item source_year: Year of the source geography
-#'     \item source_geography: Source geography name (standardized)
+#'     \item source_geography: Source geography name
 #'     \item target_year: Year of the target geography
-#'     \item target_geography: Target geography name (standardized)
+#'     \item target_geography: Target geography name
 #'   }
 #'
-#' @keywords internal
+#' @export
 list_nhgis_crosswalks <- function() {
+  nhgis_crosswalks_vector = c(
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_blk2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_bg2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp1990_bg2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp1990_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp1990_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr1990_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr1990_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_blk2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_bg2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2000_bg2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2000_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2000_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2000_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2000_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_blk2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_bg2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_tr2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_co2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2010_bg2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2010_tr2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2010_co2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2010_tr2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2010_co2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_blk2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_bg2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_bg2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_co2010.zip")
 
-  # Function to convert abbreviated geography codes to full names
-  expand_geography <- function(geog_code) {
-    mapping <- c(
-      "blk" = "block",
-      "bg" = "block group",
-      "bgp" = "block group part",
-      "tr" = "tract",
-      "co" = "county"
-    )
-    return(mapping[geog_code])
-  }
+  ## for the time being, not supporting block group parts
+  nhgis_crosswalks_vector = nhgis_crosswalks_vector[!stringr::str_detect(nhgis_crosswalks_vector, "bgp")]
 
-  # Extract crosswalk information from URLs
-  crosswalk_info <- lapply(nhgis_crosswalks, function(url) {
-    # Extract the filename from the URL
-    filename <- basename(url)
+  nhgis_crosswalks = purrr::map_dfr(
+    nhgis_crosswalks_vector |> stringr::str_remove_all(".*nhgis_|\\.zip"),
+    function(path) {
+      path_parts = stringr::str_split(path, "_") |> _[[1]]
 
-    # Remove the "nhgis_" prefix and ".zip" suffix
-    core_pattern <- filename |>
-      stringr::str_remove("^nhgis_") |>
-      stringr::str_remove("\\.zip$")
+      tibble::tibble(
+        source_geography = path_parts[1] |> stringr::str_extract("[a-zA-Z]{1,10}"),
+        source_year = path_parts[1] |> stringr::str_extract("[0-9]{1,10}"),
+        target_geography = path_parts[2] |> stringr::str_extract("[a-zA-Z]{1,10}"),
+        target_year = path_parts[2] |> stringr::str_extract("[0-9]{1,10}")) |>
+      dplyr::mutate(
+        dplyr::across(
+          .cols = dplyr::matches("geography"),
+          .fns = ~ .x |> stringr::str_replace_all(c(
+            "blk" = "block",
+            "bgp" = "block_group_part",
+            "bg" = "block_group",
+            "tr" = "tract",
+            "co" = "county")))) }) |>
+    dplyr::bind_cols(tibble::tibble(crosswalk_path = nhgis_crosswalks_vector))
 
-    # Parse the pattern: source_geog + source_year + "_" + target_geog + target_year
-    # Use stringr to extract components
-    if (!stringr::str_detect(core_pattern, "^([a-z]+)(\\d{4})_([a-z]+)(\\d{4})$")) {
-      return(NULL)  # Skip if pattern doesn't match
-    }
-
-    # Extract individual components using capture groups
-    pattern_parts <- stringr::str_match(core_pattern, "^([a-z]+)(\\d{4})_([a-z]+)(\\d{4})$")[1, ]
-
-    if (length(pattern_parts) != 5) {  # Full match + 4 groups
-      return(NULL)
-    }
-
-    source_geog_code <- pattern_parts[2]
-    source_year <- as.numeric(pattern_parts[3])
-    target_geog_code <- pattern_parts[4]
-    target_year <- as.numeric(pattern_parts[5])
-
-    # Convert codes to full names
-    source_geography <- expand_geography(source_geog_code)
-    target_geography <- expand_geography(target_geog_code)
-
-    # Return as a named list
-    return(list(
-      source_year = source_year,
-      source_geography = source_geography,
-      target_year = target_year,
-      target_geography = target_geography
-    ))
-  })
-
-  # Remove NULL entries and convert to data frame
-  crosswalk_info <- crosswalk_info[!sapply(crosswalk_info, is.null)]
-
-  if (length(crosswalk_info) == 0) {
-    return(data.frame(
-      source_year = integer(0),
-      source_geography = character(0),
-      target_year = integer(0),
-      target_geography = character(0)
-    ))
-  }
-
-  # Convert list of lists to data frame
-  crosswalk_df <- do.call(rbind, lapply(crosswalk_info, data.frame, stringsAsFactors = FALSE))
-
-  # Sort by source year, then source geography, then target year, then target geography
-  crosswalk_df <- crosswalk_df[order(crosswalk_df$source_year,
-                                   crosswalk_df$source_geography,
-                                   crosswalk_df$target_year,
-                                   crosswalk_df$target_geography), ]
-
-  # Reset row names
-  rownames(crosswalk_df) <- NULL
-
-  return(crosswalk_df)
+  return(nhgis_crosswalks)
 }
 
 #' Get NHGIS Geographic Crosswalk
 #'
 #' Retrieves a geographic crosswalk from the IPUMS NHGIS API based on user-specified
-#' source and target geographies and years. Accepts various spellings and formats
-#' for geography names.
+#' source and target geographies and years. Use `list_nhgis_crosswalks()` to view valid
+#' parameter combinations.
+#'
+#' Note: for the moment, this function does not support block group part crosswalks.
 #'
 #' @param source_year Character or numeric. Year of the source geography one of c(1990, 2000, 2010, 2020).
-#' @param source_geography Character. Source geography name. One of c("block", "block group part", "tract").
+#' @param source_geography Character. Source geography name. One of c("block", "block group", "tract").
 #' @param target_year Character or numeric. Year of the target geography, one of c(1990, 2000, 2010, 2020).
-#' @param target_geography Character. Target geography name. One of c("block", "block group part", "tract", "county").
+#' @param target_geography Character. Target geography name. One of c("block", "block group", "tract", "county").
+#' @param download_directory File path. Where to download the crosswalk to.
+#' @param use_cache FALSE by default. If TRUE, read in an already-downloaded crosswalk stored in the `download_directory`, if such a file exists.
 #' @param api_key Character. NULL by default, in which case the function looks for an `IPUMS_API_KEY` environment variable.
 #'
 #' @return A data frame containing the crosswalk between the specified geographies.
-#' @keywords internal
-get_nhgis_crosswalk <- function(source_year, source_geography, target_year, target_geography, api_key = NULL) {
+#'
+#'#' @return A dataframe representing the requested Geocorr22 crosswalk for all 51 states and Puerto Rico. Depending on the desired geographies, some fields may not be included.
+#'   \describe{
+#'     \item{source_geoid}{A unique identifier for the source geography}
+#'     \item{target_geoid}{A unique identifier for the target geography}
+#'     \item{source_geography_name}{The name of the source geography}
+#'     \item{target_geography_name}{The name of the target geography}
+#'     \item{source_year}{The year of the source geography}
+#'     \item{target_year}{The year of the target geography}
+#'     \item{allocation_factor_source_to_target}{The weight to interpolate values from the source geography to the target geography}
+#'     \item{weighting_factor}{The attribute used to calculate allocation factors}
+#'   }
+#'
+#' @export
+
+get_nhgis_crosswalk <- function(
+    source_year,
+    source_geography,
+    target_year,
+    target_geography,
+    download_directory,
+    use_cache = FALSE,
+    api_key = NULL) {
+
+  # Convert years to character for consistent processing
+  source_year = as.character(source_year)
+  target_year = as.character(target_year)
+
+  # Standardize geography names
+  source_geography_standardized = standardize_geography(source_geography, "source")
+  target_geography_standardized = standardize_geography(target_geography, "target")
+
+  crosswalk_sub_path = stringr::str_c(source_geography_standardized, source_year, "_", target_geography_standardized, target_year)
+  crosswalk_path <- paste0("https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_", crosswalk_sub_path, ".zip")
+
+  ## identify the relevant filepaths for potentially-cached crosswalks
+  csv_path = file.path(download_directory, stringr::str_c("nhgis_crosswalk_", crosswalk_sub_path, ".csv"))
+
+  ## if the file exists and the user does not wish to overwrite it
+  if (file.exists(csv_path) & isTRUE(use_cache)) {
+    result = readr::read_csv(csv_path)
+
+    message("Use of NHGIS crosswalks is subject to the same conditions as for all NHGIS data. See https://www.nhgis.org/citation-and-use-nhgis-data.")
+    message("Reading file from cache.")
+
+    return(result) }
+
+  # Validate inputs
+  valid_years = c("1990", "2000", "2010", "2020")
+  valid_source_geogs = c("blk", "bg", "tr")
+  valid_target_geogs = c("blk", "bg", "tr", "co")
+
+  if (source_year == "1990" & target_year == "2000") {
+    stop("There are no crosswalks from 1990 to 2000; 1990 source geography crosswalks are available only to 2010 geographies.")}
+
+  if (!source_year %in% valid_years) {
+    stop("source_year must be one of: ", paste(valid_years, collapse = ", "))}
+
+  if (!target_year %in% valid_years) {
+    stop("target_year must be one of: ", paste(valid_years, collapse = ", "))}
+
+  if (is.null(source_geography_standardized)) {
+    stop("source_geography '", source_geography, "' is not valid. Must be one of: blocks, block group parts, or tracts (various spellings accepted)")}
+
+  if (is.null(target_geography_standardized)) {
+    stop("target_geography '", target_geography, "' is not valid. Must be one of: blocks, block groups, tracts, or counties (various spellings accepted)")}
+
+  if (!(crosswalk_path %in% list_nhgis_crosswalks()$crosswalk_path)) {
+    stop(stringr::str_c("There is no available crosswalk between the specified geographies and years.")) }
+
+  if (!is.null(api_key)) {
+message(
+"For future use, it may be easiest to store your API key in an environment variable.
+We recommend storing your IPUMS API key by using usethis::edit_r_environ(scope = 'user'),
+creating a new name-key pair akin to 'IPUMS_API_KEY=[your key here]'.") }
 
   # Get API key
   if (is.null(api_key)) {
-    api_key <- Sys.getenv("IPUMS_API_KEY")
+    api_key = Sys.getenv("IPUMS_API_KEY")
     if (api_key == "") {
-      stop("API key required. Provide via api_key parameter or set IPUMS_API_KEY environment variable. Get your key at https://account.ipums.org/api_keys")
-    }
-  }
+      stop("API key required. Provide via api_key parameter or set IPUMS_API_KEY environment variable. Get your key at https://account.ipums.org/api_keys") }}
 
-  # Convert years to character for consistent processing
-  source_year <- as.character(source_year)
-  target_year <- as.character(target_year)
+  crosswalk_df1 = tryCatch({
 
-  # Standardize geography names
-  source_geography_std <- standardize_geography(source_geography, "source")
-  target_geography_std <- standardize_geography(target_geography, "target")
+    zip_path = file.path(download_directory, stringr::str_c(crosswalk_sub_path, ".zip"))
+    csv_path_temporary = file.path(download_directory, stringr::str_c("nhgis_", crosswalk_sub_path, ".csv"))
 
-  # Validate inputs
-  valid_years <- c("1990", "2000", "2010", "2020")
-  valid_source_geogs <- c("blk", "bgp", "tr")
-  valid_target_geogs <- c("blk", "bg", "tr", "co")
+    ## if the specified directory doesn't yet exist, create it
+    if (!dir.exists(download_directory)) { dir.create(download_directory) }
 
-  if (!source_year %in% valid_years) {
-    stop("source_year must be one of: ", paste(valid_years, collapse = ", "))
-  }
-
-  if (!target_year %in% valid_years) {
-    stop("target_year must be one of: ", paste(valid_years, collapse = ", "))
-  }
-
-  if (is.null(source_geography_std)) {
-    stop("source_geography '", source_geography, "' is not valid. Must be one of: blocks, block group parts, or tracts (various spellings accepted)")
-  }
-
-  if (is.null(target_geography_std)) {
-    stop("target_geography '", target_geography, "' is not valid. Must be one of: blocks, block groups, tracts, or counties (various spellings accepted)")
-  }
-
-  # Construct the expected crosswalk filename pattern using standardized codes
-  crosswalk_pattern <- paste0("nhgis_", source_geography_std, source_year, "_", target_geography_std, target_year, ".zip")
-
-  # Find matching crosswalk URL
-  matching_url <- nhgis_crosswalks[stringr::str_detect(nhgis_crosswalks, stringr::fixed(crosswalk_pattern))]
-
-  if (length(matching_url) == 0) {
-    available_crosswalks <- stringr::str_extract(nhgis_crosswalks, "(?<=nhgis_).*(?=\\.zip)")
-    stop("No crosswalk available for ", source_geography_std, source_year, " to ", target_geography_std, target_year,
-         ". Available crosswalks: \n", paste(available_crosswalks, collapse = "\n"))
-  }
-
-  # Download and process the crosswalk
-  temp_zip <- tempfile(fileext = ".zip")
-  temp_dir <- tempdir()
-
-  tryCatch({
     # Download the crosswalk file
-    response <- httr::GET(
-      matching_url[1],
+    response = httr::GET(
+      crosswalk_path,
       httr::add_headers(Authorization = api_key),
-      httr::write_disk(temp_zip, overwrite = TRUE)
-    )
+      httr::write_disk(zip_path, overwrite = TRUE), overwrite = TRUE)
 
-    httr::stop_for_status(response)
+    # Unzip the .zip
+    utils::unzip(
+      zipfile = zip_path,
+      exdir = file.path(download_directory))
 
-    # Extract the zip file
-    utils::unzip(temp_zip, exdir = temp_dir)
+    crosswalk_df = readr::read_csv(csv_path_temporary) |>
+      janitor::clean_names()
 
-    # Find the CSV file in the extracted contents
-    csv_files <- list.files(temp_dir, pattern = "\\.csv$", full.names = TRUE, recursive = TRUE)
+    # Remove the zipped folder and the raw CSV file
+    file.remove(zip_path)
+    file.remove(csv_path_temporary)
 
-    if (length(csv_files) == 0) {
-      stop("No CSV file found in the downloaded crosswalk data")
-    }
+    crosswalk_df
+    },
+    error = function(e) {
+      stop("Failed to retrieve crosswalk: ", e$message) })
 
-    # Read the CSV file
-    crosswalk_data <- utils::read.csv(csv_files[1], stringsAsFactors = FALSE)
+  crosswalk_df = crosswalk_df1 |>
+    dplyr::select(-dplyr::matches("gj")) |>
+    dplyr::rename_with(
+      .cols = dplyr::everything(),
+      .fn = ~ .x |> stringr::str_replace_all(c(
+        ## for block-based crosswalks, there's only a single, combined weight
+        "^weight$" = "weight_housing_population",
+        "parea" = "weight_landarea",
+        "wt" = "weight",
+        "pop$" = "population",
+        "fam" = "family",
+        "hh" = "household",
+        "_hu" = "_housing_all",
+        "ownhu" = "housing_owned",
+        "renthu" = "housing_rented"))) |>
+    dplyr::rename(
+      source_geoid = !!(stringr::str_c(source_geography_standardized, source_year, "ge")),
+      target_geoid = !!(stringr::str_c(target_geography_standardized, target_year, "ge"))) |>
+    dplyr::mutate(
+      source_geography_name = source_geography_standardized,
+      target_geography_name = target_geography_standardized,
+      dplyr::across(
+        .cols = dplyr::matches("geography_name"),
+        .fns = ~ .x |> stringr::str_replace_all(c(
+          "blk" = "block",
+          "bgp" = "block_group_part",
+          "bg" = "block_group",
+          "tr" = "tract",
+          "co" = "county"))),
+      source_year = source_year,
+      target_year = target_year) |>
+    tidyr::pivot_longer(
+      cols = dplyr::matches("weight_"),
+      names_to = "weighting_factor",
+      values_to = "allocation_factor_source_to_target")
 
-    return(crosswalk_data)
+    ## if the file does not already exit or if overwrite_cache is TRUE, write to cache
+    readr::write_csv(crosswalk_df, csv_path)
 
-  }, error = function(e) {
-    stop("Failed to retrieve crosswalk: ", e$message)
-  }, finally = {
-    # Clean up temporary files
-    if (file.exists(temp_zip)) {
-      file.remove(temp_zip)
-    }
-    csv_files_to_remove <- list.files(temp_dir, pattern = "\\.csv$", full.names = TRUE, recursive = TRUE)
-    if (length(csv_files_to_remove) > 0) {
-      file.remove(csv_files_to_remove)
-    }
-  })
+  message("Use of NHGIS crosswalks is subject to the same conditions as for all NHGIS data. See https://www.nhgis.org/citation-and-use-nhgis-data.")
+
+  return(crosswalk_df)
 }
+
+# list_nhgis_crosswalks() |>
+#   dplyr::select(-crosswalk_path) |>
+#   dplyr::mutate(download_directory = here::here("crosswalks-cache"), use_cache = TRUE) |>
+#   dplyr::slice(28) |>
+#   purrr::pmap(get_nhgis_crosswalk)

@@ -17,10 +17,12 @@ Imports:
     httr,
     httr2,
     janitor,
+    purrr,
     readr,
     rvest,
     stringr,
-    purrr
+    tibble,
+    utils
 Suggests: 
     testthat (>= 3.0.0),
     knitr,

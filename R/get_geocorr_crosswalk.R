@@ -3,7 +3,11 @@
 #' Query Geocorr22 (https://mcdc.missouri.edu/applications/geocorr2022.html) for
 #' a crosswalk between two geographies for all 51 states and Puerto Rico.
 #'
-#' @param source_geography Source geography type
+#' Note: this function is under development but does not yet support all of the geographies
+#' supported by Geocorr. Currently this includes:
+#' c("place", "county", "tract", "blockgroup", "zcta", "puma22", "cd119", "cd118").
+#'
+#' @param source_geography Source geography type.
 #' @param target_geography Target geography type
 #' @param weight Weighting variable. One of c("population", "housing", "land").
 #' @param cache NULL by default. If not NULL, the path at which to cache the results.
@@ -17,17 +21,15 @@
 #'     \item{target_geoid}{A unique identifier for the target geography}
 #'     \item{source_geography_name}{The name of the source geography}
 #'     \item{target_geography_name}{The name of the target geography}
-#'     \item{allocation_factor_source_to_target}{Source geography identifier (place FIPS code)}
-#'     \item{allocation_factor_target_to_source}{Target geography identifier (county FIPS code)}
+#'     \item{allocation_factor_source_to_target}{The weight to interpolate values from the source geography to the target geography}
+#'     \item{allocation_factor_target_to_source}{The weight to interpolate values from the source geography to the target geography}
 #'     \item{population_2020}{The estimated overlap in population, if applicable}
 #'     \item{housing_2020}{The estimated overlap in housing units, if applicable}
 #'     \item{land_area_sqmi}{The overlap in land area, if applicable}
-#'     \item{source_geography}{The name of the source geography, e.g., "tract"}
-#'     \item{source_geography}{The name of the target geography, e.g., "place"}
 #'     \item{weighting_factor}{The attribute used to calculate allocation factors (one of population, housing, land)}
 #'   }
 #'
-#' @keywords internal
+#' @export
 get_geocorr_crosswalk <- function(
     source_geography,
     target_geography,
@@ -250,12 +252,10 @@ get_geocorr_crosswalk <- function(
       dplyr::across(
         .cols = dplyr::matches("^cd11"),
         .fns = ~ stringr::str_c(stab, "-", .x),
-        .names = "{.col}_name")
-    ) |>
+        .names = "{.col}_name")) |>
     dplyr::rename_with(
       .cols = dplyr::matches("state|stab"),
-      .fn = ~ stringr::str_replace_all(.x, c("state" = "state_fips", "stab" = "state_abbreviation"))
-    ) |>
+      .fn = ~ stringr::str_replace_all(.x, c("state" = "state_fips", "stab" = "state_abbreviation"))) |>
     dplyr::select(
       dplyr::matches("state"),
       source_geoid = source_geography,
@@ -282,6 +282,13 @@ get_geocorr_crosswalk <- function(
   }
   return(df2)
 }
+
+# get_geocorr_crosswalk(
+#   source_geography = "zcta",
+#   target_geography = "puma22",
+#   weight = c("population"),
+#   cache = here::here("crosswalks-cache"),
+#   overwrite_cache = FALSE)
 
 # ## omitting the provided MO-specific geographies
 # sources = c(

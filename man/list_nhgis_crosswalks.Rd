@@ -7,16 +7,15 @@
 list_nhgis_crosswalks()
 }
 \value{
-A data frame with columns:
+A tibble with columns:
 \itemize{
 \item source_year: Year of the source geography
-\item source_geography: Source geography name (standardized)
+\item source_geography: Source geography name
 \item target_year: Year of the target geography
-\item target_geography: Target geography name (standardized)
+\item target_geography: Target geography name
 }
 }
 \description{
-Returns a data frame of all available NHGIS geographic crosswalks with their
+Returns a tibble of all available NHGIS geographic crosswalks with their
 corresponding parameters that can be used with get_nhgis_crosswalk().
 }
-\keyword{internal}

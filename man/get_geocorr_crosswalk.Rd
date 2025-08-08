@@ -13,7 +13,7 @@ get_geocorr_crosswalk(
 )
 }
 \arguments{
-\item{source_geography}{Source geography type}
+\item{source_geography}{Source geography type.}
 
 \item{target_geography}{Target geography type}
 
@@ -32,13 +32,11 @@ A dataframe representing the requested Geocorr22 crosswalk for all 51 states and
 \item{target_geoid}{A unique identifier for the target geography}
 \item{source_geography_name}{The name of the source geography}
 \item{target_geography_name}{The name of the target geography}
-\item{allocation_factor_source_to_target}{Source geography identifier (place FIPS code)}
-\item{allocation_factor_target_to_source}{Target geography identifier (county FIPS code)}
+\item{allocation_factor_source_to_target}{The weight to interpolate values from the source geography to the target geography}
+\item{allocation_factor_target_to_source}{The weight to interpolate values from the source geography to the target geography}
 \item{population_2020}{The estimated overlap in population, if applicable}
 \item{housing_2020}{The estimated overlap in housing units, if applicable}
 \item{land_area_sqmi}{The overlap in land area, if applicable}
-\item{source_geography}{The name of the source geography, e.g., "tract"}
-\item{source_geography}{The name of the target geography, e.g., "place"}
 \item{weighting_factor}{The attribute used to calculate allocation factors (one of population, housing, land)}
 }
 }
@@ -46,4 +44,8 @@ A dataframe representing the requested Geocorr22 crosswalk for all 51 states and
 Query Geocorr22 (https://mcdc.missouri.edu/applications/geocorr2022.html) for
 a crosswalk between two geographies for all 51 states and Puerto Rico.
 }
-\keyword{internal}
+\details{
+Note: this function is under development but does not yet support all of the geographies
+supported by Geocorr. Currently this includes:
+c("place", "county", "tract", "blockgroup", "zcta", "puma22", "cd119", "cd118").
+}
