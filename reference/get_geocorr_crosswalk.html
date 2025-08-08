@@ -54,7 +54,7 @@ a crosswalk between two geographies for all 51 states and Puerto Rico.</p>
 
 
 <dl><dt id="arg-source-geography">source_geography<a class="anchor" aria-label="anchor" href="#arg-source-geography"></a></dt>
-<dd><p>Source geography type</p></dd>
+<dd><p>Source geography type.</p></dd>
 
 
 <dt id="arg-target-geography">target_geography<a class="anchor" aria-label="anchor" href="#arg-target-geography"></a></dt>
@@ -94,10 +94,10 @@ a crosswalk between two geographies for all 51 states and Puerto Rico.</p>
 <dd><p>The name of the target geography</p></dd>
 
 <dt>allocation_factor_source_to_target</dt>
-<dd><p>Source geography identifier (place FIPS code)</p></dd>
+<dd><p>The weight to interpolate values from the source geography to the target geography</p></dd>
 
 <dt>allocation_factor_target_to_source</dt>
-<dd><p>Target geography identifier (county FIPS code)</p></dd>
+<dd><p>The weight to interpolate values from the source geography to the target geography</p></dd>
 
 <dt>population_2020</dt>
 <dd><p>The estimated overlap in population, if applicable</p></dd>
@@ -108,17 +108,17 @@ a crosswalk between two geographies for all 51 states and Puerto Rico.</p>
 <dt>land_area_sqmi</dt>
 <dd><p>The overlap in land area, if applicable</p></dd>
 
-<dt>source_geography</dt>
-<dd><p>The name of the source geography, e.g., "tract"</p></dd>
-
-<dt>source_geography</dt>
-<dd><p>The name of the target geography, e.g., "place"</p></dd>
-
 <dt>weighting_factor</dt>
 <dd><p>The attribute used to calculate allocation factors (one of population, housing, land)</p></dd>
 
 
 </dl></div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Note: this function is under development but does not yet support all of the geographies
+supported by Geocorr. Currently this includes:
+c("place", "county", "tract", "blockgroup", "zcta", "puma22", "cd119", "cd118").</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
