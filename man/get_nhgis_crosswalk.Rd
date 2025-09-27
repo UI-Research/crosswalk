@@ -21,7 +21,7 @@ get_nhgis_crosswalk(
 
 \item{target_year}{Character or numeric. Year of the target geography, one of c(1990, 2000, 2010, 2020).}
 
-\item{target_geography}{Character. Target geography name. One of c("block", "block group", "tract", "county").}
+\item{target_geography}{Character. Target geography name. One of c("block", "block group", "tract", "place", county", "urban_area", "zcta", "puma", "core_based_statistical_area").}
 
 \item{download_directory}{File path. Where to download the crosswalk to.}
 
@@ -30,7 +30,7 @@ get_nhgis_crosswalk(
 \item{api_key}{Character. NULL by default, in which case the function looks for an \code{IPUMS_API_KEY} environment variable.}
 }
 \value{
-A data frame containing the crosswalk between the specified geographies.
+A data frame containing the crosswalk between the specified geographies. Data are tidy-formatted, with each observation reflecting a unique source-target-weighting factor combination. Note that all (typically two or three) available weighting factors are returned.
 
 #' @return A dataframe representing the requested Geocorr22 crosswalk for all 51 states and Puerto Rico. Depending on the desired geographies, some fields may not be included.
 \describe{

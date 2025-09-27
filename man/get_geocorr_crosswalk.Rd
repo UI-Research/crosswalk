@@ -13,9 +13,9 @@ get_geocorr_crosswalk(
 )
 }
 \arguments{
-\item{source_geography}{Source geography type.}
+\item{source_geography}{Source geography type. Supported geographies, at present, are: c("place", "county", "tract", "blockgroup", "zcta", "puma22", "cd119", "cd118"). Note "cd" stands for "congressional district".}
 
-\item{target_geography}{Target geography type}
+\item{target_geography}{Target geography type. See \code{source_geography}.}
 
 \item{weight}{Weighting variable. One of c("population", "housing", "land").}
 

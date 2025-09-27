@@ -7,8 +7,8 @@
 #' supported by Geocorr. Currently this includes:
 #' c("place", "county", "tract", "blockgroup", "zcta", "puma22", "cd119", "cd118").
 #'
-#' @param source_geography Source geography type.
-#' @param target_geography Target geography type
+#' @param source_geography Source geography type. Supported geographies, at present, are: c("place", "county", "tract", "blockgroup", "zcta", "puma22", "cd119", "cd118"). Note "cd" stands for "congressional district".
+#' @param target_geography Target geography type. See `source_geography`.
 #' @param weight Weighting variable. One of c("population", "housing", "land").
 #' @param cache NULL by default. If not NULL, the path at which to cache the results.
 #' @param overwrite_cache FALSE by default. If TRUE, the existing cached crosswalk will be replaced.
@@ -37,7 +37,7 @@ get_geocorr_crosswalk <- function(
     cache = NULL,
     overwrite_cache = FALSE) {
 
-  ## identify the relevant filepaths for potentially-cached crosswalks
+  ## identify the relevant file paths for potentially-cached crosswalks
   if (!is.null(cache)) {
     outpath = file.path(
       cache, stringr::str_c("geocorr_2022_crosswalk_", source_geography, "_", target_geography, "_", weight, ".csv"))
@@ -268,20 +268,25 @@ get_geocorr_crosswalk <- function(
     dplyr::mutate(
       source_geography = source_geography,
       target_geography = target_geography,
-      weighting_factor = weight)
+      weighting_factor = weight,
+      dplyr::across(.cols = dplyr::matches("allocation"), .fns = as.numeric))
 
   if (!is.null(cache)) {
     outpath = file.path(
-      cache, stringr::str_c("geocorr_2022_crosswalk_", source_geography, "_", target_geography, "_", weight, ".csv"))
-
-    ## if the specified cache directory doesn't yet exist, create it
-    if (!dir.exists(cache)) { dir.create(cache) }
+      cache,
+      stringr::str_c("geocorr_2022_crosswalk_", source_geography, "_", target_geography, "_", weight, ".csv"))
 
     ## if the file does not already exit or if overwrite_cache is TRUE, write to cache
-    if (!file.exists(outpath) | overwrite_cache) { readr::write_csv(df2, outpath) }
+    if (!file.exists(outpath) | overwrite_cache) {
+      ## if the specified cache directory doesn't yet exist, create it
+      if (!dir.exists(cache)) { dir.create(cache) }
+      readr::write_csv(df2, outpath)
+    }
   }
   return(df2)
 }
+
+utils::globalVariables(c("afact", "afact2"))
 
 # get_geocorr_crosswalk(
 #   source_geography = "zcta",

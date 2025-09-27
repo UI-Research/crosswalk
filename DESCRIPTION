@@ -1,8 +1,8 @@
 Package: crosswalk
 Type: Package
-Title: Standardized inter-temporal and inter-geography crosswalks
-Version: 0.1.0
-Description: An R package providing API functionality for geographic correlation analysis.
+Title: Simple interface to inter-temporal and inter-geography crosswalks 
+Version: 0.0.0.9001
+Description: An R package providing a simple interface to access geographic crosswalks.
 License: MIT + file LICENSE.md
 Authors@R: 
     person(given = "Will", family = "Curran-Groome", email = "wcurrangroome@urban.org", role = c("aut", "cre"))
@@ -22,6 +22,7 @@ Imports:
     rvest,
     stringr,
     tibble,
+    tidyr,
     utils
 Suggests: 
     testthat (>= 3.0.0),

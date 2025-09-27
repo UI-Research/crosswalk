@@ -52,8 +52,38 @@ standardize_geography <- function(geography, context = "source") {
     "co" = "co",
     "county" = "co",
     "counties" = "co",
-    "cnty" = "co"
-  )
+    "cnty" = "co",
+
+    # Places
+    "pl" = "pl",
+    "place" = "pl",
+    "places" = "pl",
+
+    # CBSAs
+    "cbsa" = "cbsa",
+    "cbsas" = "cbsa",
+    "core based statistical area" = "cbsa",
+    "core based statistical areas" = "cbsa",
+
+    # Urban Areas
+    "ua" = "ua",
+    "uas" = "ua",
+    "urban area" = "ua",
+    "urban areas" = "ua",
+
+    # PUMAs
+    "puma" = "puma",
+    "pumas" = "puma",
+    "public use microdata area" = "puma",
+    "public use microdata areas" = "puma",
+
+    # ZCTAs
+    "zcta" = "zcta",
+    "zctas" = "zcta",
+    "zip code" = "zcta",
+    "zip codes" = "zcta",
+    "zip code tabulation area" = "zcta",
+    "zip code tabulation areas" = "zcta")
 
   # Check if the geography is in our mapping
   if (geography %in% names(geography_mapping)) {
@@ -61,12 +91,12 @@ standardize_geography <- function(geography, context = "source") {
 
     # Validate based on context (source vs target geographies have different options)
     if (context == "source") {
-      valid_geogs <- c("blk", "bg", "tr")
+      valid_geogs = c("blk", "bg", "tr")
       if (standardized %in% valid_geogs) {
         return(standardized)
       }
     } else if (context == "target") {
-      valid_geogs <- c("blk", "bg", "tr", "co")
+      valid_geogs = c("blk", "bg", "tr", "co", "ua", "zcta", "puma", "cbsa")
       if (standardized %in% valid_geogs) {
         return(standardized)
       }
@@ -92,42 +122,81 @@ standardize_geography <- function(geography, context = "source") {
 #' @export
 list_nhgis_crosswalks <- function() {
   nhgis_crosswalks_vector = c(
+    ## from 1990 to 2010
+    ## blk source
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_ua2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_zcta2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_puma2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_blk2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_pl2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_bg2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_tr2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_cbsa2010.zip",
+    ## bgp source
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp1990_bg2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp1990_tr2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp1990_co2010.zip",
+    ## tr source
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr1990_tr2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr1990_co2010.zip",
+
+    ## from 2000 to 2010
+    ## blk source
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_ua2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_zcta2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_puma2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_pl2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_blk2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_bg2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_tr2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_cbsa2010.zip",
+    ## bgp source
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2000_bg2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2000_tr2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2000_co2010.zip",
+    ## tr source
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2000_tr2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2000_co2010.zip",
+
+    ## from 2010 to 2020
+    ## blk source
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_ua2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_zcta2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_puma2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_pl2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_cbsa2020.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_blk2020.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_bg2020.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_tr2020.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_co2020.zip",
+    ## bg source
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2010_bg2020.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2010_tr2020.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2010_co2020.zip",
+    ## tr source
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2010_tr2020.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2010_co2020.zip",
+
+    ## from 2020 to 2010
+    ## blk source
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_ua2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_zcta2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_puma2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_pl2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_cbsa2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_blk2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_bg2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_tr2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_co2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_tr2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_co2010.zip",
+    ## bg source
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_bg2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_tr2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_co2010.zip")
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_co2010.zip",
+    ## tr source
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_co2010.zip")
 
   ## for the time being, not supporting block group parts
   nhgis_crosswalks_vector = nhgis_crosswalks_vector[!stringr::str_detect(nhgis_crosswalks_vector, "bgp")]
@@ -150,7 +219,9 @@ list_nhgis_crosswalks <- function() {
             "bgp" = "block_group_part",
             "bg" = "block_group",
             "tr" = "tract",
-            "co" = "county")))) }) |>
+            "co" = "county",
+            "ua" = "urban_area",
+            "cbsa" = "core_based_statistical_area")))) }) |>
     dplyr::bind_cols(tibble::tibble(crosswalk_path = nhgis_crosswalks_vector))
 
   return(nhgis_crosswalks)
@@ -167,12 +238,12 @@ list_nhgis_crosswalks <- function() {
 #' @param source_year Character or numeric. Year of the source geography one of c(1990, 2000, 2010, 2020).
 #' @param source_geography Character. Source geography name. One of c("block", "block group", "tract").
 #' @param target_year Character or numeric. Year of the target geography, one of c(1990, 2000, 2010, 2020).
-#' @param target_geography Character. Target geography name. One of c("block", "block group", "tract", "county").
+#' @param target_geography Character. Target geography name. One of c("block", "block group", "tract", "place", county", "urban_area", "zcta", "puma", "core_based_statistical_area").
 #' @param download_directory File path. Where to download the crosswalk to.
 #' @param use_cache FALSE by default. If TRUE, read in an already-downloaded crosswalk stored in the `download_directory`, if such a file exists.
 #' @param api_key Character. NULL by default, in which case the function looks for an `IPUMS_API_KEY` environment variable.
 #'
-#' @return A data frame containing the crosswalk between the specified geographies.
+#' @return A data frame containing the crosswalk between the specified geographies. Data are tidy-formatted, with each observation reflecting a unique source-target-weighting factor combination. Note that all (typically two or three) available weighting factors are returned.
 #'
 #'#' @return A dataframe representing the requested Geocorr22 crosswalk for all 51 states and Puerto Rico. Depending on the desired geographies, some fields may not be included.
 #'   \describe{
@@ -208,7 +279,7 @@ get_nhgis_crosswalk <- function(
   crosswalk_sub_path = stringr::str_c(source_geography_standardized, source_year, "_", target_geography_standardized, target_year)
   crosswalk_path <- paste0("https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_", crosswalk_sub_path, ".zip")
 
-  ## identify the relevant filepaths for potentially-cached crosswalks
+  ## identify the relevant file paths for potentially-cached crosswalks
   csv_path = file.path(download_directory, stringr::str_c("nhgis_crosswalk_", crosswalk_sub_path, ".csv"))
 
   ## if the file exists and the user does not wish to overwrite it
@@ -223,7 +294,7 @@ get_nhgis_crosswalk <- function(
   # Validate inputs
   valid_years = c("1990", "2000", "2010", "2020")
   valid_source_geogs = c("blk", "bg", "tr")
-  valid_target_geogs = c("blk", "bg", "tr", "co")
+  valid_target_geogs = c("blk", "bg", "tr", "co", "ua", "zcta", "puma", "cbsa")
 
   if (source_year == "1990" & target_year == "2000") {
     stop("There are no crosswalks from 1990 to 2000; 1990 source geography crosswalks are available only to 2010 geographies.")}
@@ -246,8 +317,8 @@ get_nhgis_crosswalk <- function(
   if (!is.null(api_key)) {
 message(
 "For future use, it may be easiest to store your API key in an environment variable.
-We recommend storing your IPUMS API key by using usethis::edit_r_environ(scope = 'user'),
-creating a new name-key pair akin to 'IPUMS_API_KEY=[your key here]'.") }
+We recommend storing your IPUMS API key by using usethis::edit_r_environ(scope = 'user')
+and creating a new name-key pair akin to 'IPUMS_API_KEY=[your key here]'.") }
 
   # Get API key
   if (is.null(api_key)) {
@@ -329,9 +400,3 @@ creating a new name-key pair akin to 'IPUMS_API_KEY=[your key here]'.") }
 
   return(crosswalk_df)
 }
-
-# list_nhgis_crosswalks() |>
-#   dplyr::select(-crosswalk_path) |>
-#   dplyr::mutate(download_directory = here::here("crosswalks-cache"), use_cache = TRUE) |>
-#   dplyr::slice(28) |>
-#   purrr::pmap(get_nhgis_crosswalk)
