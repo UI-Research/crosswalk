@@ -11,7 +11,7 @@ parameter combinations."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">crosswalk</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9001</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -71,7 +71,7 @@ parameter combinations.</p>
 
 
 <dt id="arg-target-geography">target_geography<a class="anchor" aria-label="anchor" href="#arg-target-geography"></a></dt>
-<dd><p>Character. Target geography name. One of c("block", "block group", "tract", "county").</p></dd>
+<dd><p>Character. Target geography name. One of c("block", "block group", "tract", "place", county", "urban_area", "zcta", "puma", "core_based_statistical_area").</p></dd>
 
 
 <dt id="arg-download-directory">download_directory<a class="anchor" aria-label="anchor" href="#arg-download-directory"></a></dt>
@@ -88,7 +88,7 @@ parameter combinations.</p>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A data frame containing the crosswalk between the specified geographies.</p>
+    <p>A data frame containing the crosswalk between the specified geographies. Data are tidy-formatted, with each observation reflecting a unique source-target-weighting factor combination. Note that all (typically two or three) available weighting factors are returned.</p>
 <p>#' @return A dataframe representing the requested Geocorr22 crosswalk for all 51 states and Puerto Rico. Depending on the desired geographies, some fields may not be included.</p><dl><dt>source_geoid</dt>
 <dd><p>A unique identifier for the source geography</p></dd>
 
