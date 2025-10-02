@@ -82,3 +82,5 @@ config.yml
 # Cached crosswalks
 /crosswalks-cache
 docs
+CLAUDE.md
+settings.local.json

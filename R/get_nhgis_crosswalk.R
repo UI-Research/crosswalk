@@ -103,7 +103,9 @@ standardize_geography <- function(geography, context = "source") {
     }
   }
 
-  stop("The provided geography is invalid. Use `list_nhgis_crosswalks()` to check available crosswalks.")
+  stop(
+"The provided geography is invalid. Use `list_nhgis_crosswalks()` to check
+available crosswalks.")
 }
 
 #' List Available NHGIS Crosswalks
@@ -233,19 +235,28 @@ list_nhgis_crosswalks <- function() {
 #' source and target geographies and years. Use `list_nhgis_crosswalks()` to view valid
 #' parameter combinations.
 #'
-#' Note: for the moment, this function does not support block group part crosswalks.
+#' @details Note: this function does not support block group part crosswalks at this time.
 #'
-#' @param source_year Character or numeric. Year of the source geography one of c(1990, 2000, 2010, 2020).
-#' @param source_geography Character. Source geography name. One of c("block", "block group", "tract").
-#' @param target_year Character or numeric. Year of the target geography, one of c(1990, 2000, 2010, 2020).
-#' @param target_geography Character. Target geography name. One of c("block", "block group", "tract", "place", county", "urban_area", "zcta", "puma", "core_based_statistical_area").
-#' @param download_directory File path. Where to download the crosswalk to.
-#' @param use_cache FALSE by default. If TRUE, read in an already-downloaded crosswalk stored in the `download_directory`, if such a file exists.
-#' @param api_key Character. NULL by default, in which case the function looks for an `IPUMS_API_KEY` environment variable.
+#' @param source_year Character or numeric. Year of the source geography one of
+#'    c(1990, 2000, 2010, 2020).
+#' @param source_geography Character. Source geography name. One of c("block",
+#'    "block group", "tract").
+#' @param target_year Character or numeric. Year of the target geography, one of
+#'    c(1990, 2000, 2010, 2020).
+#' @param target_geography Character. Target geography name. One of c("block",
+#'    "block group", "tract", "place", county", "urban_area", "zcta", "puma",
+#'    "core_based_statistical_area").
+#' @param cache File path. Where to download the crosswalk to. If NULL (default),
+#'    crosswalk is returned but not saved to disk.
 #'
-#' @return A data frame containing the crosswalk between the specified geographies. Data are tidy-formatted, with each observation reflecting a unique source-target-weighting factor combination. Note that all (typically two or three) available weighting factors are returned.
+#' @return A data frame containing the crosswalk between the specified geographies.
+#'    Data are tidy-formatted, with each observation reflecting a unique
+#'    source-target-weighting factor combination. Note that all (typically two
+#'    or three) available weighting factors are returned.
 #'
-#'#' @return A dataframe representing the requested Geocorr22 crosswalk for all 51 states and Puerto Rico. Depending on the desired geographies, some fields may not be included.
+#'#' @return A dataframe representing the requested Geocorr22 crosswalk for all
+#'      51 states and Puerto Rico. Depending on the desired geographies, some
+#'      fields may not be included.
 #'   \describe{
 #'     \item{source_geoid}{A unique identifier for the source geography}
 #'     \item{target_geoid}{A unique identifier for the target geography}
@@ -253,20 +264,20 @@ list_nhgis_crosswalks <- function() {
 #'     \item{target_geography_name}{The name of the target geography}
 #'     \item{source_year}{The year of the source geography}
 #'     \item{target_year}{The year of the target geography}
-#'     \item{allocation_factor_source_to_target}{The weight to interpolate values from the source geography to the target geography}
+#'     \item{allocation_factor_source_to_target}{The weight to interpolate values
+#'        from the source geography to the target geography}
 #'     \item{weighting_factor}{The attribute used to calculate allocation factors}
 #'   }
-#'
-#' @export
-
+#' @noRd
 get_nhgis_crosswalk <- function(
     source_year,
     source_geography,
     target_year,
     target_geography,
-    download_directory,
-    use_cache = FALSE,
+    cache = NULL,
     api_key = NULL) {
+
+  if (is.null(cache)) { cache_path = tempdir() } else {cache_path = cache}
 
   # Convert years to character for consistent processing
   source_year = as.character(source_year)
@@ -280,13 +291,15 @@ get_nhgis_crosswalk <- function(
   crosswalk_path <- paste0("https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_", crosswalk_sub_path, ".zip")
 
   ## identify the relevant file paths for potentially-cached crosswalks
-  csv_path = file.path(download_directory, stringr::str_c("nhgis_crosswalk_", crosswalk_sub_path, ".csv"))
+  csv_path = file.path(cache_path, stringr::str_c("nhgis_crosswalk_", crosswalk_sub_path, ".csv"))
 
-  ## if the file exists and the user does not wish to overwrite it
-  if (file.exists(csv_path) & isTRUE(use_cache)) {
+  ## if the file exists and cache == TRUE
+  if (file.exists(csv_path) & !is.null(cache)) {
     result = readr::read_csv(csv_path)
 
-    message("Use of NHGIS crosswalks is subject to the same conditions as for all NHGIS data. See https://www.nhgis.org/citation-and-use-nhgis-data.")
+    message(
+"Use of NHGIS crosswalks is subject to the same conditions as for all NHGIS data.
+See https://www.nhgis.org/citation-and-use-nhgis-data.")
     message("Reading file from cache.")
 
     return(result) }
@@ -297,7 +310,9 @@ get_nhgis_crosswalk <- function(
   valid_target_geogs = c("blk", "bg", "tr", "co", "ua", "zcta", "puma", "cbsa")
 
   if (source_year == "1990" & target_year == "2000") {
-    stop("There are no crosswalks from 1990 to 2000; 1990 source geography crosswalks are available only to 2010 geographies.")}
+    stop(
+"There are no crosswalks from 1990 to 2000; 1990 source geography crosswalks are
+available only to 2010 geographies.")}
 
   if (!source_year %in% valid_years) {
     stop("source_year must be one of: ", paste(valid_years, collapse = ", "))}
@@ -306,33 +321,32 @@ get_nhgis_crosswalk <- function(
     stop("target_year must be one of: ", paste(valid_years, collapse = ", "))}
 
   if (is.null(source_geography_standardized)) {
-    stop("source_geography '", source_geography, "' is not valid. Must be one of: blocks, block group parts, or tracts (various spellings accepted)")}
+    stop(
+"source_geography '", source_geography, "' is not valid. Must be one of: blocks,
+block group parts, or tracts (various spellings accepted).")}
 
   if (is.null(target_geography_standardized)) {
-    stop("target_geography '", target_geography, "' is not valid. Must be one of: blocks, block groups, tracts, or counties (various spellings accepted)")}
+    stop(
+"target_geography '", target_geography, "' is not valid. Must be one of: blocks,
+block groups, tracts, or counties (various spellings accepted)")}
 
   if (!(crosswalk_path %in% list_nhgis_crosswalks()$crosswalk_path)) {
-    stop(stringr::str_c("There is no available crosswalk between the specified geographies and years.")) }
+    stop(stringr::str_c(
+"There is no available crosswalk between the specified geographies and years.")) }
 
-  if (!is.null(api_key)) {
-message(
-"For future use, it may be easiest to store your API key in an environment variable.
-We recommend storing your IPUMS API key by using usethis::edit_r_environ(scope = 'user')
-and creating a new name-key pair akin to 'IPUMS_API_KEY=[your key here]'.") }
-
-  # Get API key
-  if (is.null(api_key)) {
-    api_key = Sys.getenv("IPUMS_API_KEY")
-    if (api_key == "") {
-      stop("API key required. Provide via api_key parameter or set IPUMS_API_KEY environment variable. Get your key at https://account.ipums.org/api_keys") }}
+  api_key = Sys.getenv("IPUMS_API_KEY")
+  if (api_key == "") {
+    stop(
+"API key required. Save your API key to the IPUMS_API_KEY environment
+variable. Get your key at https://account.ipums.org/api_keys") }
 
   crosswalk_df1 = tryCatch({
 
-    zip_path = file.path(download_directory, stringr::str_c(crosswalk_sub_path, ".zip"))
-    csv_path_temporary = file.path(download_directory, stringr::str_c("nhgis_", crosswalk_sub_path, ".csv"))
+    zip_path = file.path(cache_path, stringr::str_c(crosswalk_sub_path, ".zip"))
+    csv_path_temporary = file.path(cache_path, stringr::str_c("nhgis_", crosswalk_sub_path, ".csv"))
 
     ## if the specified directory doesn't yet exist, create it
-    if (!dir.exists(download_directory)) { dir.create(download_directory) }
+    if (!dir.exists(cache_path)) { dir.create(cache_path) }
 
     # Download the crosswalk file
     response = httr::GET(
@@ -343,7 +357,7 @@ and creating a new name-key pair akin to 'IPUMS_API_KEY=[your key here]'.") }
     # Unzip the .zip
     utils::unzip(
       zipfile = zip_path,
-      exdir = file.path(download_directory))
+      exdir = file.path(cache_path))
 
     crosswalk_df = readr::read_csv(csv_path_temporary) |>
       janitor::clean_names()
@@ -393,10 +407,13 @@ and creating a new name-key pair akin to 'IPUMS_API_KEY=[your key here]'.") }
       names_to = "weighting_factor",
       values_to = "allocation_factor_source_to_target")
 
-    ## if the file does not already exit or if overwrite_cache is TRUE, write to cache
-    readr::write_csv(crosswalk_df, csv_path)
+    ## if the file does not already exist and cache is not NULL
+    if (!file.exists(csv_path) & !is.null(cache) ) {
+      readr::write_csv(crosswalk_df, csv_path) }
 
-  message("Use of NHGIS crosswalks is subject to the same conditions as for all NHGIS data. See https://www.nhgis.org/citation-and-use-nhgis-data.")
+message(
+"Use of NHGIS crosswalks is subject to the same conditions as for all NHGIS data.
+See https://www.nhgis.org/citation-and-use-nhgis-data.")
 
   return(crosswalk_df)
 }

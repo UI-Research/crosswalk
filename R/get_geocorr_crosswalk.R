@@ -3,39 +3,46 @@
 #' Query Geocorr22 (https://mcdc.missouri.edu/applications/geocorr2022.html) for
 #' a crosswalk between two geographies for all 51 states and Puerto Rico.
 #'
-#' Note: this function is under development but does not yet support all of the geographies
-#' supported by Geocorr. Currently this includes:
-#' c("place", "county", "tract", "blockgroup", "zcta", "puma22", "cd119", "cd118").
+#' @details Note: this function is under development but does not yet support all
+#'    of the geographies supported by Geocorr. Currently this includes:
+#'    c("place", "county", "tract", "blockgroup", "zcta", "puma22", "cd119", "cd118").
 #'
-#' @param source_geography Source geography type. Supported geographies, at present, are: c("place", "county", "tract", "blockgroup", "zcta", "puma22", "cd119", "cd118"). Note "cd" stands for "congressional district".
-#' @param target_geography Target geography type. See `source_geography`.
-#' @param weight Weighting variable. One of c("population", "housing", "land").
-#' @param cache NULL by default. If not NULL, the path at which to cache the results.
-#' @param overwrite_cache FALSE by default. If TRUE, the existing cached crosswalk will be replaced.
+#' @param source_geography Character. Source geography name. One of:
+#'    c("place", "county", "tract", "blockgroup", "zcta", "puma22", "cd119", "cd118").
+#'    Note "cd" stands for "congressional district".
+#' @param target_geography Character. Target geography name. See `source_geography`
+#'    for options.
+#' @param weight Character. Weighting variable. One of c("population", "housing", "land").
+#' @param cache File path. Where to download the crosswalk to. If NULL (default),
+#'    crosswalk is returned but not saved to disk.
 #'
-#' @return A dataframe representing the requested Geocorr22 crosswalk for all 51 states and Puerto Rico. Depending on the desired geographies, some fields may not be included.
+#' @return A dataframe representing the requested Geocorr22 crosswalk for all 51
+#'    states and Puerto Rico. Depending on the desired geographies, some fields
+#'    may not be included.
 #'   \describe{
 #'     \item{state_fips}{A two-digit identified for the state (or DC/PR), if applicable}
-#'     \item{state_abbreviation}{A two-character abbreviation for the state (or DC/PR), if applicable}
+#'     \item{state_abbreviation}{A two-character abbreviation for the state (or DC/PR),
+#'        if applicable}
 #'     \item{source_geoid}{A unique identifier for the source geography}
 #'     \item{target_geoid}{A unique identifier for the target geography}
 #'     \item{source_geography_name}{The name of the source geography}
 #'     \item{target_geography_name}{The name of the target geography}
-#'     \item{allocation_factor_source_to_target}{The weight to interpolate values from the source geography to the target geography}
-#'     \item{allocation_factor_target_to_source}{The weight to interpolate values from the source geography to the target geography}
+#'     \item{allocation_factor_source_to_target}{The weight to interpolate values
+#'        from the source geography to the target geography}
+#'     \item{allocation_factor_target_to_source}{The weight to interpolate values
+#'        from the source geography to the target geography}
 #'     \item{population_2020}{The estimated overlap in population, if applicable}
 #'     \item{housing_2020}{The estimated overlap in housing units, if applicable}
 #'     \item{land_area_sqmi}{The overlap in land area, if applicable}
-#'     \item{weighting_factor}{The attribute used to calculate allocation factors (one of population, housing, land)}
+#'     \item{weighting_factor}{The attribute used to calculate allocation factors
+#'        (one of population, housing, land)}
 #'   }
-#'
-#' @export
+#' @noRd
 get_geocorr_crosswalk <- function(
     source_geography,
     target_geography,
     weight = c("population", "housing", "land"),
-    cache = NULL,
-    overwrite_cache = FALSE) {
+    cache = NULL) {
 
   ## identify the relevant file paths for potentially-cached crosswalks
   if (!is.null(cache)) {
@@ -44,7 +51,7 @@ get_geocorr_crosswalk <- function(
   }
 
   ## if the file exists and the user does not wish to overwrite it
-  if (file.exists(outpath) & isFALSE(overwrite_cache)) {
+  if (file.exists(outpath) & cache == TRUE) {
     result = readr::read_csv(outpath)
 
     message("Reading file from cache.")
@@ -276,8 +283,8 @@ get_geocorr_crosswalk <- function(
       cache,
       stringr::str_c("geocorr_2022_crosswalk_", source_geography, "_", target_geography, "_", weight, ".csv"))
 
-    ## if the file does not already exit or if overwrite_cache is TRUE, write to cache
-    if (!file.exists(outpath) | overwrite_cache) {
+    ## if the file does not already exist and cache is TRUE
+    if (!file.exists(outpath) & cache == TRUE) {
       ## if the specified cache directory doesn't yet exist, create it
       if (!dir.exists(cache)) { dir.create(cache) }
       readr::write_csv(df2, outpath)
@@ -311,6 +318,7 @@ utils::globalVariables(c("afact", "afact2"))
 #
 # core_sources = c("place", "county", "tract", "blockgroup",
 #                   "zcta", "puma22", "cd119", "cd118")
+#
 # expand.grid(core_sources, core_sources) |>
 #   dplyr::rename(source_geography = 1, target_geography = 2) |>
 #   dplyr::filter(source_geography != target_geography) |>
