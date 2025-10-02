@@ -47,11 +47,11 @@
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header"><h1 id="crosswalk">crosswalk<a class="anchor" aria-label="anchor" href="#crosswalk"></a>
 </h1></div>
-<p>An R interface to inter-geography and inter-temporal crosswalking.</p>
+<p>An R interface to inter-geography and inter-temporal crosswalks.</p>
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p>This project provides a consistent API and standardized versions of crosswalks to allow for programmatic interpolation over time and between geographies. Say goodbye to manual crosswalk downloads and say hello to reproducible workflows.</p>
+<p>This project provides a consistent API and standardized versions of crosswalks to allow for programmatic interpolation over time and between geographies. Say goodbye to manual crosswalk downloads and hello to reproducible workflows.</p>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -63,16 +63,53 @@
 <div class="section level2">
 <h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
 </h2>
-<p>To get started with the geocorr-api:</p>
+<p>To get started with <code><a href="https://ui-research.github.io/crosswalk/">library(crosswalk)</a></code>:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Load the package</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ui-research.github.io/crosswalk/">crosswalk</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">place_county_crosswalk</span> <span class="op">=</span> <span class="fu"><a href="reference/get_geocorr_crosswalk.html">get_geocorr_crosswalk</a></span><span class="op">(</span></span>
+<span><span class="co">## obtain a crosswalk to translate data in 2020-vintage place geographies</span></span>
+<span><span class="co">## to 2020-vintage county geographies, weighted by population</span></span>
+<span><span class="va">place_county_crosswalk</span> <span class="op">=</span> <span class="fu">get_geocorr_crosswalk</span><span class="op">(</span></span>
 <span>  source_geography <span class="op">=</span> <span class="st">"place"</span>,</span>
 <span>  target_geography <span class="op">=</span> <span class="st">"county"</span>,</span>
 <span>  weight <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"population"</span><span class="op">)</span>,</span>
-<span>  cache <span class="op">=</span> <span class="fu">here</span><span class="fu">::</span><span class="fu">here</span><span class="op">(</span><span class="st">"data"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<span>  cache <span class="op">=</span> <span class="fu">here</span><span class="fu">::</span><span class="fu">here</span><span class="op">(</span><span class="st">"data"</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co">## obtain a crosswalk to translate data in 2000-vintage place geographies</span></span>
+<span><span class="co">## to 2010-vintage place geographies. all available weighting options are</span></span>
+<span><span class="co">## returned</span></span>
+<span><span class="fu">get_nhgis_crosswalk</span><span class="op">(</span></span>
+<span>  source_year <span class="op">=</span> <span class="fl">2000</span>,</span>
+<span>  source_geography <span class="op">=</span> <span class="st">"place"</span>,</span>
+<span>  target_year <span class="op">=</span> <span class="fl">2010</span>,</span>
+<span>  target_geography <span class="op">=</span> <span class="va">place</span>,</span>
+<span>  download_directory <span class="op">=</span> <span class="fu">here</span><span class="fu">::</span><span class="fu">here</span><span class="op">(</span><span class="st">"data"</span><span class="op">)</span>,</span>
+<span>  use_cache <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="why-use-librarycrosswalk">Why Use <code>library(crosswalk)</code>?<a class="anchor" aria-label="anchor" href="#why-use-librarycrosswalk"></a>
+</h2>
+<p>Crosswalks are a critical component of conducting social sciences research as they enable analysts to translate data from one geography and/or temporal vintage to another. For example, if source data are only available at the county level, a crosswalk can help to produce estimates of those source data at the city level, enabling analysis at a geography (the city) that may be either more relevant to target audience(s) and/or may align with the geography of other data that form part of the overarching analysis.</p>
+<p>There are excellent existing resources for crosswalks, including the University of Missouri - Missouri Census Data Center’s Geocorr 2022 crosswalking application and the IPUMS National Historical Geographic Information System (NHGIS). In fact, the crosswalks returned by using <code><a href="https://ui-research.github.io/crosswalk/">library(crosswalk)</a></code> are those from Geocorr and NHGIS.</p>
+<p>So why use this package at all? It provides:</p>
+<ul>
+<li><p>A consistent, programmatic approach to acquire crosswalks, rather than ad-hoc manual downloads;</p></li>
+<li><p>Standardized and clear crosswalk variable names so that you can easily work with multiple crosswalks using the same workflow;</p></li>
+<li><p>Crosswalk metadata stored within the returned crosswalk–no more commenting in your script with the 15 options you configured prior to clicking “Download”;</p></li>
+<li><p>The ability to easily “cache” crosswalks locally.</p></li>
+</ul>
+<p>In brief: this package facilitates a well documented and reproducible analysis workflow, building on top of the robust underlying resources already available for crosswalking.</p>
+</div>
+<div class="section level2">
+<h2 id="citations">Citations!<a class="anchor" aria-label="anchor" href="#citations"></a>
+</h2>
+<p>The intellectual work and credit for the underlying crosswalks returned by this package belongs to the original developers of those crosswalks. You should (in the case of Geocorr crosswalks) and in some cases must (in the case of NHGIS crosswalks) appropriately cite the developers when you use these resources.</p>
+<p><strong>For NHGIS</strong>, you should refer to the NHGIS website and terms of use, including the recommended citations provided at: <a href="https://www.nhgis.org/citation-and-use-nhgis-data" class="external-link uri">https://www.nhgis.org/citation-and-use-nhgis-data</a>.</p>
+<p><strong>For Geocorr</strong>, the author of <code><a href="https://ui-research.github.io/crosswalk/">library(crosswalk)</a></code> is unaware of a required or suggested citation format. An example citation might look like:</p>
+<blockquote>
+<p>Missouri Census Data Center, University of Missouri. (2022). Geocorr 2022: Geographic Correspondence Engine. Retrieved [202X-XX-XX] from: <a href="https://mcdc.missouri.edu/applications/geocorr2022.html" class="external-link uri">https://mcdc.missouri.edu/applications/geocorr2022.html</a>.</p>
+</blockquote>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="license">
