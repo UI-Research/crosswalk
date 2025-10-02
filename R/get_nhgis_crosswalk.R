@@ -277,6 +277,7 @@ get_nhgis_crosswalk <- function(
     cache = NULL,
     api_key = NULL) {
 
+
   if (is.null(cache)) { cache_path = tempdir() } else {cache_path = cache}
 
   # Convert years to character for consistent processing

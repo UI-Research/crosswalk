@@ -51,7 +51,7 @@ get_geocorr_crosswalk <- function(
   }
 
   ## if the file exists and the user does not wish to overwrite it
-  if (file.exists(outpath) & cache == TRUE) {
+  if (file.exists(outpath) & !is.null(cache)) {
     result = readr::read_csv(outpath)
 
     message("Reading file from cache.")
@@ -284,7 +284,7 @@ get_geocorr_crosswalk <- function(
       stringr::str_c("geocorr_2022_crosswalk_", source_geography, "_", target_geography, "_", weight, ".csv"))
 
     ## if the file does not already exist and cache is TRUE
-    if (!file.exists(outpath) & cache == TRUE) {
+    if (!file.exists(outpath) & !is.null(cache)) {
       ## if the specified cache directory doesn't yet exist, create it
       if (!dir.exists(cache)) { dir.create(cache) }
       readr::write_csv(df2, outpath)
