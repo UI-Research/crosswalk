@@ -26,7 +26,7 @@ library(crosswalk)
 
 ## obtain a crosswalk to translate data in 2020-vintage place geographies
 ## to 2020-vintage county geographies, weighted by population
-place_county_crosswalk = get_geocorr_crosswalk(
+place_county_crosswalk = get_crosswalk(
   source_geography = "place",
   target_geography = "county",
   weight = c("population"),
@@ -35,13 +35,12 @@ place_county_crosswalk = get_geocorr_crosswalk(
 ## obtain a crosswalk to translate data in 2000-vintage place geographies
 ## to 2010-vintage place geographies. all available weighting options are
 ## returned
-get_nhgis_crosswalk(
+get_crosswalk(
   source_year = 2000,
-  source_geography = "place",
   target_year = 2010,
-  target_geography = place,
-  download_directory = here::here("data"),
-  use_cache = TRUE)
+  source_geography = "place",
+  target_geography = "place",
+  cache = here::here("data"))
 ```
 
 ## Why Use `library(crosswalk)`?

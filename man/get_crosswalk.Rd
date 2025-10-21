@@ -2,7 +2,7 @@
 % Please edit documentation in R/get_crosswalk.R
 \name{get_crosswalk}
 \alias{get_crosswalk}
-\title{Get an Inter-temporal or Inter-geography Crosswalk}
+\title{Get an inter-temporal or inter-geography crosswalk}
 \usage{
 get_crosswalk(
   source_geography,
@@ -15,11 +15,12 @@ get_crosswalk(
 }
 \arguments{
 \item{source_geography}{Character. Source geography name. One of c("block",
-"block group", "tract").}
+"block group", "tract", "place", county", "urban_area", "zcta", "puma", "cd118",
+"cd119", "urban_area", "core_based_statistical_area").}
 
 \item{target_geography}{Character. Target geography name. One of c("block",
-"block group", "tract", "place", county", "urban_area", "zcta", "puma",
-"core_based_statistical_area").}
+"block group", "tract", "place", county", "urban_area", "zcta", "puma", "cd118",
+"cd119", "urban_area", "core_based_statistical_area").}
 
 \item{source_year}{Character or numeric. Year of the source geography one of
 c(1990, 2000, 2010, 2020).}
@@ -27,8 +28,10 @@ c(1990, 2000, 2010, 2020).}
 \item{target_year}{Character or numeric. Year of the target geography, one of
 c(1990, 2000, 2010, 2020).}
 
-\item{cache}{File path. Where to download the crosswalk to. If NULL (default),
+\item{cache}{Directory path. Where to download the crosswalk to. If NULL (default),
 crosswalk is returned but not saved to disk.}
+
+\item{weight}{Character. Weighting variable. One of c("population", "housing", "land").}
 }
 \value{
 A data frame containing the crosswalk between the specified geographies.
@@ -36,7 +39,7 @@ Data are tidy-formatted, with each observation reflecting a unique
 source-target-weighting factor combination. Note that all (typically two
 or three) available weighting factors are returned.
 
-#' @return A dataframe representing the requested crosswalk for all 51 states
+A dataframe representing the requested crosswalk for all 51 states
 and Puerto Rico. Depending on the desired geographies and the source of the
 crosswalk (Geocorr vs. NHGIS), some fields may not be included.
 \describe{
@@ -58,7 +61,7 @@ from the target geography to the source geography}
 }
 \description{
 Retrieves a crosswalk with interpolation values from a source geography to a target
-geography, and if desired, from a source year to a target year.
+geography or from a source year to a target year.
 }
 \details{
 This function sources crosswalks from Geocorr 2022 and IPUMS NHGIS.
@@ -73,6 +76,6 @@ obtain a key from: https://account.ipums.org/api_keys.
 }
 \examples{
 \dontrun{
-get__crosswalk(
+get_crosswalk(
 }
 }

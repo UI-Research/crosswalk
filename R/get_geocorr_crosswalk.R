@@ -13,7 +13,7 @@
 #' @param target_geography Character. Target geography name. See `source_geography`
 #'    for options.
 #' @param weight Character. Weighting variable. One of c("population", "housing", "land").
-#' @param cache File path. Where to download the crosswalk to. If NULL (default),
+#' @param cache Directory path. Where to download the crosswalk to. If NULL (default),
 #'    crosswalk is returned but not saved to disk.
 #'
 #' @return A dataframe representing the requested Geocorr22 crosswalk for all 51
@@ -47,8 +47,9 @@ get_geocorr_crosswalk <- function(
   ## identify the relevant file paths for potentially-cached crosswalks
   if (!is.null(cache)) {
     outpath = file.path(
-      cache, stringr::str_c("geocorr_2022_crosswalk_", source_geography, "_", target_geography, "_", weight, ".csv"))
-  }
+      cache,
+      stringr::str_c("crosswalk_geocorr_2022_to_2022_", source_geography, "_to_",
+                     target_geography, "_weightedby_", weight, ".csv")) }
 
   ## if the file exists and the user does not wish to overwrite it
   if (file.exists(outpath) & !is.null(cache)) {
@@ -228,7 +229,15 @@ get_geocorr_crosswalk <- function(
     dplyr::rename_with(
       .cols = dplyr::matches("hus20|pop20|landsqmi"),
       .fn = ~ stringr::str_replace_all(.x, c(
-        "hus20" = "housing_2020", "pop20" = "population_2020", "landsqmi" = "land_area_sqmi"))) |>
+        "hus20" = "housing_2020", "pop20" = "population_2020", "landsqmi" = "land_area_sqmi")))
+
+  if (!"state" %in% colnames(df2)) {
+    df2 = df2 |>
+      dplyr::mutate(
+       state = stringr::str_sub(county, 1, 2),
+       county = stringr::str_sub(county, 3, 5)) }
+
+  df2 = df2 |>
     dplyr::mutate(
       ## data with blocks/block groups/tracts have differently structured/named columns
       ## we standardize here so that subsequent workflows are uniform
@@ -259,7 +268,7 @@ get_geocorr_crosswalk <- function(
       dplyr::across(
         .cols = dplyr::matches("^cd11"),
         .fns = ~ stringr::str_c(stab, "-", .x),
-        .names = "{.col}_name")) |>
+        .names = "{.col}_name")) #|>
     dplyr::rename_with(
       .cols = dplyr::matches("state|stab"),
       .fn = ~ stringr::str_replace_all(.x, c("state" = "state_fips", "stab" = "state_abbreviation"))) |>
@@ -279,10 +288,6 @@ get_geocorr_crosswalk <- function(
       dplyr::across(.cols = dplyr::matches("allocation"), .fns = as.numeric))
 
   if (!is.null(cache)) {
-    outpath = file.path(
-      cache,
-      stringr::str_c("geocorr_2022_crosswalk_", source_geography, "_", target_geography, "_", weight, ".csv"))
-
     ## if the file does not already exist and cache is TRUE
     if (!file.exists(outpath) & !is.null(cache)) {
       ## if the specified cache directory doesn't yet exist, create it
@@ -293,7 +298,7 @@ get_geocorr_crosswalk <- function(
   return(df2)
 }
 
-utils::globalVariables(c("afact", "afact2"))
+utils::globalVariables(c("afact", "afact2", "county"))
 
 # get_geocorr_crosswalk(
 #   source_geography = "zcta",

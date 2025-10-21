@@ -240,13 +240,13 @@ list_nhgis_crosswalks <- function() {
 #' @param source_year Character or numeric. Year of the source geography one of
 #'    c(1990, 2000, 2010, 2020).
 #' @param source_geography Character. Source geography name. One of c("block",
-#'    "block group", "tract").
+#'    "blockgroup", "tract").
 #' @param target_year Character or numeric. Year of the target geography, one of
 #'    c(1990, 2000, 2010, 2020).
 #' @param target_geography Character. Target geography name. One of c("block",
 #'    "block group", "tract", "place", county", "urban_area", "zcta", "puma",
 #'    "core_based_statistical_area").
-#' @param cache File path. Where to download the crosswalk to. If NULL (default),
+#' @param cache Directory path. Where to download the crosswalk to. If NULL (default),
 #'    crosswalk is returned but not saved to disk.
 #'
 #' @return A data frame containing the crosswalk between the specified geographies.
@@ -277,7 +277,6 @@ get_nhgis_crosswalk <- function(
     cache = NULL,
     api_key = NULL) {
 
-
   if (is.null(cache)) { cache_path = tempdir() } else {cache_path = cache}
 
   # Convert years to character for consistent processing
@@ -292,7 +291,11 @@ get_nhgis_crosswalk <- function(
   crosswalk_path <- paste0("https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_", crosswalk_sub_path, ".zip")
 
   ## identify the relevant file paths for potentially-cached crosswalks
-  csv_path = file.path(cache_path, stringr::str_c("nhgis_crosswalk_", crosswalk_sub_path, ".csv"))
+  csv_path = file.path(
+    cache_path,
+    stringr::str_c(
+      "crosswalk_nhgis_", source_year, "_to_", target_year, "_",
+      source_geography, "_to_", target_geography, "_",  ".csv"))
 
   ## if the file exists and cache == TRUE
   if (file.exists(csv_path) & !is.null(cache)) {

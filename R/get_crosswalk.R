@@ -1,7 +1,7 @@
-#' Get an Inter-temporal or Inter-geography Crosswalk
+#' Get an inter-temporal or inter-geography crosswalk
 #'
 #' Retrieves a crosswalk with interpolation values from a source geography to a target
-#' geography, and if desired, from a source year to a target year.
+#' geography or from a source year to a target year.
 #'
 #' @details This function sources crosswalks from Geocorr 2022 and IPUMS NHGIS.
 #'    Crosswalk weights are from the original sources and have not been modified;
@@ -16,14 +16,15 @@
 #' @param source_year Character or numeric. Year of the source geography one of
 #'    c(1990, 2000, 2010, 2020).
 #' @param source_geography Character. Source geography name. One of c("block",
-#'    "block group", "tract").
+#'    "block group", "tract", "place", county", "urban_area", "zcta", "puma", "cd118",
+#'    "cd119", "urban_area", "core_based_statistical_area").
 #' @param target_year Character or numeric. Year of the target geography, one of
 #'    c(1990, 2000, 2010, 2020).
 #' @param target_geography Character. Target geography name. One of c("block",
-#'    "block group", "tract", "place", county", "urban_area", "zcta", "puma",
-#'    "core_based_statistical_area").
+#'    "block group", "tract", "place", county", "urban_area", "zcta", "puma", "cd118",
+#'    "cd119", "urban_area", "core_based_statistical_area").
 #' @param weight Character. Weighting variable. One of c("population", "housing", "land").
-#' @param cache File path. Where to download the crosswalk to. If NULL (default),
+#' @param cache Directory path. Where to download the crosswalk to. If NULL (default),
 #'    crosswalk is returned but not saved to disk.
 #'
 #' @return A data frame containing the crosswalk between the specified geographies.
@@ -69,6 +70,22 @@ get_crosswalk = function(
   cache = NULL,
   weight = NULL) {
 
+  if (
+    (source_year == target_year | (is.null(source_year) & is.null(target_year))) &
+
+    source_geography == "block" & target_geography %in% c("block group", "tract", "county", "core_based_statistical_area") |
+    source_geography == "block group" & target_geography %in% c("tract", "county", "core_based_statistical_area") |
+    source_geography == "tract" & target_geography %in% c("county", "core_based_statistical_area") |
+    source_geography == "county" & target_geography == "core_based_statistical_area") {
+
+    warning(
+"The source geography is nested within the target geography and an empty result
+will be returned. No crosswalk is needed to translate data between nested geographies;
+simply aggregate your data to the desired geography.")
+
+    return(tibble::tibble())
+  }
+
   if (is.null(source_year) | is.null(target_year)) {
     crosswalk_source = "geocorr"
   } else { crosswalk_source = "nhgis" }
@@ -88,3 +105,19 @@ get_crosswalk = function(
       cache = cache)
   }
 }
+
+# ## write out geocorr crosswalks
+# core_sources_geocorr = c(
+#   "place", "county", "tract", "blockgroup", "zcta", "puma22", "cd119", "cd118")
+#
+# ## create an intersection of all geography combinations
+# expand.grid(core_sources_geocorr, core_sources_geocorr) |>
+#   dplyr::rename(source_geography = 1, target_geography = 2) |>
+#   ## drop where the source and target geographies are the same
+#   dplyr::filter(source_geography != target_geography) |>
+#   dplyr::mutate(
+#     weight = "housing",
+#     cache = file.path("C:", "Users", climateapi::get_system_username(), "Box", "Arnold LIHTC study", "Data", "Crosswalks"),
+#     dplyr::across(dplyr::where(is.factor), as.character)) |>
+#   dplyr::slice(9) |>
+#   purrr::pwalk(get_crosswalk)
