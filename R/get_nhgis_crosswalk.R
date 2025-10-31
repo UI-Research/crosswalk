@@ -295,7 +295,7 @@ get_nhgis_crosswalk <- function(
     cache_path,
     stringr::str_c(
       "crosswalk_nhgis_", source_year, "_to_", target_year, "_",
-      source_geography, "_to_", target_geography, "_",  ".csv"))
+      source_geography, "_to_", target_geography, ".csv"))
 
   ## if the file exists and cache == TRUE
   if (file.exists(csv_path) & !is.null(cache)) {
@@ -421,3 +421,5 @@ See https://www.nhgis.org/citation-and-use-nhgis-data.")
 
   return(crosswalk_df)
 }
+
+

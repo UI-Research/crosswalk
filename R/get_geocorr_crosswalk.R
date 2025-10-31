@@ -268,7 +268,7 @@ get_geocorr_crosswalk <- function(
       dplyr::across(
         .cols = dplyr::matches("^cd11"),
         .fns = ~ stringr::str_c(stab, "-", .x),
-        .names = "{.col}_name")) #|>
+        .names = "{.col}_name")) |>
     dplyr::rename_with(
       .cols = dplyr::matches("state|stab"),
       .fn = ~ stringr::str_replace_all(.x, c("state" = "state_fips", "stab" = "state_abbreviation"))) |>
@@ -329,4 +329,5 @@ utils::globalVariables(c("afact", "afact2", "county"))
 #   dplyr::filter(source_geography != target_geography) |>
 #   dplyr::mutate(weight = "population", cache = here::here("crosswalks-cache"), overwrite_cache = FALSE, dplyr::across(dplyr::where(is.factor), as.character)) |>
 #   purrr::pwalk(get_geocorr_crosswalk)
+
 

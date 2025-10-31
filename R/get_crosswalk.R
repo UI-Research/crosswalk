@@ -70,21 +70,21 @@ get_crosswalk = function(
   cache = NULL,
   weight = NULL) {
 
-  if (
-    (source_year == target_year | (is.null(source_year) & is.null(target_year))) &
-
-    source_geography == "block" & target_geography %in% c("block group", "tract", "county", "core_based_statistical_area") |
-    source_geography == "block group" & target_geography %in% c("tract", "county", "core_based_statistical_area") |
-    source_geography == "tract" & target_geography %in% c("county", "core_based_statistical_area") |
-    source_geography == "county" & target_geography == "core_based_statistical_area") {
-
-    warning(
+  # if ( (source_year == target_year | (is.null(source_year) | is.null(target_year))) ) {
+    if (
+      source_geography == "block" & target_geography %in% c("block group", "tract", "county", "core_based_statistical_area") |
+      source_geography == "block group" & target_geography %in% c("tract", "county", "core_based_statistical_area") |
+      source_geography == "tract" & target_geography %in% c("county", "core_based_statistical_area") |
+      source_geography == "county" & target_geography == "core_based_statistical_area"
+    ) {
+      warning(
 "The source geography is nested within the target geography and an empty result
 will be returned. No crosswalk is needed to translate data between nested geographies;
 simply aggregate your data to the desired geography.")
 
-    return(tibble::tibble())
-  }
+      return(tibble::tibble())
+    }
+  # }
 
   if (is.null(source_year) | is.null(target_year)) {
     crosswalk_source = "geocorr"
@@ -104,20 +104,39 @@ simply aggregate your data to the desired geography.")
       weight = weight,
       cache = cache)
   }
+
+  return(result)
 }
 
 # ## write out geocorr crosswalks
 # core_sources_geocorr = c(
-#   "place", "county", "tract", "blockgroup", "zcta", "puma22", "cd119", "cd118")
-#
-# ## create an intersection of all geography combinations
+#   #"place", "county",
+#   "tract",
+#   #"blockgroup",
+#   "zcta",
+#   "puma22"#,
+#   #"cd119", "cd118"
+#   )
+
+# library(climateapi)
+## create an intersection of all geography combinations
 # expand.grid(core_sources_geocorr, core_sources_geocorr) |>
 #   dplyr::rename(source_geography = 1, target_geography = 2) |>
 #   ## drop where the source and target geographies are the same
 #   dplyr::filter(source_geography != target_geography) |>
 #   dplyr::mutate(
 #     weight = "housing",
-#     cache = file.path("C:", "Users", climateapi::get_system_username(), "Box", "Arnold LIHTC study", "Data", "Crosswalks"),
+#     cache = file.path("C:", "Users", climateapi::get_system_username(), "Box", "Arnold LIHTC study", "Data", "Shapefiles and crosswalks", "crosswalk_acs_decennial_chas"),
 #     dplyr::across(dplyr::where(is.factor), as.character)) |>
-#   dplyr::slice(9) |>
+#   purrr::pwalk(get_crosswalk)
+
+# tibble::tibble(
+#   source_geography = "tract",
+#   target_geography = "tract",
+#   source_year = c(1990, 2000, 2010),
+#   target_year = c(2010, 2010, 2020)) |>
+#   dplyr::mutate(
+#     weight = "housing",
+#     cache = file.path("C:", "Users", climateapi::get_system_username(), "Box", "Arnold LIHTC study", "Data", "Shapefiles and crosswalks", "crosswalk_acs_decennial_chas"),
+#     dplyr::across(dplyr::where(is.factor), as.character)) |>
 #   purrr::pwalk(get_crosswalk)
