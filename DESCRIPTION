@@ -24,8 +24,9 @@ Imports:
     tibble,
     tidyr,
     utils
-Suggests: 
+Suggests:
     testthat (>= 3.0.0),
+    tidycensus,
     knitr,
     rmarkdown
 Config/testthat/edition: 3

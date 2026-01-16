@@ -15,33 +15,44 @@ get_crosswalk(
 }
 \arguments{
 \item{source_geography}{Character. Source geography name. One of c("block",
-"block group", "tract", "place", county", "urban_area", "zcta", "puma", "cd118",
+"block group", "tract", "place", "county", "urban_area", "zcta", "puma", "cd118",
 "cd119", "urban_area", "core_based_statistical_area").}
 
 \item{target_geography}{Character. Target geography name. One of c("block",
-"block group", "tract", "place", county", "urban_area", "zcta", "puma", "cd118",
+"block group", "tract", "place", "county", "urban_area", "zcta", "puma", "cd118",
 "cd119", "urban_area", "core_based_statistical_area").}
 
-\item{source_year}{Character or numeric. Year of the source geography one of
+\item{source_year}{Character or numeric. Year of the source geography, one of
 c(1990, 2000, 2010, 2020).}
 
 \item{target_year}{Character or numeric. Year of the target geography, one of
-c(1990, 2000, 2010, 2020).}
+c(1990, 2000, 2010, 2020) for decennial crosswalks, or c(2011, 2012, 2014,
+2015, 2022) for non-census year crosswalks (limited to block groups, tracts,
+and counties).}
 
 \item{cache}{Directory path. Where to download the crosswalk to. If NULL (default),
-crosswalk is returned but not saved to disk.}
+crosswalk is returned but not saved to disk. Individual component crosswalks
+are cached separately when provided.}
 
-\item{weight}{Character. Weighting variable. One of c("population", "housing", "land").}
+\item{weight}{Character. Weighting variable for Geocorr crosswalks. One of
+c("population", "housing", "land").}
 }
 \value{
-A data frame containing the crosswalk between the specified geographies.
+A tibble containing the crosswalk between the specified geographies.
 Data are tidy-formatted, with each observation reflecting a unique
-source-target-weighting factor combination. Note that all (typically two
-or three) available weighting factors are returned.
+source-target-weighting factor combination.
 
-A dataframe representing the requested crosswalk for all 51 states
-and Puerto Rico. Depending on the desired geographies and the source of the
-crosswalk (Geocorr vs. NHGIS), some fields may not be included.
+The returned tibble includes an attribute \code{crosswalk_metadata} containing:
+\describe{
+\item{source}{Character vector of data sources used (e.g., "nhgis", "ctdata")}
+\item{source_year}{The source year}
+\item{target_year}{The target year}
+\item{source_geography}{The source geography}
+\item{target_geography}{The target geography}
+\item{notes}{Any relevant notes about the crosswalk construction}
+}
+
+Columns in the returned dataframe (some may not be present depending on source):
 \describe{
 \item{source_geoid}{A unique identifier for the source geography}
 \item{target_geoid}{A unique identifier for the target geography}
@@ -57,6 +68,7 @@ from the target geography to the source geography}
 \item{housing_2020}{The estimated overlap in housing units, if applicable}
 \item{land_area_sqmi}{The overlap in land area, if applicable}
 \item{weighting_factor}{The attribute used to calculate allocation factors}
+\item{state_fips}{Two-digit state FIPS code, if applicable}
 }
 }
 \description{
@@ -64,10 +76,19 @@ Retrieves a crosswalk with interpolation values from a source geography to a tar
 geography or from a source year to a target year.
 }
 \details{
-This function sources crosswalks from Geocorr 2022 and IPUMS NHGIS.
-Crosswalk weights are from the original sources and have not been modified;
-this function merely standardizes the format of the returned crosswalks and
-enables easy programmatic access and cacheing.
+This function sources crosswalks from Geocorr 2022, IPUMS NHGIS, and
+CT Data Collaborative. Crosswalk weights are from the original sources and
+have not been modified; this function merely standardizes the format of the
+returned crosswalks and enables easy programmatic access and caching.
+
+\strong{Non-census year support}: For target years 2011, 2012, 2014, 2015, and 2022,
+crosswalks are available only for block groups, tracts, and counties. These
+years correspond to American Community Survey geography changes.
+
+\strong{2020 to 2022 crosswalks}: The 2022 geographic changes only affected
+Connecticut (county-equivalent planning regions replaced historical counties).
+For this case, the function combines CT Data Collaborative crosswalks for
+Connecticut with identity mappings for other states.
 
 Note that an IPUMS NHGIS API key is required to access crosswalks from that
 source. Use \code{usethis::edit_r_environ(scope = "user")} to save your API key
@@ -76,6 +97,27 @@ obtain a key from: https://account.ipums.org/api_keys.
 }
 \examples{
 \dontrun{
+# Same-year crosswalk between geographies (uses Geocorr)
 get_crosswalk(
+  source_geography = "zcta",
+  target_geography = "puma22",
+  weight = "population",
+  cache = here::here("crosswalks-cache"))
+
+# Inter-temporal crosswalk (uses NHGIS)
+get_crosswalk(
+  source_geography = "tract",
+  target_geography = "tract",
+  source_year = 2010,
+  target_year = 2020,
+  cache = here::here("crosswalks-cache"))
+
+# Non-census year crosswalk (2020 to 2022, CT changes)
+get_crosswalk(
+  source_geography = "tract",
+  target_geography = "tract",
+  source_year = 2020,
+  target_year = 2022,
+  cache = here::here("crosswalks-cache"))
 }
 }
