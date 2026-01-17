@@ -96,7 +96,7 @@ standardize_geography <- function(geography, context = "source") {
         return(standardized)
       }
     } else if (context == "target") {
-      valid_geogs = c("blk", "bg", "tr", "co", "ua", "zcta", "puma", "cbsa")
+      valid_geogs = c("blk", "bg", "tr", "co", "pl", "ua", "zcta", "puma", "cbsa")
       if (standardized %in% valid_geogs) {
         return(standardized)
       }
@@ -124,144 +124,258 @@ available crosswalks.")
 #' @export
 list_nhgis_crosswalks <- function() {
   nhgis_crosswalks_vector = c(
-    ## from 1990 to 2010
-    ## blk source
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_ua2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_zcta2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_puma2010.zip",
+    ## =========================================================================
+    ## BLOCK-TO-BLOCK CROSSWALKS (decennial years only)
+    ## =========================================================================
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_blk2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_pl2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_bg2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_tr2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_co2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_cbsa2010.zip",
-    ## bgp source
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp1990_bg2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp1990_tr2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp1990_co2010.zip",
-    ## tr source
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr1990_tr2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr1990_co2010.zip",
-
-    ## from 2000 to 2010
-    ## blk source
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_ua2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_zcta2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_puma2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_pl2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_blk2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_bg2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_tr2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_co2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_cbsa2010.zip",
-    ## bgp source
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2000_bg2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2000_tr2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bgp2000_co2010.zip",
-    ## tr source
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2000_tr2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2000_co2010.zip",
-
-    ## from 2010 to 2020
-    ## blk source
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_ua2020.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_zcta2020.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_puma2020.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_pl2020.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_cbsa2020.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_blk2020.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_bg2020.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_tr2020.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_co2020.zip",
-    ## bg source
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2010_bg2020.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2010_tr2020.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2010_co2020.zip",
-    ## tr source
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2010_tr2020.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2010_co2020.zip",
-
-    ## from 2020 to 2010
-    ## blk source
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_ua2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_zcta2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_puma2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_pl2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_cbsa2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_blk2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_bg2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_tr2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_co2010.zip",
-    ## bg source
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_bg2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_tr2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_co2010.zip",
-    ## tr source
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_tr2010.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_co2010.zip",
 
     ## =========================================================================
-    ## NON-CENSUS YEAR CROSSWALKS
-    ## Available for block groups, tracts, and counties only
-    ## Years with boundary changes: 2011, 2012, 2014, 2015, 2022
+    ## BLOCK → BLOCK GROUP
     ## =========================================================================
-
-    ## from 1990 to non-census years (2011, 2012, 2014, 2015)
-    ## blk source to bg
+    ## from 1990
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_bg2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_bg2011.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_bg2012.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_bg2014.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_bg2015.zip",
-    ## blk source to tr
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_tr2011.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_tr2012.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_tr2014.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_tr2015.zip",
-    ## blk source to co
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_co2011.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_co2012.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_co2014.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_co2015.zip",
-
-    ## from 2000 to non-census years (2011, 2012, 2014, 2015)
-    ## blk source to bg
+    ## from 2000
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_bg2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_bg2011.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_bg2012.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_bg2014.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_bg2015.zip",
-    ## blk source to tr
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_tr2011.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_tr2012.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_tr2014.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_tr2015.zip",
-    ## blk source to co
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_co2011.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_co2012.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_co2014.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_co2015.zip",
-
-    ## from 2010 to 2022
-    ## blk source
+    ## from 2010
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_bg2020.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_bg2022.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_tr2022.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_co2022.zip",
-
-    ## from 2020 to non-census years (2011, 2012, 2014, 2015)
-    ## blk source to bg
+    ## from 2020
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_bg2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_bg2011.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_bg2012.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_bg2014.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_bg2015.zip",
-    ## blk source to tr
+
+    ## =========================================================================
+    ## BLOCK GROUP ↔ BLOCK GROUP (bidirectional)
+    ## =========================================================================
+    ## from 2010s
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2010_bg2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2010_bg2022.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2011_bg2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2011_bg2022.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2012_bg2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2012_bg2022.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2014_bg2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2014_bg2022.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2015_bg2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2015_bg2022.zip",
+    ## from 2020s
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_bg2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_bg2011.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_bg2012.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_bg2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_bg2015.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2022_bg2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2022_bg2011.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2022_bg2012.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2022_bg2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2022_bg2015.zip",
+
+    ## =========================================================================
+    ## BLOCK → TRACT
+    ## =========================================================================
+    ## from 1990
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_tr2011.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_tr2012.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_tr2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_tr2015.zip",
+    ## from 2000
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_tr2011.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_tr2012.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_tr2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_tr2015.zip",
+    ## from 2010
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_tr2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_tr2022.zip",
+    ## from 2020
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_tr2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_tr2011.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_tr2012.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_tr2014.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_tr2015.zip",
-    ## blk source to co
+
+    ## =========================================================================
+    ## BLOCK GROUP → TRACT
+    ## =========================================================================
+    ## from 2010s
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2010_tr2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2010_tr2022.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2011_tr2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2011_tr2022.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2012_tr2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2012_tr2022.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2014_tr2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2014_tr2022.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2015_tr2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2015_tr2022.zip",
+    ## from 2020s
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_tr2011.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_tr2012.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_tr2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_tr2015.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2022_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2022_tr2011.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2022_tr2012.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2022_tr2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2022_tr2015.zip",
+
+    ## =========================================================================
+    ## TRACT ↔ TRACT (bidirectional)
+    ## =========================================================================
+    ## from 1990
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr1990_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr1990_tr2011.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr1990_tr2012.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr1990_tr2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr1990_tr2015.zip",
+    ## from 2000
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2000_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2000_tr2011.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2000_tr2012.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2000_tr2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2000_tr2015.zip",
+    ## from 2010s
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2010_tr2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2010_tr2022.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2011_tr2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2011_tr2022.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2012_tr2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2012_tr2022.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2014_tr2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2014_tr2022.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2015_tr2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2015_tr2022.zip",
+    ## from 2020s
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_tr2011.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_tr2012.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_tr2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_tr2015.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2022_tr2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2022_tr2011.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2022_tr2012.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2022_tr2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2022_tr2015.zip",
+
+    ## =========================================================================
+    ## BLOCK → COUNTY
+    ## Note: 2011/2012 targets only available from 2020 source (not 1990/2000)
+    ## =========================================================================
+    ## from 1990 (to 2010, 2014, 2015 only)
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_co2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_co2015.zip",
+    ## from 2000 (to 2010, 2014, 2015 only)
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_co2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_co2015.zip",
+    ## from 2010
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_co2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_co2022.zip",
+    ## from 2020 (all 2010s targets available)
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_co2010.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_co2011.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_co2012.zip",
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_co2014.zip",
-    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_co2015.zip")
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_co2015.zip",
+
+    ## =========================================================================
+    ## BLOCK GROUP → COUNTY
+    ## Note: bg source to co only available for 2010, 2014, 2015 sources
+    ## (NOT 2011 or 2012 sources)
+    ## =========================================================================
+    ## from 2010
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2010_co2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2010_co2022.zip",
+    ## from 2014
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2014_co2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2014_co2022.zip",
+    ## from 2015
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2015_co2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2015_co2022.zip",
+    ## from 2020 (to 2010, 2014, 2015 only)
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_co2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2020_co2015.zip",
+    ## from 2022 (to 2010, 2014, 2015 only)
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2022_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2022_co2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2022_co2015.zip",
+
+    ## =========================================================================
+    ## TRACT → COUNTY
+    ## Note: tr source to co only available for 1990, 2000, 2010, 2014, 2015,
+    ## 2020, 2022 sources (NOT 2011 or 2012 sources)
+    ## =========================================================================
+    ## from 1990 (to 2010, 2014, 2015 only)
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr1990_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr1990_co2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr1990_co2015.zip",
+    ## from 2000 (to 2010, 2014, 2015 only)
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2000_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2000_co2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2000_co2015.zip",
+    ## from 2010
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2010_co2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2010_co2022.zip",
+    ## from 2014
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2014_co2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2014_co2022.zip",
+    ## from 2015
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2015_co2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2015_co2022.zip",
+    ## from 2020 (to 2010, 2014, 2015 only)
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_co2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2020_co2015.zip",
+    ## from 2022 (to 2010, 2014, 2015 only)
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2022_co2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2022_co2014.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2022_co2015.zip",
+
+    ## =========================================================================
+    ## BLOCK → OTHER GEOGRAPHIES (decennial years only)
+    ## =========================================================================
+    ## CBSA
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_cbsa2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_cbsa2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_cbsa2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_cbsa2010.zip",
+    ## Place
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_pl2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_pl2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_pl2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_pl2010.zip",
+    ## PUMA
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_puma2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_puma2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_puma2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_puma2010.zip",
+    ## Urban Area
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_ua2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_ua2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_ua2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_ua2010.zip",
+    ## ZCTA
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_zcta2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2000_zcta2010.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2010_zcta2020.zip",
+    "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_zcta2010.zip")
 
   ## for the time being, not supporting block group parts
   nhgis_crosswalks_vector = nhgis_crosswalks_vector[!stringr::str_detect(nhgis_crosswalks_vector, "bgp")]
@@ -280,6 +394,7 @@ list_nhgis_crosswalks <- function() {
         dplyr::across(
           .cols = dplyr::matches("geography"),
           .fns = ~ .x |> stringr::str_replace_all(c(
+            "pl" = "place",
             "blk" = "block",
             "bgp" = "block_group_part",
             "bg" = "block_group",
@@ -369,35 +484,111 @@ get_nhgis_crosswalk <- function(
 See https://www.nhgis.org/citation-and-use-nhgis-data.")
     message("Reading file from cache.")
 
+    # Attach metadata to cached result
+    attr(result, "crosswalk_metadata") <- list(
+      data_source = "nhgis",
+      data_source_full_name = "IPUMS NHGIS (National Historical Geographic Information System)",
+      download_url = crosswalk_path,
+      citation_url = "https://www.nhgis.org/citation-and-use-nhgis-data",
+      documentation_url = "https://www.nhgis.org/geographic-crosswalks",
+      source_year = source_year,
+      target_year = target_year,
+      source_geography = source_geography,
+      source_geography_standardized = source_geography_standardized,
+      target_geography = target_geography,
+      target_geography_standardized = target_geography_standardized,
+      retrieved_at = NA,
+      cached = TRUE,
+      cache_path = csv_path,
+      read_from_cache = TRUE)
+
     return(result) }
 
   # Validate inputs
+
+  # Define valid years
+
   valid_decennial_years <- c("1990", "2000", "2010", "2020")
   valid_noncensus_years <- c("2011", "2012", "2014", "2015", "2022")
-  valid_source_years <- valid_decennial_years
-  valid_target_years <- c(valid_decennial_years, valid_noncensus_years)
+  valid_years <- c(valid_decennial_years, valid_noncensus_years)
   valid_source_geogs <- c("blk", "bg", "tr")
   valid_target_geogs <- c("blk", "bg", "tr", "co", "ua", "zcta", "puma", "cbsa")
-  noncensus_target_geogs <- c("bg", "tr", "co")
+  noncensus_geogs <- c("bg", "tr", "co")
 
-  if (source_year == "1990" & target_year == "2000") {
+  # Helper to determine decade for a year
+  get_decade <- function(year) {
+    dplyr::case_when(
+      year == "1990" ~ "1990s",
+      year == "2000" ~ "2000s",
+      year %in% c("2010", "2011", "2012", "2014", "2015") ~ "2010s",
+      year %in% c("2020", "2022") ~ "2020s",
+      TRUE ~ NA_character_)
+  }
+
+  # Validate source and target years are recognized
+  if (!source_year %in% valid_years) {
+    stop("source_year must be one of: ", paste(valid_years, collapse = ", "))}
+
+  if (!target_year %in% valid_years) {
+    stop("target_year must be one of: ", paste(valid_years, collapse = ", "))}
+
+  # NHGIS only provides cross-decade crosswalks
+  source_decade <- get_decade(source_year)
+  target_decade <- get_decade(target_year)
+
+  if (source_decade == target_decade) {
     stop(
-"There are no crosswalks from 1990 to 2000; 1990 source geography crosswalks are
-available only to 2010 geographies.")}
+"NHGIS only provides cross-decade crosswalks. The requested combination (",
+source_year, " to ", target_year, ") is within the same decade (",
+source_decade, "). For within-decade crosswalks like 2020 to 2022, use
+get_crosswalk() which handles special cases like Connecticut.")}
 
-  if (!source_year %in% valid_source_years) {
-    stop("source_year must be one of: ", paste(valid_source_years, collapse = ", "))}
+  # 1990 can only go to 2010s (not 2000s or 2020s)
+  if (source_year == "1990" & target_decade != "2010s") {
+    stop(
+"Crosswalks from 1990 are only available to 2010s geographies (2010, 2011,
+2012, 2014, 2015). Target year ", target_year, " is not supported.")}
 
-  if (!target_year %in% valid_target_years) {
-    stop("target_year must be one of: ", paste(valid_target_years, collapse = ", "))}
+  # 2000 can only go to 2010s
+  if (source_year == "2000" & target_decade != "2010s") {
+    stop(
+"Crosswalks from 2000 are only available to 2010s geographies (2010, 2011,
+2012, 2014, 2015). Target year ", target_year, " is not supported.")}
 
-  if (target_year %in% valid_noncensus_years) {
-    if (!target_geography_standardized %in% noncensus_target_geogs) {
+  # Non-census years have geography restrictions (applies to both source and target)
+  if (source_year %in% valid_noncensus_years) {
+    if (!source_geography_standardized %in% noncensus_geogs) {
       stop(
 "Non-census year crosswalks (2011, 2012, 2014, 2015, 2022) are only available
-for block groups, tracts, and counties. The requested geography '",
+for block groups, tracts, and counties. The requested source geography '",
+source_geography, "' is not supported for source year ", source_year, ".")
+    }
+  }
+
+  if (target_year %in% valid_noncensus_years) {
+    if (!target_geography_standardized %in% noncensus_geogs) {
+      stop(
+"Non-census year crosswalks (2011, 2012, 2014, 2015, 2022) are only available
+for block groups, tracts, and counties. The requested target geography '",
 target_geography, "' is not supported for target year ", target_year, ".")
     }
+  }
+
+  # County target restrictions: 2011 and 2012 source years don't have county targets
+  if (source_year %in% c("2011", "2012") & target_geography_standardized == "co") {
+    stop(
+"County crosswalks are not available from source years 2011 or 2012.
+County targets are only available from source years: 1990, 2000, 2010, 2014,
+2015, 2020, 2022.")
+  }
+
+  # County target restrictions: 1990/2000 to county only has 2010, 2014, 2015 targets
+  if (source_year %in% c("1990", "2000") &
+      target_geography_standardized == "co" &
+      target_year %in% c("2011", "2012")) {
+    stop(
+"Crosswalks from ", source_year, " to county are only available for target
+years 2010, 2014, and 2015 (not ", target_year, ").")
   }
 
   if (is.null(source_geography_standardized)) {
@@ -420,13 +611,33 @@ block groups, tracts, or counties (various spellings accepted)")}
 "API key required. Save your API key to the IPUMS_API_KEY environment
 variable. Get your key at https://account.ipums.org/api_keys") }
 
+  # Helper function to safely check zip contents
+
+  safe_unzip_list = function(zip_file) {
+    tryCatch(
+      utils::unzip(zip_file, list = TRUE),
+      error = function(e) NULL
+    )
+  }
+
+  # Helper function to safely extract zip
+  safe_unzip_extract = function(zip_file, exdir) {
+    tryCatch({
+      utils::unzip(zipfile = zip_file, exdir = exdir)
+      TRUE
+    },
+    error = function(e) FALSE
+    )
+  }
+
   crosswalk_df1 = tryCatch({
 
-    zip_path = file.path(cache_path, stringr::str_c(crosswalk_sub_path, ".zip"))
-    csv_path_temporary = file.path(cache_path, stringr::str_c("nhgis_", crosswalk_sub_path, ".csv"))
+    # Use a unique temporary directory for downloading and extracting
+    temp_dir = file.path(tempdir(), stringr::str_c("nhgis_", crosswalk_sub_path, "_", format(Sys.time(), "%Y%m%d%H%M%S")))
+    dir.create(temp_dir, recursive = TRUE)
+    on.exit(unlink(temp_dir, recursive = TRUE), add = TRUE)
 
-    ## if the specified directory doesn't yet exist, create it
-    if (!dir.exists(cache_path)) { dir.create(cache_path) }
+    zip_path = file.path(temp_dir, stringr::str_c(crosswalk_sub_path, ".zip"))
 
     # Download the crosswalk file
     response = httr::GET(
@@ -434,22 +645,94 @@ variable. Get your key at https://account.ipums.org/api_keys") }
       httr::add_headers(Authorization = api_key),
       httr::write_disk(zip_path, overwrite = TRUE), overwrite = TRUE)
 
-    # Unzip the .zip
-    utils::unzip(
-      zipfile = zip_path,
-      exdir = file.path(cache_path))
+    # Check what's in the zip before extracting
+    zip_contents = safe_unzip_list(zip_path)
 
-    crosswalk_df = readr::read_csv(csv_path_temporary) |>
+    if (is.null(zip_contents) || nrow(zip_contents) == 0) {
+      warning(
+        "The downloaded zip file for crosswalk ", crosswalk_sub_path,
+        " is empty or cannot be opened. This crosswalk may not be available from NHGIS. ",
+        "Returning an empty tibble.")
+      return(tibble::tibble())
+    }
+
+    # Extract the outer zip to temp directory
+    extract_success = safe_unzip_extract(zip_path, temp_dir)
+    if (!extract_success) {
+      warning(
+        "Failed to extract the downloaded zip file for crosswalk ", crosswalk_sub_path,
+        ". The file may be corrupted. Returning an empty tibble.")
+      return(tibble::tibble())
+    }
+
+    # List extracted files (excluding the original zip)
+    all_files = list.files(temp_dir, full.names = TRUE)
+    all_files = all_files[all_files != zip_path]
+
+    # Look for CSV files first (some crosswalks may not be nested)
+    csv_files = all_files[stringr::str_detect(all_files, "\\.csv$")]
+
+    # If no CSV found directly, look for nested zip and extract it
+    if (length(csv_files) == 0) {
+      nested_zips = all_files[stringr::str_detect(all_files, "\\.zip$")]
+
+      if (length(nested_zips) == 0) {
+        warning(
+          "No CSV or nested zip file found in the downloaded archive for ",
+          crosswalk_sub_path, ". Returning an empty tibble.")
+        return(tibble::tibble())
+      }
+
+      # Check if nested zip can be opened
+      nested_zip = nested_zips[1]
+      nested_contents = safe_unzip_list(nested_zip)
+
+      if (is.null(nested_contents) || nrow(nested_contents) == 0) {
+        warning(
+          "The nested zip file for crosswalk ", crosswalk_sub_path,
+          " is empty or cannot be opened. This crosswalk may not be available from NHGIS. ",
+          "Returning an empty tibble.")
+        return(tibble::tibble())
+      }
+
+      # Extract the nested zip
+      nested_extract_success = safe_unzip_extract(nested_zip, temp_dir)
+      if (!nested_extract_success) {
+        warning(
+          "Failed to extract the nested zip file for crosswalk ", crosswalk_sub_path,
+          ". The file may be corrupted. Returning an empty tibble.")
+        return(tibble::tibble())
+      }
+
+      # Now look for CSV files again
+      all_files = list.files(temp_dir, full.names = TRUE)
+      csv_files = all_files[stringr::str_detect(all_files, "\\.csv$")]
+    }
+
+    if (length(csv_files) == 0) {
+      warning(
+        "No CSV file found after extracting zip archive(s) for ", crosswalk_sub_path,
+        ". Returning an empty tibble.")
+      return(tibble::tibble())
+    }
+
+    crosswalk_df = readr::read_csv(
+      csv_files[1],
+      col_types = readr::cols(.default = readr::col_character())) |>
       janitor::clean_names()
 
-    # Remove the zipped folder and the raw CSV file
-    file.remove(zip_path)
-    file.remove(csv_path_temporary)
-
     crosswalk_df
-    },
+  },
     error = function(e) {
-      stop("Failed to retrieve crosswalk: ", e$message) })
+      warning("Failed to retrieve crosswalk ", crosswalk_sub_path, ": ", e$message,
+              ". Returning an empty tibble.")
+      return(tibble::tibble())
+    })
+
+  # Handle case where empty tibble was returned due to empty zip
+  if (nrow(crosswalk_df1) == 0) {
+    return(tibble::tibble())
+  }
 
   crosswalk_df = crosswalk_df1 |>
     dplyr::select(-dplyr::matches("gj")) |>
@@ -466,6 +749,11 @@ variable. Get your key at https://account.ipums.org/api_keys") }
         "_hu" = "_housing_all",
         "ownhu" = "housing_owned",
         "renthu" = "housing_rented"))) |>
+    # Convert weight columns to numeric before pivoting
+    dplyr::mutate(
+      dplyr::across(
+        .cols = dplyr::matches("^weight_"),
+        .fns = as.numeric)) |>
     dplyr::rename(
       source_geoid = !!(stringr::str_c(source_geography_standardized, source_year, "ge")),
       target_geoid = !!(stringr::str_c(target_geography_standardized, target_year, "ge"))) |>
@@ -488,12 +776,33 @@ variable. Get your key at https://account.ipums.org/api_keys") }
       values_to = "allocation_factor_source_to_target")
 
     ## if the file does not already exist and cache is not NULL
-    if (!file.exists(csv_path) & !is.null(cache) ) {
-      readr::write_csv(crosswalk_df, csv_path) }
+    if (!file.exists(csv_path) & !is.null(cache)) {
+      if (!dir.exists(cache)) {
+        dir.create(cache, recursive = TRUE)
+      }
+      readr::write_csv(crosswalk_df, csv_path)
+    }
 
 message(
 "Use of NHGIS crosswalks is subject to the same conditions as for all NHGIS data.
 See https://www.nhgis.org/citation-and-use-nhgis-data.")
+
+  # Attach metadata to result
+  attr(crosswalk_df, "crosswalk_metadata") <- list(
+    data_source = "nhgis",
+    data_source_full_name = "IPUMS NHGIS (National Historical Geographic Information System)",
+    download_url = crosswalk_path,
+    citation_url = "https://www.nhgis.org/citation-and-use-nhgis-data",
+    documentation_url = "https://www.nhgis.org/geographic-crosswalks",
+    source_year = source_year,
+    target_year = target_year,
+    source_geography = source_geography,
+    source_geography_standardized = source_geography_standardized,
+    target_geography = target_geography,
+    target_geography_standardized = target_geography_standardized,
+    retrieved_at = Sys.time(),
+    cached = !is.null(cache),
+    cache_path = if (!is.null(cache)) csv_path else NULL)
 
   return(crosswalk_df)
 }

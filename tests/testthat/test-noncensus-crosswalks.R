@@ -48,6 +48,50 @@ test_that("list_nhgis_crosswalks includes 2010 to 2022 crosswalks", {
   expect_true("county" %in% crosswalks_2010_to_2022$target_geography)
 })
 
+test_that("list_nhgis_crosswalks includes non-census SOURCE years", {
+  crosswalks <- list_nhgis_crosswalks()
+
+  source_years <- unique(crosswalks$source_year)
+
+  # Non-census years should be valid as source years
+  expect_true("2011" %in% source_years)
+  expect_true("2012" %in% source_years)
+  expect_true("2014" %in% source_years)
+  expect_true("2015" %in% source_years)
+  expect_true("2022" %in% source_years)
+})
+
+test_that("list_nhgis_crosswalks non-census source years only have bg/tr sources", {
+  crosswalks <- list_nhgis_crosswalks()
+
+  noncensus_years <- c("2011", "2012", "2014", "2015", "2022")
+
+  noncensus_source_crosswalks <- crosswalks |>
+    dplyr::filter(source_year %in% noncensus_years)
+
+  source_geogs <- unique(noncensus_source_crosswalks$source_geography)
+
+  # Non-census source years only support bg and tr (not block)
+  expect_true(all(source_geogs %in% c("block_group", "tract")))
+  expect_false("block" %in% source_geogs)
+})
+
+test_that("list_nhgis_crosswalks includes bidirectional crosswalks", {
+  crosswalks <- list_nhgis_crosswalks()
+
+  # 2014 to 2020 should exist
+  expect_gt(nrow(crosswalks |>
+    dplyr::filter(source_year == "2014", target_year == "2020")), 0)
+
+  # 2022 to 2010 should exist
+  expect_gt(nrow(crosswalks |>
+    dplyr::filter(source_year == "2022", target_year == "2010")), 0)
+
+  # 2011 to 2022 should exist (both non-census, different decades)
+  expect_gt(nrow(crosswalks |>
+    dplyr::filter(source_year == "2011", target_year == "2022")), 0)
+})
+
 # ==============================================================================
 # get_ctdata_crosswalk() tests
 # ==============================================================================
@@ -183,10 +227,10 @@ test_that("get_crosswalk routes 2020-2022 to CTData", {
   expect_s3_class(result, "tbl_df")
 
   metadata <- attr(result, "crosswalk_metadata")
-  expect_true("ctdata" %in% metadata$source)
+  expect_equal(metadata$data_source, "ctdata")
 })
 
-test_that("get_crosswalk attaches metadata attribute", {
+test_that("get_crosswalk attaches comprehensive metadata attribute", {
   skip_if_offline()
 
   result <- get_crosswalk(
@@ -198,12 +242,41 @@ test_that("get_crosswalk attaches metadata attribute", {
   metadata <- attr(result, "crosswalk_metadata")
 
   expect_type(metadata, "list")
-  expect_true("source" %in% names(metadata))
-  expect_true("source_year" %in% names(metadata))
-  expect_true("target_year" %in% names(metadata))
+
+  # Check for key metadata fields
+  expect_true("call_parameters" %in% names(metadata))
+  expect_true("data_source" %in% names(metadata))
+  expect_true("data_source_full_name" %in% names(metadata))
   expect_true("source_geography" %in% names(metadata))
   expect_true("target_geography" %in% names(metadata))
-  expect_true("notes" %in% names(metadata))
+  expect_true("source_year" %in% names(metadata))
+  expect_true("target_year" %in% names(metadata))
+  expect_true("crosswalk_package_version" %in% names(metadata))
+
+  # Call parameters should be a nested list
+  expect_type(metadata$call_parameters, "list")
+  expect_equal(metadata$call_parameters$source_geography, "tract")
+  expect_equal(metadata$call_parameters$target_geography, "tract")
+  expect_equal(metadata$call_parameters$source_year, "2020")
+  expect_equal(metadata$call_parameters$target_year, "2022")
+})
+
+test_that("CTData crosswalk metadata includes download URL", {
+  skip_if_offline()
+
+  result <- get_crosswalk(
+    source_geography = "tract",
+    target_geography = "tract",
+    source_year = 2020,
+    target_year = 2022)
+
+  metadata <- attr(result, "crosswalk_metadata")
+
+  expect_equal(metadata$data_source, "ctdata")
+  expect_true(stringr::str_detect(
+    metadata$download_url,
+    "github.com/CT-Data-Collaborative"))
+  expect_true("github_repository" %in% names(metadata))
 })
 
 test_that("get_crosswalk 2020-2022 metadata contains correct info", {
@@ -219,6 +292,8 @@ test_that("get_crosswalk 2020-2022 metadata contains correct info", {
 
   expect_equal(metadata$source_year, "2020")
   expect_equal(metadata$target_year, "2022")
+  expect_equal(metadata$data_source, "ctdata")
+  expect_equal(metadata$data_source_full_name, "CT Data Collaborative")
   expect_true(length(metadata$notes) > 0)
 })
 
@@ -295,6 +370,50 @@ test_that("get_nhgis_crosswalk validates non-census year geography restrictions"
     regexp = "Non-census year crosswalks.*only available")
 })
 
+test_that("get_nhgis_crosswalk validates non-census SOURCE year geography restrictions", {
+  skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
+
+  # Non-census source years only support bg, tr, co - not block
+  expect_error(
+    get_nhgis_crosswalk(
+      source_year = 2014,
+      source_geography = "block",
+      target_year = 2020,
+      target_geography = "tract"),
+    regexp = "Non-census year crosswalks.*only available")
+})
+
+test_that("get_nhgis_crosswalk rejects within-decade crosswalks", {
+  skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
+
+  # 2010 to 2014 is within-decade (both 2010s)
+  expect_error(
+    get_nhgis_crosswalk(
+      source_year = 2010,
+      source_geography = "tract",
+      target_year = 2014,
+      target_geography = "tract"),
+    regexp = "cross-decade")
+
+  # 2020 to 2022 is within-decade (both 2020s)
+  expect_error(
+    get_nhgis_crosswalk(
+      source_year = 2020,
+      source_geography = "tract",
+      target_year = 2022,
+      target_geography = "tract"),
+    regexp = "cross-decade")
+
+  # 2011 to 2015 is within-decade (both 2010s)
+  expect_error(
+    get_nhgis_crosswalk(
+      source_year = 2011,
+      source_geography = "tract",
+      target_year = 2015,
+      target_geography = "tract"),
+    regexp = "cross-decade")
+})
+
 test_that("get_nhgis_crosswalk accepts valid non-census year requests", {
   skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
   skip_if_offline()
@@ -305,6 +424,29 @@ test_that("get_nhgis_crosswalk accepts valid non-census year requests", {
       source_geography = "block",
       target_year = 2022,
       target_geography = "tract")
+  })
+})
+
+test_that("get_nhgis_crosswalk accepts non-census SOURCE years", {
+  skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
+  skip_if_offline()
+
+  # 2014 (non-census) to 2020 (decennial) - cross-decade
+ expect_no_error({
+    result <- get_nhgis_crosswalk(
+      source_year = 2014,
+      source_geography = "tract",
+      target_year = 2020,
+      target_geography = "tract")
+  })
+
+  # 2022 (non-census) to 2010 (decennial) - cross-decade
+  expect_no_error({
+    result <- get_nhgis_crosswalk(
+      source_year = 2022,
+      source_geography = "block_group",
+      target_year = 2010,
+      target_geography = "block_group")
   })
 })
 

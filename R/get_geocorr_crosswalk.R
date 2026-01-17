@@ -57,6 +57,21 @@ get_geocorr_crosswalk <- function(
 
     message("Reading file from cache.")
 
+    # Attach metadata to cached result
+    attr(result, "crosswalk_metadata") <- list(
+      data_source = "geocorr",
+      data_source_full_name = "Geocorr 2022 (Missouri Census Data Center)",
+      api_endpoint = "https://mcdc.missouri.edu/cgi-bin/broker",
+      documentation_url = "https://mcdc.missouri.edu/applications/geocorr2022.html",
+      source_geography = source_geography,
+      target_geography = target_geography,
+      weighting_variable = weight,
+      reference_year = "2022",
+      retrieved_at = NA,
+      cached = TRUE,
+      cache_path = outpath,
+      read_from_cache = TRUE)
+
     return(result) }
 
   # Base API URL for geocorr2022
@@ -295,6 +310,21 @@ get_geocorr_crosswalk <- function(
       readr::write_csv(df2, outpath)
     }
   }
+
+  # Attach metadata to result
+  attr(df2, "crosswalk_metadata") <- list(
+    data_source = "geocorr",
+    data_source_full_name = "Geocorr 2022 (Missouri Census Data Center)",
+    api_endpoint = base_url,
+    documentation_url = "https://mcdc.missouri.edu/applications/geocorr2022.html",
+    source_geography = source_geography,
+    target_geography = target_geography,
+    weighting_variable = weight,
+    reference_year = "2022",
+    retrieved_at = Sys.time(),
+    cached = !is.null(cache),
+    cache_path = if (!is.null(cache)) outpath else NULL)
+
   return(df2)
 }
 

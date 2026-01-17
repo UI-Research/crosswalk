@@ -56,17 +56,46 @@ The provided geography '", geography, "' is not supported.")}
     cache_path,
     stringr::str_c("crosswalk_ctdata_2020_to_2022_", geography_standardized, ".csv"))
 
-  if (file.exists(csv_path) & !is.null(cache)) {
-    message("Reading CTData crosswalk from cache.")
-    return(readr::read_csv(
-      csv_path,
-      col_types = readr::cols(.default = readr::col_character(),
-                              allocation_factor_source_to_target = readr::col_double())))
-  }
-
   ctdata_urls <- list(
     block = "https://raw.githubusercontent.com/CT-Data-Collaborative/2022-block-crosswalk/main/2022blockcrosswalk.csv",
     tract = "https://raw.githubusercontent.com/CT-Data-Collaborative/2022-tract-crosswalk/main/2022tractcrosswalk.csv")
+
+  # Determine which URL will be used based on geography
+  download_url <- if (geography_standardized %in% c("block", "block_group")) {
+    ctdata_urls$block
+  } else {
+    ctdata_urls$tract
+  }
+
+  if (file.exists(csv_path) & !is.null(cache)) {
+    message("Reading CTData crosswalk from cache.")
+    result <- readr::read_csv(
+      csv_path,
+      col_types = readr::cols(.default = readr::col_character(),
+                              allocation_factor_source_to_target = readr::col_double()))
+
+    # Attach metadata to cached result
+    attr(result, "crosswalk_metadata") <- list(
+      data_source = "ctdata",
+      data_source_full_name = "CT Data Collaborative",
+      download_url = download_url,
+      github_repository = "https://github.com/CT-Data-Collaborative",
+      documentation_url = "https://github.com/CT-Data-Collaborative/2022-tract-crosswalk",
+      source_year = "2020",
+      target_year = "2022",
+      source_geography = geography,
+      source_geography_standardized = geography_standardized,
+      target_geography = geography,
+      target_geography_standardized = geography_standardized,
+      state_coverage = "Connecticut only (FIPS 09)",
+      notes = "Connecticut replaced 8 historical counties with 9 planning regions in 2022. Physical boundaries unchanged; only FIPS codes changed.",
+      retrieved_at = NA,
+      cached = TRUE,
+      cache_path = csv_path,
+      read_from_cache = TRUE)
+
+    return(result)
+  }
 
   if (geography_standardized == "block") {
     raw_df <- readr::read_csv(ctdata_urls$block, show_col_types = FALSE)
@@ -116,14 +145,6 @@ The provided geography '", geography, "' is not supported.")}
         state_fips = "09")
 
   } else if (geography_standardized == "county") {
-    if (!requireNamespace("tidycensus", quietly = TRUE)) {
-      stop(
-"The tidycensus package is required for Connecticut county crosswalks because
-allocation factors must be calculated based on population. Install it with:
-install.packages('tidycensus')
-You will also need a Census API key: tidycensus::census_api_key('YOUR_KEY')")
-    }
-
     raw_df <- readr::read_csv(ctdata_urls$tract, show_col_types = FALSE) |>
       janitor::clean_names() |>
       dplyr::select(
@@ -134,11 +155,11 @@ You will also need a Census API key: tidycensus::census_api_key('YOUR_KEY')")
 
     ct_tract_populations <- suppressMessages({
       tidycensus::get_acs(
-        year = 2021,
-        geography = "tract",
-        state = "CT",
-        variables = "B01003_001",
-        output = "wide") |>
+          year = 2021,
+          geography = "tract",
+          state = "CT",
+          variables = "B01003_001",
+          output = "wide") |>
         dplyr::select(
           tract_fips_2020 = GEOID,
           population_2020 = B01003_001E)
@@ -180,6 +201,33 @@ You will also need a Census API key: tidycensus::census_api_key('YOUR_KEY')")
   message(
 "Connecticut 2020-2022 crosswalk sourced from CT Data Collaborative.
 See https://github.com/CT-Data-Collaborative for more information.")
+
+  # Attach metadata to result
+  weighting_note <- if (geography_standardized == "county") {
+    "County crosswalk uses population-weighted allocation factors from ACS 2021 tract populations."
+  } else {
+    "Identity mapping (allocation_factor = 1) - physical boundaries unchanged, only FIPS codes changed."
+  }
+
+  attr(result, "crosswalk_metadata") <- list(
+    data_source = "ctdata",
+    data_source_full_name = "CT Data Collaborative",
+    download_url = download_url,
+    github_repository = "https://github.com/CT-Data-Collaborative",
+    documentation_url = "https://github.com/CT-Data-Collaborative/2022-tract-crosswalk",
+    source_year = "2020",
+    target_year = "2022",
+    source_geography = geography,
+    source_geography_standardized = geography_standardized,
+    target_geography = geography,
+    target_geography_standardized = geography_standardized,
+    state_coverage = "Connecticut only (FIPS 09)",
+    notes = c(
+      "Connecticut replaced 8 historical counties with 9 planning regions in 2022.",
+      weighting_note),
+    retrieved_at = Sys.time(),
+    cached = !is.null(cache),
+    cache_path = if (!is.null(cache)) csv_path else NULL)
 
   return(result)
 }

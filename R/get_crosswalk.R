@@ -44,14 +44,33 @@
 #'    Data are tidy-formatted, with each observation reflecting a unique
 #'    source-target-weighting factor combination.
 #'
-#'    The returned tibble includes an attribute `crosswalk_metadata` containing:
+#'    The returned tibble includes an attribute `crosswalk_metadata` (access via
+#'    `attr(result, "crosswalk_metadata")`) containing comprehensive information
+#'    about how the crosswalk was produced:
 #'    \describe{
-#'      \item{source}{Character vector of data sources used (e.g., "nhgis", "ctdata")}
-#'      \item{source_year}{The source year}
-#'      \item{target_year}{The target year}
-#'      \item{source_geography}{The source geography}
-#'      \item{target_geography}{The target geography}
-#'      \item{notes}{Any relevant notes about the crosswalk construction}
+#'      \item{call_parameters}{List of the parameters passed to get_crosswalk()}
+#'      \item{data_source}{Short identifier for the data source (e.g., "nhgis", "geocorr", "ctdata")}
+#'      \item{data_source_full_name}{Full name of the data source}
+#'      \item{download_url}{URL from which the crosswalk was downloaded (NHGIS, CTData)}
+#'      \item{api_endpoint}{API endpoint used (Geocorr)}
+#'      \item{documentation_url}{URL to documentation for the crosswalk source}
+#'      \item{citation_url}{URL to citation requirements (NHGIS)}
+#'      \item{github_repository}{GitHub repository URL (CTData)}
+#'      \item{source_geography}{Source geography as specified by user}
+#'      \item{source_geography_standardized}{Standardized source geography code}
+#'      \item{target_geography}{Target geography as specified by user}
+#'      \item{target_geography_standardized}{Standardized target geography code}
+#'      \item{source_year}{Source year (if applicable)}
+#'      \item{target_year}{Target year (if applicable)}
+#'      \item{reference_year}{Reference year for same-year crosswalks (Geocorr)}
+#'      \item{weighting_variable}{Variable used to calculate allocation factors}
+#'      \item{state_coverage}{Geographic coverage notes (e.g., "Connecticut only")}
+#'      \item{notes}{Additional notes about the crosswalk}
+#'      \item{retrieved_at}{Timestamp when crosswalk was retrieved}
+#'      \item{cached}{Logical indicating if result was cached}
+#'      \item{cache_path}{Path to cached file (if applicable)}
+#'      \item{read_from_cache}{Logical indicating if result was read from cache}
+#'      \item{crosswalk_package_version}{Version of the crosswalk package used}
 #'    }
 #'
 #'    Columns in the returned dataframe (some may not be present depending on source):
@@ -109,10 +128,11 @@ get_crosswalk <- function(
   weight = NULL) {
 
   if (
-    source_geography == "block" & target_geography %in% c("block group", "tract", "county", "core_based_statistical_area") |
+    (source_geography == "block" & target_geography %in% c("block group", "tract", "county", "core_based_statistical_area") |
     source_geography == "block group" & target_geography %in% c("tract", "county", "core_based_statistical_area") |
     source_geography == "tract" & target_geography %in% c("county", "core_based_statistical_area") |
-    source_geography == "county" & target_geography == "core_based_statistical_area"
+    source_geography == "county" & target_geography == "core_based_statistical_area") & 
+    ((is.null(source_year) & is.null(target_year)) | (source_year == target_year))
   ) {
     warning(
 "The source geography is nested within the target geography and an empty result
@@ -133,22 +153,10 @@ simply aggregate your data to the desired geography.")
     crosswalk_source <- "nhgis"
   }
 
-  metadata <- list(
-    source = character(),
-    source_year = source_year_chr,
-    target_year = target_year_chr,
-    source_geography = source_geography,
-    target_geography = target_geography,
-    notes = character())
-
   if (crosswalk_source == "ctdata_2020_2022") {
     result <- get_crosswalk_2020_2022(
       geography = source_geography,
       cache = cache)
-    metadata$source <- c("ctdata", "identity")
-    metadata$notes <- c(
-      "Connecticut: CTData Collaborative 2020-2022 crosswalk (identity mapping, FIPS code change only)",
-      "Other states: Identity mapping (no geographic changes between 2020 and 2022)")
 
   } else if (crosswalk_source == "nhgis") {
     result <- get_nhgis_crosswalk(
@@ -157,7 +165,6 @@ simply aggregate your data to the desired geography.")
       target_year = target_year,
       target_geography = target_geography,
       cache = cache)
-    metadata$source <- "nhgis"
 
   } else {
     result <- get_geocorr_crosswalk(
@@ -165,10 +172,90 @@ simply aggregate your data to the desired geography.")
       target_geography = target_geography,
       weight = weight,
       cache = cache)
-    metadata$source <- "geocorr"
   }
 
+  # Retrieve metadata from internal function (if present)
+  internal_metadata <- attr(result, "crosswalk_metadata")
+
+  # Build comprehensive metadata object
+  metadata <- list(
+    # Call parameters
+    call_parameters = list(
+      source_geography = source_geography,
+      target_geography = target_geography,
+      source_year = source_year_chr,
+      target_year = target_year_chr,
+      weight = weight,
+      cache = cache),
+
+    # Data source information
+    data_source = if (!is.null(internal_metadata$data_source)) {
+      internal_metadata$data_source
+    } else {
+      crosswalk_source
+    },
+    data_source_full_name = if (!is.null(internal_metadata$data_source_full_name)) {
+      internal_metadata$data_source_full_name
+    } else {
+      switch(crosswalk_source,
+        "nhgis" = "IPUMS NHGIS (National Historical Geographic Information System)",
+        "geocorr" = "Geocorr 2022 (Missouri Census Data Center)",
+        "ctdata_2020_2022" = "CT Data Collaborative",
+        crosswalk_source)
+    },
+
+    # URLs and documentation
+    download_url = internal_metadata$download_url,
+    api_endpoint = internal_metadata$api_endpoint,
+    documentation_url = internal_metadata$documentation_url,
+    citation_url = internal_metadata$citation_url,
+    github_repository = internal_metadata$github_repository,
+
+    # Geography and year details
+    source_geography = source_geography,
+    source_geography_standardized = internal_metadata$source_geography_standardized,
+    target_geography = target_geography,
+    target_geography_standardized = internal_metadata$target_geography_standardized,
+    source_year = source_year_chr,
+    target_year = target_year_chr,
+    reference_year = internal_metadata$reference_year,
+
+    # Weighting
+    weighting_variable = if (!is.null(internal_metadata$weighting_variable)) {
+      internal_metadata$weighting_variable
+    } else {
+      weight
+    },
+
+    # Coverage and notes
+    state_coverage = internal_metadata$state_coverage,
+    notes = if (crosswalk_source == "ctdata_2020_2022") {
+      c("Connecticut: CTData Collaborative 2020-2022 crosswalk",
+        "Other states: No geographic changes between 2020 and 2022; use identity mapping",
+        internal_metadata$notes)
+    } else {
+      internal_metadata$notes
+    },
+
+    # Retrieval information
+    retrieved_at = internal_metadata$retrieved_at,
+    cached = internal_metadata$cached,
+    cache_path = internal_metadata$cache_path,
+    read_from_cache = internal_metadata$read_from_cache,
+
+    # Package information
+    crosswalk_package_version = as.character(utils::packageVersion("crosswalk")))
+
   attr(result, "crosswalk_metadata") <- metadata
+
+  result = result |>
+    dplyr::mutate(
+      dplyr::across(
+        .cols = -allocation_factor_source_to_target,
+        .fns = as.character),
+      dplyr::across(
+        .cols = allocation_factor_source_to_target,
+        as.numeric))
 
   return(result)
 }
