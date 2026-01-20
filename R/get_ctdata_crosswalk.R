@@ -1,20 +1,26 @@
-#' Get Connecticut 2020-2022 Crosswalk from CTData
+#' Get Nationally Comprehensive 2020-2022 Crosswalk
 #'
-#' Retrieves a crosswalk for Connecticut geographies between 2020 and 2022 from
-#' the CT Data Collaborative. This handles the 2022 change when Connecticut
-#' switched from eight historical counties to nine county-equivalent planning regions.
+#' Retrieves a nationally comprehensive crosswalk between 2020 and 2022 geographies.
+#' Connecticut records come from the CT Data Collaborative (handling the 2022 change
+#' from historical counties to planning regions). All other states use identity
+#' mapping since no geographic changes occurred outside Connecticut.
 #'
-#' @details This function sources crosswalks from the CT Data Collaborative GitHub
-#'    repository. The crosswalk provides a 1:1 mapping between 2020 and 2022 FIPS
-#'    codes for Connecticut geographies. No interpolation weights are needed because
-#'    the physical boundaries did not change—only the county-level identifiers changed.
+#' @details This function combines:
+#'   - **Connecticut**: Crosswalk from CT Data Collaborative GitHub repository.
+#'     In 2022, Connecticut replaced its 8 historical counties with 9 planning regions,
+#'     which changed county boundaries. For sub-county geographies (tract, block group,
+#'     block), physical boundaries did not change, only the FIPS codes changed to
+#'     align with the new county-level identifiers.
+#'   - **Other states**: Identity mapping derived from NHGIS 2010 -> 2020 crosswalks.
+#'     Since no geographic changes occurred between 2020 and 2022 outside Connecticut,
+#'     source_geoid equals target_geoid with allocation_factor = 1.
 #'
 #' @param geography Character. Geography type: one of "block", "block_group", "tract",
 #'    or "county".
 #' @param cache Directory path. Where to download the crosswalk to. If NULL (default),
 #'    crosswalk is returned but not saved to disk.
 #'
-#' @return A tibble containing the Connecticut crosswalk with columns:
+#' @return A tibble containing the national 2020-2022 crosswalk with columns:
 #'   \describe{
 #'     \item{source_geoid}{The 2020 FIPS code}
 #'     \item{target_geoid}{The 2022 FIPS code}
@@ -22,14 +28,15 @@
 #'     \item{target_geography_name}{The geography type}
 #'     \item{source_year}{2020}
 #'     \item{target_year}{2022}
-#'     \item{allocation_factor_source_to_target}{Always 1 (identity mapping)}
-#'     \item{weighting_factor}{"identity" (no interpolation needed)}
-#'     \item{state_fips}{"09" (Connecticut)}
+#'     \item{allocation_factor_source_to_target}{1 for all records (identity or CT FIPS change)}
+#'     \item{weighting_factor}{"identity" for non-CT, varies for CT county}
+#'     \item{state_fips}{Two-digit state FIPS code}
 #'   }
+#' @keywords internal
 #' @noRd
 get_ctdata_crosswalk <- function(geography, cache = NULL) {
 
- geography_standardized <- geography |>
+  geography_standardized <- geography |>
     stringr::str_to_lower() |>
     stringr::str_squish() |>
     stringr::str_replace_all("_", " ")
@@ -43,7 +50,7 @@ get_ctdata_crosswalk <- function(geography, cache = NULL) {
 
   if (is.na(geography_standardized)) {
     stop(
-"CTData crosswalks are only available for blocks, block groups, tracts, and counties.
+"2020-2022 crosswalks are only available for blocks, block groups, tracts, and counties.
 The provided geography '", geography, "' is not supported.")}
 
   if (is.null(cache)) {
@@ -54,41 +61,58 @@ The provided geography '", geography, "' is not supported.")}
 
   csv_path <- file.path(
     cache_path,
-    stringr::str_c("crosswalk_ctdata_2020_to_2022_", geography_standardized, ".csv"))
+    stringr::str_c("crosswalk_national_2020_to_2022_", geography_standardized, ".csv"))
 
   ctdata_urls <- list(
     block = "https://raw.githubusercontent.com/CT-Data-Collaborative/2022-block-crosswalk/main/2022blockcrosswalk.csv",
     tract = "https://raw.githubusercontent.com/CT-Data-Collaborative/2022-tract-crosswalk/main/2022tractcrosswalk.csv")
 
-  # Determine which URL will be used based on geography
-  download_url <- if (geography_standardized %in% c("block", "block_group")) {
+  # Determine which URL will be used based on geography for CT data
+ ctdata_download_url <- if (geography_standardized %in% c("block", "block_group")) {
     ctdata_urls$block
   } else {
     ctdata_urls$tract
   }
 
+  # Check cache for full national crosswalk
   if (file.exists(csv_path) & !is.null(cache)) {
-    message("Reading CTData crosswalk from cache.")
+    message("Reading national 2020-2022 crosswalk from cache.")
     result <- readr::read_csv(
       csv_path,
       col_types = readr::cols(.default = readr::col_character(),
-                              allocation_factor_source_to_target = readr::col_double()))
+                              allocation_factor_source_to_target = readr::col_double()),
+      show_col_types = FALSE)
 
-    # Attach metadata to cached result
+    # Weighting note for metadata
+    weighting_note <- if (geography_standardized == "county") {
+      "CT county crosswalk uses population-weighted allocation factors from ACS 2021."
+    } else {
+      "All records have allocation_factor = 1 (identity mapping or CT FIPS code change)."
+    }
+
     attr(result, "crosswalk_metadata") <- list(
-      data_source = "ctdata",
-      data_source_full_name = "CT Data Collaborative",
-      download_url = download_url,
-      github_repository = "https://github.com/CT-Data-Collaborative",
-      documentation_url = "https://github.com/CT-Data-Collaborative/2022-tract-crosswalk",
+      data_source = "ctdata_nhgis_combined",
+      data_source_full_name = "CT Data Collaborative (CT) + NHGIS-derived identity mapping (other states)",
+      ctdata_download_url = ctdata_download_url,
+      ctdata_github_repository = "https://github.com/CT-Data-Collaborative",
+      ctdata_documentation_url = "https://github.com/CT-Data-Collaborative/2022-tract-crosswalk",
+      nhgis_crosswalk_used = if (geography_standardized != "county") {
+        stringr::str_c(geography_standardized, "2010_", geography_standardized, "2020")
+      } else {
+        "N/A (county GEOIDs from tidycensus)"
+      },
+      nhgis_citation_url = "https://www.nhgis.org/citation-and-use-nhgis-data",
       source_year = "2020",
       target_year = "2022",
       source_geography = geography,
       source_geography_standardized = geography_standardized,
       target_geography = geography,
       target_geography_standardized = geography_standardized,
-      state_coverage = "Connecticut only (FIPS 09)",
-      notes = "Connecticut replaced 8 historical counties with 9 planning regions in 2022. Physical boundaries unchanged; only FIPS codes changed.",
+      state_coverage = "National (all 50 states, DC, and Puerto Rico)",
+      notes = c(
+        "Connecticut: 8 historical counties replaced by 9 planning regions in 2022 (county boundaries changed; sub-county geographies had FIPS code changes only).",
+        "Other states: No geographic changes between 2020 and 2022 (identity mapping).",
+        weighting_note),
       retrieved_at = NA,
       cached = TRUE,
       cache_path = csv_path,
@@ -97,10 +121,85 @@ The provided geography '", geography, "' is not supported.")}
     return(result)
   }
 
+  message("Constructing nationally comprehensive 2020-2022 crosswalk...")
+
+  # ===========================================================================
+  # STEP 1: Get all 2020 GEOIDs from NHGIS crosswalk (non-CT) or tidycensus (county)
+  # ===========================================================================
+
+  # Map geography names for NHGIS
+  nhgis_geog_map <- c(
+    "block" = "block",
+    "block_group" = "block_group",
+    "tract" = "tract",
+    "county" = "county")
+
+  nhgis_source_geog <- nhgis_geog_map[[geography_standardized]]
+
+  if (geography_standardized == "county") {
+    # For county, use tidycensus since NHGIS doesn't have county -> county crosswalks
+    message("Fetching all 2020 county GEOIDs via tidycensus...")
+
+    all_2020_geoids <- suppressMessages({
+      tidycensus::get_acs(
+        year = 2021,
+        geography = "county",
+        variables = "B01003_001",
+        output = "wide") |>
+        dplyr::select(geoid_2020 = GEOID) |>
+        dplyr::filter(!stringr::str_starts(geoid_2020, "09")) |>
+        dplyr::pull(geoid_2020)
+    })
+
+  } else {
+    # For block, block_group, tract: use NHGIS 2010 -> 2020 crosswalk
+    message(stringr::str_c(
+      "Fetching NHGIS ", nhgis_source_geog, " 2010 -> 2020 crosswalk to obtain all 2020 GEOIDs..."))
+
+    nhgis_crosswalk <- get_nhgis_crosswalk(
+      source_year = 2010,
+      source_geography = nhgis_source_geog,
+      target_year = 2020,
+      target_geography = nhgis_source_geog,
+      cache = cache)
+
+    # Extract unique 2020 GEOIDs, excluding Connecticut (FIPS 09)
+    all_2020_geoids <- nhgis_crosswalk |>
+      dplyr::select(target_geoid) |>
+      dplyr::distinct() |>
+      dplyr::filter(!stringr::str_starts(target_geoid, "09")) |>
+      dplyr::pull(target_geoid)
+  }
+
+  message(stringr::str_c(
+    "Found ", format(length(all_2020_geoids), big.mark = ","),
+    " non-CT 2020 ", geography_standardized, " GEOIDs."))
+
+  # ===========================================================================
+  # STEP 2: Create identity mapping for non-CT states
+  # ===========================================================================
+
+  non_ct_crosswalk <- tibble::tibble(
+    source_geoid = all_2020_geoids,
+    target_geoid = all_2020_geoids,
+    source_geography_name = geography_standardized,
+    target_geography_name = geography_standardized,
+    source_year = "2020",
+    target_year = "2022",
+    allocation_factor_source_to_target = 1,
+    weighting_factor = "identity",
+    state_fips = stringr::str_sub(all_2020_geoids, 1, 2))
+
+  # ===========================================================================
+  # STEP 3: Get CT-specific crosswalk from CT Data Collaborative
+  # ===========================================================================
+
+  message("Fetching Connecticut crosswalk from CT Data Collaborative...")
+
   if (geography_standardized == "block") {
     raw_df <- readr::read_csv(ctdata_urls$block, show_col_types = FALSE)
 
-    result <- raw_df |>
+    ct_crosswalk <- raw_df |>
       dplyr::transmute(
         source_geoid = block_fips_2020,
         target_geoid = block_fips_2022,
@@ -115,7 +214,7 @@ The provided geography '", geography, "' is not supported.")}
   } else if (geography_standardized == "block_group") {
     raw_df <- readr::read_csv(ctdata_urls$block, show_col_types = FALSE)
 
-    result <- raw_df |>
+    ct_crosswalk <- raw_df |>
       dplyr::transmute(
         source_geoid = stringr::str_sub(block_fips_2020, 1, 12),
         target_geoid = stringr::str_sub(block_fips_2022, 1, 12)) |>
@@ -132,7 +231,7 @@ The provided geography '", geography, "' is not supported.")}
   } else if (geography_standardized == "tract") {
     raw_df <- readr::read_csv(ctdata_urls$tract, show_col_types = FALSE)
 
-    result <- raw_df |>
+    ct_crosswalk <- raw_df |>
       dplyr::transmute(
         source_geoid = tract_fips_2020,
         target_geoid = Tract_fips_2022,
@@ -155,17 +254,17 @@ The provided geography '", geography, "' is not supported.")}
 
     ct_tract_populations <- suppressMessages({
       tidycensus::get_acs(
-          year = 2021,
-          geography = "tract",
-          state = "CT",
-          variables = "B01003_001",
-          output = "wide") |>
+        year = 2021,
+        geography = "tract",
+        state = "CT",
+        variables = "B01003_001",
+        output = "wide") |>
         dplyr::select(
           tract_fips_2020 = GEOID,
           population_2020 = B01003_001E)
     })
 
-    result <- raw_df |>
+    ct_crosswalk <- raw_df |>
       dplyr::left_join(ct_tract_populations, by = "tract_fips_2020") |>
       dplyr::summarize(
         population_2020 = sum(population_2020, na.rm = TRUE),
@@ -191,113 +290,78 @@ The provided geography '", geography, "' is not supported.")}
         weighting_factor, state_fips)
   }
 
+  # ===========================================================================
+  # STEP 4: Combine CT and non-CT crosswalks
+  # ===========================================================================
+
+  result <- dplyr::bind_rows(ct_crosswalk, non_ct_crosswalk) |>
+    dplyr::arrange(source_geoid)
+
+  message(stringr::str_c(
+    "National 2020-2022 crosswalk constructed: ",
+    format(nrow(ct_crosswalk), big.mark = ","), " CT records + ",
+    format(nrow(non_ct_crosswalk), big.mark = ","), " non-CT records = ",
+    format(nrow(result), big.mark = ","), " total records."))
+
+  # ===========================================================================
+  # STEP 5: Cache and return
+  # ===========================================================================
+
   if (!is.null(cache)) {
     if (!dir.exists(cache_path)) {
       dir.create(cache_path, recursive = TRUE)
     }
     readr::write_csv(result, csv_path)
+    message(stringr::str_c("Cached to: ", csv_path))
   }
 
   message(
-"Connecticut 2020-2022 crosswalk sourced from CT Data Collaborative.
-See https://github.com/CT-Data-Collaborative for more information.")
+"National 2020-2022 crosswalk constructed:
+- Connecticut: CT Data Collaborative (https://github.com/CT-Data-Collaborative)
+- Other states: Identity mapping derived from NHGIS 2010-2020 crosswalk")
 
   # Attach metadata to result
   weighting_note <- if (geography_standardized == "county") {
-    "County crosswalk uses population-weighted allocation factors from ACS 2021 tract populations."
+    "CT county crosswalk uses population-weighted allocation factors from ACS 2021."
   } else {
-    "Identity mapping (allocation_factor = 1) - physical boundaries unchanged, only FIPS codes changed."
+    "All records have allocation_factor = 1 (identity mapping or CT FIPS code change)."
   }
 
   attr(result, "crosswalk_metadata") <- list(
-    data_source = "ctdata",
-    data_source_full_name = "CT Data Collaborative",
-    download_url = download_url,
-    github_repository = "https://github.com/CT-Data-Collaborative",
-    documentation_url = "https://github.com/CT-Data-Collaborative/2022-tract-crosswalk",
+    data_source = "ctdata_nhgis_combined",
+    data_source_full_name = "CT Data Collaborative (CT) + NHGIS-derived identity mapping (other states)",
+    ctdata_download_url = ctdata_download_url,
+    ctdata_github_repository = "https://github.com/CT-Data-Collaborative",
+    ctdata_documentation_url = "https://github.com/CT-Data-Collaborative/2022-tract-crosswalk",
+    nhgis_crosswalk_used = if (geography_standardized != "county") {
+      stringr::str_c(geography_standardized, "2010_", geography_standardized, "2020")
+    } else {
+      "N/A (county GEOIDs from tidycensus)"
+    },
+    nhgis_citation_url = "https://www.nhgis.org/citation-and-use-nhgis-data",
     source_year = "2020",
     target_year = "2022",
     source_geography = geography,
     source_geography_standardized = geography_standardized,
     target_geography = geography,
     target_geography_standardized = geography_standardized,
-    state_coverage = "Connecticut only (FIPS 09)",
+    state_coverage = "National (all 50 states, DC, and Puerto Rico)",
     notes = c(
-      "Connecticut replaced 8 historical counties with 9 planning regions in 2022.",
+      "Connecticut: 8 historical counties replaced by 9 planning regions in 2022 (county boundaries changed; sub-county geographies had FIPS code changes only).",
+      "Other states: No geographic changes between 2020 and 2022 (identity mapping).",
       weighting_note),
     retrieved_at = Sys.time(),
     cached = !is.null(cache),
-    cache_path = if (!is.null(cache)) csv_path else NULL)
+    cache_path = if (!is.null(cache)) csv_path else NULL,
+    read_from_cache = FALSE)
 
   return(result)
 }
 
-
-#' Generate Identity Crosswalk for Non-Connecticut States (2020-2022)
-#'
-#' For states other than Connecticut, there were no geographic changes between
-#' 2020 and 2022. This function generates an identity mapping where source and
-#' target GEOIDs are identical.
-#'
-#' @param geography Character. Geography type: one of "block_group", "tract", or "county".
-#' @param states Character vector. State FIPS codes to include. Defaults to all
-#'    states except Connecticut ("09").
-#'
-#' @return A tibble with identity mappings for the specified geography and states.
-#' @noRd
-get_identity_crosswalk_2020_2022 <- function(geography, states = NULL) {
-
-  geography_standardized <- geography |>
-    stringr::str_to_lower() |>
-    stringr::str_squish() |>
-    stringr::str_replace_all("_", " ")
-
-  geography_standardized <- dplyr::case_when(
-    geography_standardized %in% c("block group", "blockgroup", "bg") ~ "block_group",
-    geography_standardized %in% c("tract", "tracts", "tr") ~ "tract",
-    geography_standardized %in% c("county", "counties", "co") ~ "county",
-    TRUE ~ NA_character_)
-
-  if (is.na(geography_standardized)) {
-    stop(
-"Identity crosswalks for 2020-2022 are only available for block groups, tracts,
-and counties. Block-level identity crosswalks are not supported due to data size.")}
-
-  all_state_fips <- c(
-    "01", "02", "04", "05", "06", "08", "10", "11", "12", "13",
-    "15", "16", "17", "18", "19", "20", "21", "22", "23", "24",
-    "25", "26", "27", "28", "29", "30", "31", "32", "33", "34",
-    "35", "36", "37", "38", "39", "40", "41", "42", "44", "45",
-    "46", "47", "48", "49", "50", "51", "53", "54", "55", "56", "72")
-
-  non_ct_states <- all_state_fips[all_state_fips != "09"]
-
-  if (is.null(states)) {
-    states <- non_ct_states
-  } else {
-    states <- states[states != "09"]
-  }
-
-  result <- tibble::tibble(
-    source_geoid = character(),
-    target_geoid = character(),
-    source_geography_name = character(),
-    target_geography_name = character(),
-    source_year = character(),
-    target_year = character(),
-    allocation_factor_source_to_target = numeric(),
-    weighting_factor = character(),
-    state_fips = character())
-
-  message(
-"For states other than Connecticut, no geographic changes occurred between
-2020 and 2022. Returning identity mapping (source_geoid = target_geoid).
-Note: This function returns an empty template. To populate with actual GEOIDs,
-you would need to provide a list of GEOIDs or use Census Bureau geography files.")
-
-  attr(result, "identity_mapping") <- TRUE
-  attr(result, "states_included") <- states
-  attr(result, "geography") <- geography_standardized
-
- return(result)
-}
+utils::globalVariables(c(
+  "B01003_001E", "GEOID", "Tract_fips_2022", "allocation_factor_source_to_target",
+  "block_fips_2020", "block_fips_2022", "ce_fips_2022", "county_fips_2020",
+  "county_fips_2022", "geoid_2020", "population_2020", "population_2020_total",
+  "source_geography_name", "source_geoid", "source_year", "state_fips",
+  "target_geography_name", "target_geoid", "target_year", "tract_fips_2020",
+  "tract_fips_2022", "weighting_factor"))

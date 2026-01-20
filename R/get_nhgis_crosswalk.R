@@ -6,6 +6,7 @@
 #' @param context Character. Either "source" or "target" to determine valid options.
 #' @return Character. Standardized geography code.
 #' @keywords internal
+#' @noRd
 standardize_geography <- function(geography, context = "source") {
   # Convert to lowercase and remove extra whitespace
   geography <- geography |>
@@ -133,7 +134,7 @@ list_nhgis_crosswalks <- function() {
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_blk2010.zip",
 
     ## =========================================================================
-    ## BLOCK → BLOCK GROUP
+    ## BLOCK -> BLOCK GROUP
     ## =========================================================================
     ## from 1990
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_bg2010.zip",
@@ -158,7 +159,7 @@ list_nhgis_crosswalks <- function() {
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_bg2015.zip",
 
     ## =========================================================================
-    ## BLOCK GROUP ↔ BLOCK GROUP (bidirectional)
+    ## BLOCK GROUP <-> BLOCK GROUP (bidirectional)
     ## =========================================================================
     ## from 2010s
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2010_bg2020.zip",
@@ -184,7 +185,7 @@ list_nhgis_crosswalks <- function() {
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2022_bg2015.zip",
 
     ## =========================================================================
-    ## BLOCK → TRACT
+    ## BLOCK -> TRACT
     ## =========================================================================
     ## from 1990
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_tr2010.zip",
@@ -209,7 +210,7 @@ list_nhgis_crosswalks <- function() {
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_tr2015.zip",
 
     ## =========================================================================
-    ## BLOCK GROUP → TRACT
+    ## BLOCK GROUP -> TRACT
     ## =========================================================================
     ## from 2010s
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2010_tr2020.zip",
@@ -235,7 +236,7 @@ list_nhgis_crosswalks <- function() {
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2022_tr2015.zip",
 
     ## =========================================================================
-    ## TRACT ↔ TRACT (bidirectional)
+    ## TRACT<-> TRACT (bidirectional)
     ## =========================================================================
     ## from 1990
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr1990_tr2010.zip",
@@ -273,7 +274,7 @@ list_nhgis_crosswalks <- function() {
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2022_tr2015.zip",
 
     ## =========================================================================
-    ## BLOCK → COUNTY
+    ## BLOCK -> COUNTY
     ## Note: 2011/2012 targets only available from 2020 source (not 1990/2000)
     ## =========================================================================
     ## from 1990 (to 2010, 2014, 2015 only)
@@ -295,7 +296,7 @@ list_nhgis_crosswalks <- function() {
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk2020_co2015.zip",
 
     ## =========================================================================
-    ## BLOCK GROUP → COUNTY
+    ## BLOCK GROUP -> COUNTY
     ## Note: bg source to co only available for 2010, 2014, 2015 sources
     ## (NOT 2011 or 2012 sources)
     ## =========================================================================
@@ -318,7 +319,7 @@ list_nhgis_crosswalks <- function() {
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_bg2022_co2015.zip",
 
     ## =========================================================================
-    ## TRACT → COUNTY
+    ## TRACT -> COUNTY
     ## Note: tr source to co only available for 1990, 2000, 2010, 2014, 2015,
     ## 2020, 2022 sources (NOT 2011 or 2012 sources)
     ## =========================================================================
@@ -349,7 +350,7 @@ list_nhgis_crosswalks <- function() {
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_tr2022_co2015.zip",
 
     ## =========================================================================
-    ## BLOCK → OTHER GEOGRAPHIES (decennial years only)
+    ## BLOCK -> OTHER GEOGRAPHIES (decennial years only)
     ## =========================================================================
     ## CBSA
     "https://api.ipums.org/supplemental-data/nhgis/crosswalks/nhgis_blk1990_cbsa2010.zip",
@@ -427,12 +428,7 @@ list_nhgis_crosswalks <- function() {
 #' @param cache Directory path. Where to download the crosswalk to. If NULL (default),
 #'    crosswalk is returned but not saved to disk.
 #'
-#' @return A data frame containing the crosswalk between the specified geographies.
-#'    Data are tidy-formatted, with each observation reflecting a unique
-#'    source-target-weighting factor combination. Note that all (typically two
-#'    or three) available weighting factors are returned.
-#'
-#'#' @return A dataframe representing the requested Geocorr22 crosswalk for all
+#' @return A dataframe representing the requested Geocorr22 crosswalk for all
 #'      51 states and Puerto Rico. Depending on the desired geographies, some
 #'      fields may not be included.
 #'   \describe{
@@ -446,6 +442,7 @@ list_nhgis_crosswalks <- function() {
 #'        from the source geography to the target geography}
 #'     \item{weighting_factor}{The attribute used to calculate allocation factors}
 #'   }
+#' @keywords internal
 #' @noRd
 get_nhgis_crosswalk <- function(
     source_year,
@@ -477,7 +474,7 @@ get_nhgis_crosswalk <- function(
 
   ## if the file exists and cache == TRUE
   if (file.exists(csv_path) & !is.null(cache)) {
-    result = readr::read_csv(csv_path)
+    result = readr::read_csv(csv_path, show_col_types = FALSE)
 
     message(
 "Use of NHGIS crosswalks is subject to the same conditions as for all NHGIS data.
@@ -718,7 +715,8 @@ variable. Get your key at https://account.ipums.org/api_keys") }
 
     crosswalk_df = readr::read_csv(
       csv_files[1],
-      col_types = readr::cols(.default = readr::col_character())) |>
+      col_types = readr::cols(.default = readr::col_character()),
+      show_col_types = FALSE) |>
       janitor::clean_names()
 
     crosswalk_df

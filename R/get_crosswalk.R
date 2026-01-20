@@ -1,12 +1,19 @@
-#' Get an inter-temporal or inter-geography crosswalk
+#' Get a Geographic Crosswalk
 #'
 #' Retrieves a crosswalk with interpolation values from a source geography to a target
-#' geography or from a source year to a target year.
+#' geography, optionally across different years. Always returns a list with a consistent
+#' structure containing one or more crosswalk tibbles.
 #'
 #' @details This function sources crosswalks from Geocorr 2022, IPUMS NHGIS, and
 #'    CT Data Collaborative. Crosswalk weights are from the original sources and
 #'    have not been modified; this function merely standardizes the format of the
 #'    returned crosswalks and enables easy programmatic access and caching.
+#'
+#'    **Multi-step crosswalks**: When both geography AND year change (e.g.,
+#'    2010 tracts to 2020 ZCTAs), no single crosswalk source provides this directly.
+#'    This function returns multiple crosswalks that should be applied sequentially:
+#'    1. First crosswalk changes year (via NHGIS): source_geog(source_year) -> source_geog(target_year)
+#'    2. Second crosswalk changes geography (via Geocorr): source_geog(target_year) -> target_geog(target_year)
 #'
 #'    **Non-census year support**: For target years 2011, 2012, 2014, 2015, and 2022,
 #'    crosswalks are available only for block groups, tracts, and counties. These
@@ -40,40 +47,19 @@
 #'    crosswalk is returned but not saved to disk. Individual component crosswalks
 #'    are cached separately when provided.
 #'
-#' @return A tibble containing the crosswalk between the specified geographies.
-#'    Data are tidy-formatted, with each observation reflecting a unique
-#'    source-target-weighting factor combination.
-#'
-#'    The returned tibble includes an attribute `crosswalk_metadata` (access via
-#'    `attr(result, "crosswalk_metadata")`) containing comprehensive information
-#'    about how the crosswalk was produced:
+#' @return A list with a consistent structure:
 #'    \describe{
-#'      \item{call_parameters}{List of the parameters passed to get_crosswalk()}
-#'      \item{data_source}{Short identifier for the data source (e.g., "nhgis", "geocorr", "ctdata")}
-#'      \item{data_source_full_name}{Full name of the data source}
-#'      \item{download_url}{URL from which the crosswalk was downloaded (NHGIS, CTData)}
-#'      \item{api_endpoint}{API endpoint used (Geocorr)}
-#'      \item{documentation_url}{URL to documentation for the crosswalk source}
-#'      \item{citation_url}{URL to citation requirements (NHGIS)}
-#'      \item{github_repository}{GitHub repository URL (CTData)}
-#'      \item{source_geography}{Source geography as specified by user}
-#'      \item{source_geography_standardized}{Standardized source geography code}
-#'      \item{target_geography}{Target geography as specified by user}
-#'      \item{target_geography_standardized}{Standardized target geography code}
-#'      \item{source_year}{Source year (if applicable)}
-#'      \item{target_year}{Target year (if applicable)}
-#'      \item{reference_year}{Reference year for same-year crosswalks (Geocorr)}
-#'      \item{weighting_variable}{Variable used to calculate allocation factors}
-#'      \item{state_coverage}{Geographic coverage notes (e.g., "Connecticut only")}
-#'      \item{notes}{Additional notes about the crosswalk}
-#'      \item{retrieved_at}{Timestamp when crosswalk was retrieved}
-#'      \item{cached}{Logical indicating if result was cached}
-#'      \item{cache_path}{Path to cached file (if applicable)}
-#'      \item{read_from_cache}{Logical indicating if result was read from cache}
-#'      \item{crosswalk_package_version}{Version of the crosswalk package used}
+#'      \item{crosswalks}{A named list of crosswalk tibbles (step_1, step_2, etc.).
+#'         Single-step transformations have one crosswalk; multi-step have two or more.}
+#'      \item{plan}{The crosswalk plan describing the transformation steps}
+#'      \item{message}{A formatted message describing the crosswalk chain}
 #'    }
 #'
-#'    Columns in the returned dataframe (some may not be present depending on source):
+#'    Each crosswalk tibble includes an attribute `crosswalk_metadata` (access via
+#'    `attr(result$crosswalks$step_1, "crosswalk_metadata")`) containing comprehensive
+#'    information about how the crosswalk was produced.
+#'
+#'    Columns in returned crosswalk dataframes (some may not be present depending on source):
 #'   \describe{
 #'     \item{source_geoid}{A unique identifier for the source geography}
 #'     \item{target_geoid}{A unique identifier for the target geography}
@@ -96,27 +82,40 @@
 #' @examples
 #' \dontrun{
 #' # Same-year crosswalk between geographies (uses Geocorr)
-#' get_crosswalk(
+#' # Returns list with one crosswalk in crosswalks$step_1
+#' result <- get_crosswalk(
 #'   source_geography = "zcta",
 #'   target_geography = "puma22",
 #'   weight = "population",
 #'   cache = here::here("crosswalks-cache"))
 #'
-#' # Inter-temporal crosswalk (uses NHGIS)
-#' get_crosswalk(
+#' # Apply to data using crosswalk_data()
+#' output <- crosswalk_data(
+#'   data = my_data,
+#'   crosswalk = result,
+#'   count_columns = "count_population")
+#'
+#' # Multi-step crosswalk: both geography AND year change
+#' # Returns list with two crosswalks in crosswalks$step_1 and crosswalks$step_2
+#' result <- get_crosswalk(
 #'   source_geography = "tract",
-#'   target_geography = "tract",
+#'   target_geography = "zcta",
 #'   source_year = 2010,
 #'   target_year = 2020,
-#'   cache = here::here("crosswalks-cache"))
+#'   weight = "population")
 #'
-#' # Non-census year crosswalk (2020 to 2022, CT changes)
-#' get_crosswalk(
-#'   source_geography = "tract",
-#'   target_geography = "tract",
-#'   source_year = 2020,
-#'   target_year = 2022,
-#'   cache = here::here("crosswalks-cache"))
+#' # crosswalk_data() automatically applies all steps
+#' output <- crosswalk_data(
+#'   data = my_data,
+#'   crosswalk = result,
+#'   count_columns = "count_population")
+#'
+#' # To get intermediate results, set return_intermediate = TRUE
+#' output <- crosswalk_data(
+#'   data = my_data,
+#'   crosswalk = result,
+#'   count_columns = "count_population",
+#'   return_intermediate = TRUE)
 #' }
 
 get_crosswalk <- function(
@@ -125,34 +124,98 @@ get_crosswalk <- function(
   source_year = NULL,
   target_year = NULL,
   cache = NULL,
-  weight = NULL) {
+  weight = "population") {
 
-  if (
-    (source_geography == "block" & target_geography %in% c("block group", "tract", "county", "core_based_statistical_area") |
-    source_geography == "block group" & target_geography %in% c("tract", "county", "core_based_statistical_area") |
-    source_geography == "tract" & target_geography %in% c("county", "core_based_statistical_area") |
-    source_geography == "county" & target_geography == "core_based_statistical_area") & 
-    ((is.null(source_year) & is.null(target_year)) | (source_year == target_year))
-  ) {
+  # Check for nested geographies (no crosswalk needed)
+  # Determine if years match (both NULL, or both non-NULL and equal)
+  years_match <- (is.null(source_year) && is.null(target_year)) ||
+    (!is.null(source_year) && !is.null(target_year) && isTRUE(source_year == target_year))
+
+  is_nested <- (source_geography == "block" && target_geography %in% c("block group", "tract", "county", "core_based_statistical_area")) ||
+    (source_geography == "block group" && target_geography %in% c("tract", "county", "core_based_statistical_area")) ||
+    (source_geography == "tract" && target_geography %in% c("county", "core_based_statistical_area")) ||
+    (source_geography == "county" && target_geography == "core_based_statistical_area")
+
+  if (is_nested && years_match) {
     warning(
 "The source geography is nested within the target geography and an empty result
 will be returned. No crosswalk is needed to translate data between nested geographies;
 simply aggregate your data to the desired geography.")
 
-    return(tibble::tibble())
+    # Return empty list structure for consistency
+    return(list(
+      crosswalks = list(step_1 = tibble::tibble()),
+      plan = NULL,
+      message = "No crosswalk needed for nested geographies"))
   }
 
+  # Plan the crosswalk chain to determine if multi-step is needed
+  plan <- plan_crosswalk_chain(
+    source_geography = source_geography,
+    target_geography = target_geography,
+    source_year = source_year,
+    target_year = target_year,
+    weight = weight)
+
+  # Check for planning errors
+  if (!is.null(plan$error)) {
+    stop(plan$error)
+  }
+
+  # Use get_crosswalk_chain for both single and multi-step
+  # (it handles both cases and returns consistent structure)
+  result <- get_crosswalk_chain(
+    source_geography = source_geography,
+    target_geography = target_geography,
+    source_year = source_year,
+    target_year = target_year,
+    weight = weight,
+    cache = cache)
+
+  return(result)
+}
+
+
+#' Get a Single-Step Crosswalk (Internal)
+#'
+#' Internal function that retrieves a single crosswalk from the appropriate source.
+#' This handles routing to Geocorr, NHGIS, or CTData based on the parameters.
+#'
+#' @inheritParams get_crosswalk
+#' @return A tibble containing the crosswalk.
+#' @keywords internal
+#' @noRd
+get_crosswalk_single <- function(
+    source_geography,
+    target_geography,
+    source_year = NULL,
+    target_year = NULL,
+    weight = "population",
+    cache = NULL) {
+
+  # Convert years to character for consistent processing
   source_year_chr <- if (!is.null(source_year)) as.character(source_year) else NULL
   target_year_chr <- if (!is.null(target_year)) as.character(target_year) else NULL
 
-  if (is.null(source_year) | is.null(target_year)) {
+  # Determine which source to use
+
+  # Use Geocorr for: no years specified, or same year
+  use_geocorr <- is.null(source_year) || is.null(target_year) ||
+    (!is.null(source_year) && !is.null(target_year) && isTRUE(source_year == target_year))
+
+  # Use CTData for 2020 to 2022 (Connecticut planning region changes)
+  use_ctdata <- !is.null(source_year_chr) && !is.null(target_year_chr) &&
+    source_year_chr == "2020" && target_year_chr == "2022"
+
+  if (use_geocorr) {
     crosswalk_source <- "geocorr"
-  } else if (source_year_chr == "2020" & target_year_chr == "2022") {
+  } else if (use_ctdata) {
     crosswalk_source <- "ctdata_2020_2022"
   } else {
     crosswalk_source <- "nhgis"
   }
 
+  # Fetch the crosswalk from the appropriate source
   if (crosswalk_source == "ctdata_2020_2022") {
     result <- get_crosswalk_2020_2022(
       geography = source_geography,
@@ -179,7 +242,6 @@ simply aggregate your data to the desired geography.")
 
   # Build comprehensive metadata object
   metadata <- list(
-    # Call parameters
     call_parameters = list(
       source_geography = source_geography,
       target_geography = target_geography,
@@ -188,7 +250,6 @@ simply aggregate your data to the desired geography.")
       weight = weight,
       cache = cache),
 
-    # Data source information
     data_source = if (!is.null(internal_metadata$data_source)) {
       internal_metadata$data_source
     } else {
@@ -204,14 +265,12 @@ simply aggregate your data to the desired geography.")
         crosswalk_source)
     },
 
-    # URLs and documentation
     download_url = internal_metadata$download_url,
     api_endpoint = internal_metadata$api_endpoint,
     documentation_url = internal_metadata$documentation_url,
     citation_url = internal_metadata$citation_url,
     github_repository = internal_metadata$github_repository,
 
-    # Geography and year details
     source_geography = source_geography,
     source_geography_standardized = internal_metadata$source_geography_standardized,
     target_geography = target_geography,
@@ -220,14 +279,12 @@ simply aggregate your data to the desired geography.")
     target_year = target_year_chr,
     reference_year = internal_metadata$reference_year,
 
-    # Weighting
     weighting_variable = if (!is.null(internal_metadata$weighting_variable)) {
       internal_metadata$weighting_variable
     } else {
       weight
     },
 
-    # Coverage and notes
     state_coverage = internal_metadata$state_coverage,
     notes = if (crosswalk_source == "ctdata_2020_2022") {
       c("Connecticut: CTData Collaborative 2020-2022 crosswalk",
@@ -237,18 +294,17 @@ simply aggregate your data to the desired geography.")
       internal_metadata$notes
     },
 
-    # Retrieval information
     retrieved_at = internal_metadata$retrieved_at,
     cached = internal_metadata$cached,
     cache_path = internal_metadata$cache_path,
     read_from_cache = internal_metadata$read_from_cache,
 
-    # Package information
+    is_multi_step = FALSE,
     crosswalk_package_version = as.character(utils::packageVersion("crosswalk")))
 
   attr(result, "crosswalk_metadata") <- metadata
 
-  result = result |>
+  result <- result |>
     dplyr::mutate(
       dplyr::across(
         .cols = -allocation_factor_source_to_target,
@@ -261,18 +317,20 @@ simply aggregate your data to the desired geography.")
 }
 
 
-#' Get 2020 to 2022 Crosswalk (Connecticut + Identity Mapping)
+#' Get 2020 to 2022 Crosswalk (National)
 #'
 #' Internal function that handles the special case of 2020 to 2022 crosswalks.
-#' Connecticut changed from historical counties to planning regions in 2022,
-#' while all other states had no geographic changes.
+#' Returns a nationally comprehensive crosswalk with Connecticut data from
+#' CT Data Collaborative (handling the planning region changes) and identity
+#' mappings for all other states (where no changes occurred).
 #'
 #' @param geography Character. Geography type: one of "block", "block_group",
 #'    "tract", or "county".
 #' @param cache Directory path for caching component crosswalks.
 #'
-#' @return A tibble containing the national crosswalk with Connecticut from CTData
-#'    and identity mappings for other states.
+#' @return A tibble containing the national 2020-2022 crosswalk with Connecticut
+#'    from CTData and identity mappings for other states.
+#' @keywords internal
 #' @noRd
 get_crosswalk_2020_2022 <- function(geography, cache = NULL) {
 
@@ -293,61 +351,12 @@ get_crosswalk_2020_2022 <- function(geography, cache = NULL) {
 "2020 to 2022 crosswalks are only available for blocks, block groups, tracts,
 and counties. The provided geography '", geography, "' is not supported.")}
 
-  message(
-"Constructing 2020 to 2022 crosswalk:
-- Connecticut: Using CT Data Collaborative crosswalk (FIPS code changes only,
-  boundaries unchanged). Historical counties were replaced by planning regions.
-- Other states: No geographic changes occurred between 2020 and 2022.
-  Returning identity mapping (source_geoid = target_geoid) for non-CT states.")
-
- ct_crosswalk <- get_ctdata_crosswalk(
+  # get_ctdata_crosswalk() now returns nationally comprehensive data
+  result <- get_ctdata_crosswalk(
     geography = geography_standardized,
     cache = cache)
 
-  message(
-    "Connecticut crosswalk loaded: ", nrow(ct_crosswalk), " ",
-    geography_standardized, " records.")
-
-  attr(ct_crosswalk, "crosswalk_sources") <- list(
-    connecticut = "ctdata",
-    other_states = "identity_mapping")
-  attr(ct_crosswalk, "identity_states_note") <-
-"For states other than Connecticut, no geographic changes occurred between 2020
-and 2022. When joining your data, non-CT records will match on identical GEOIDs.
-This crosswalk only contains Connecticut records where FIPS codes changed."
-
-  return(ct_crosswalk)
+  return(result)
 }
 
-# ## write out geocorr crosswalks
-# core_sources_geocorr = c(
-#   #"place", "county",
-#   "tract",
-#   #"blockgroup",
-#   "zcta",
-#   "puma22"#,
-#   #"cd119", "cd118"
-#   )
-
-# library(climateapi)
-## create an intersection of all geography combinations
-# expand.grid(core_sources_geocorr, core_sources_geocorr) |>
-#   dplyr::rename(source_geography = 1, target_geography = 2) |>
-#   ## drop where the source and target geographies are the same
-#   dplyr::filter(source_geography != target_geography) |>
-#   dplyr::mutate(
-#     weight = "housing",
-#     cache = file.path("C:", "Users", climateapi::get_system_username(), "Box", "Arnold LIHTC study", "Data", "Shapefiles and crosswalks", "crosswalk_acs_decennial_chas"),
-#     dplyr::across(dplyr::where(is.factor), as.character)) |>
-#   purrr::pwalk(get_crosswalk)
-
-# tibble::tibble(
-#   source_geography = "tract",
-#   target_geography = "tract",
-#   source_year = c(1990, 2000, 2010),
-#   target_year = c(2010, 2010, 2020)) |>
-#   dplyr::mutate(
-#     weight = "housing",
-#     cache = file.path("C:", "Users", climateapi::get_system_username(), "Box", "Arnold LIHTC study", "Data", "Shapefiles and crosswalks", "crosswalk_acs_decennial_chas"),
-#     dplyr::across(dplyr::where(is.factor), as.character)) |>
-#   purrr::pwalk(get_crosswalk)
+utils::globalVariables(c("allocation_factor_source_to_target"))
