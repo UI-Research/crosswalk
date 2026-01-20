@@ -37,13 +37,15 @@
 #'     \item{weighting_factor}{The attribute used to calculate allocation factors
 #'        (one of population, housing, land)}
 #'   }
+#' @keywords internal
 #' @noRd
 get_geocorr_crosswalk <- function(
     source_geography,
     target_geography,
-    weight = c("population", "housing", "land"),
+    weight = "population",
     cache = NULL) {
 
+  outpath = "no file exists here"
   ## identify the relevant file paths for potentially-cached crosswalks
   if (!is.null(cache)) {
     outpath = file.path(
@@ -53,17 +55,38 @@ get_geocorr_crosswalk <- function(
 
   ## if the file exists and the user does not wish to overwrite it
   if (file.exists(outpath) & !is.null(cache)) {
-    result = readr::read_csv(outpath)
+    result = readr::read_csv(outpath, show_col_types = FALSE)
 
     message("Reading file from cache.")
+
+    # Attach metadata to cached result
+    attr(result, "crosswalk_metadata") <- list(
+      data_source = "geocorr",
+      data_source_full_name = "Geocorr 2022 (Missouri Census Data Center)",
+      api_endpoint = "https://mcdc.missouri.edu/cgi-bin/broker",
+      documentation_url = "https://mcdc.missouri.edu/applications/geocorr2022.html",
+      source_geography = source_geography,
+      target_geography = target_geography,
+      weighting_variable = weight,
+      reference_year = "2022",
+      retrieved_at = NA,
+      cached = TRUE,
+      cache_path = outpath,
+      read_from_cache = TRUE)
 
     return(result) }
 
   # Base API URL for geocorr2022
   base_url <- "https://mcdc.missouri.edu/cgi-bin/broker"
 
+  if (is.null(weight)) {
+    message("Setting the default crosswalk weighting variable to: population.")
+    weight = "population"
+  }
+
   # Map weight parameter to API format
-  weight_value <- switch(weight,
+  weight_value <- switch(
+    weight,
     "population" = "pop20",
     "land" = "landsqmi",
     "housing" = "hus20")
@@ -173,7 +196,7 @@ get_geocorr_crosswalk <- function(
 
         if (is.na(csv_path)) { stop("Unable to acquire the specified crosswalk; please file an issue.") }
 
-        df1 = readr::read_csv(file.path("https://mcdc.missouri.edu", "temp", csv_path)) |>
+        df1 = readr::read_csv(file.path("https://mcdc.missouri.edu", "temp", csv_path), show_col_types = FALSE) |>
           janitor::clean_names() })} else {
 
     # Build query parameters
@@ -214,7 +237,7 @@ get_geocorr_crosswalk <- function(
 
     if (is.na(csv_path)) { stop("Unable to acquire the specified crosswalk; please file an issue.") }
 
-    df1 = readr::read_csv(file.path("https://mcdc.missouri.edu", "temp", csv_path)) |>
+    df1 = readr::read_csv(file.path("https://mcdc.missouri.edu", "temp", csv_path), show_col_types = FALSE) |>
       janitor::clean_names() }
 
   df2 = df1 |>
@@ -282,8 +305,17 @@ get_geocorr_crosswalk <- function(
       allocation_factor_target_to_source = afact2,
       dplyr::any_of(c("housing_2020", "population_2020", "land_area_sqmi"))) |>
     dplyr::mutate(
+      ## tract-level geoids (or the component columns we use to create them) aren't consistently 
+      ## structured across tract-level crosswalks. in the case that we've accidentally created
+      ## 13-character geoids (by duplicating the state fips), we drop that here
       source_geography = source_geography,
+      source_geoid = dplyr::case_when(
+        source_geography == "tract" & nchar(source_geoid) == 13 ~ stringr::str_sub(source_geoid, 3, 13),
+        TRUE ~ source_geoid),
       target_geography = target_geography,
+      target_geoid = dplyr::case_when(
+        target_geography == "tract" & nchar(target_geoid) == 13 ~ stringr::str_sub(target_geoid, 3, 13),
+        TRUE ~ target_geoid),
       weighting_factor = weight,
       dplyr::across(.cols = dplyr::matches("allocation"), .fns = as.numeric))
 
@@ -295,39 +327,24 @@ get_geocorr_crosswalk <- function(
       readr::write_csv(df2, outpath)
     }
   }
+
+  # Attach metadata to result
+  attr(df2, "crosswalk_metadata") <- list(
+    data_source = "geocorr",
+    data_source_full_name = "Geocorr 2022 (Missouri Census Data Center)",
+    api_endpoint = base_url,
+    documentation_url = "https://mcdc.missouri.edu/applications/geocorr2022.html",
+    source_geography = source_geography,
+    target_geography = target_geography,
+    weighting_variable = weight,
+    reference_year = "2022",
+    retrieved_at = Sys.time(),
+    cached = !is.null(cache),
+    cache_path = if (!is.null(cache)) outpath else NULL)
+
   return(df2)
 }
 
 utils::globalVariables(c("afact", "afact2", "county"))
-
-# get_geocorr_crosswalk(
-#   source_geography = "zcta",
-#   target_geography = "puma22",
-#   weight = c("population"),
-#   cache = here::here("crosswalks-cache"),
-#   overwrite_cache = FALSE)
-
-# ## omitting the provided MO-specific geographies
-# sources = c(
-#   "place", "county", "tract", "blockgroup", "block", "zcta", "puma22", "cousub",
-#   "cbsa20", "cbsatype20", "metdiv20", "csa20", "necta", "nectadiv", "cnect", "aiannh",
-#   ## these may be formatted differently -- including a state parameter?
-#   "sduni20", "sdelem20", "sdsec20", "sdbest20", "sdbesttype20", "placesc", "puma12",
-#   "countysc", "inplace", "ur", "ua", "cbsa23", "cbsatype23", "metdiv23", "csa23",
-#   "cbsacentral23", "sldu24", "sldl24", "sldu22", "sld22", "sldu18", "sldl28",
-#   "cd119", "cd118", "cd117", "cd116",
-#   ## ctregion only works for CT; "vtd20" may be nested at the country level?
-#   "ctregion", "vtd20", "hsa19", "hrr19", "rucc23")
-#
-# ## "block" -- this level requires submitting 13 or fewer states at a time
-#
-# core_sources = c("place", "county", "tract", "blockgroup",
-#                   "zcta", "puma22", "cd119", "cd118")
-#
-# expand.grid(core_sources, core_sources) |>
-#   dplyr::rename(source_geography = 1, target_geography = 2) |>
-#   dplyr::filter(source_geography != target_geography) |>
-#   dplyr::mutate(weight = "population", cache = here::here("crosswalks-cache"), overwrite_cache = FALSE, dplyr::across(dplyr::where(is.factor), as.character)) |>
-#   purrr::pwalk(get_geocorr_crosswalk)
 
 

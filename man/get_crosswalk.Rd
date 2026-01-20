@@ -2,7 +2,7 @@
 % Please edit documentation in R/get_crosswalk.R
 \name{get_crosswalk}
 \alias{get_crosswalk}
-\title{Get an inter-temporal or inter-geography crosswalk}
+\title{Get a Geographic Crosswalk}
 \usage{
 get_crosswalk(
   source_geography,
@@ -10,38 +10,47 @@ get_crosswalk(
   source_year = NULL,
   target_year = NULL,
   cache = NULL,
-  weight = NULL
+  weight = "population"
 )
 }
 \arguments{
 \item{source_geography}{Character. Source geography name. One of c("block",
-"block group", "tract", "place", county", "urban_area", "zcta", "puma", "cd118",
+"block group", "tract", "place", "county", "urban_area", "zcta", "puma", "cd118",
 "cd119", "urban_area", "core_based_statistical_area").}
 
 \item{target_geography}{Character. Target geography name. One of c("block",
-"block group", "tract", "place", county", "urban_area", "zcta", "puma", "cd118",
+"block group", "tract", "place", "county", "urban_area", "zcta", "puma", "cd118",
 "cd119", "urban_area", "core_based_statistical_area").}
 
-\item{source_year}{Character or numeric. Year of the source geography one of
+\item{source_year}{Character or numeric. Year of the source geography, one of
 c(1990, 2000, 2010, 2020).}
 
 \item{target_year}{Character or numeric. Year of the target geography, one of
-c(1990, 2000, 2010, 2020).}
+c(1990, 2000, 2010, 2020) for decennial crosswalks, or c(2011, 2012, 2014,
+2015, 2022) for non-census year crosswalks (limited to block groups, tracts,
+and counties).}
 
 \item{cache}{Directory path. Where to download the crosswalk to. If NULL (default),
-crosswalk is returned but not saved to disk.}
+crosswalk is returned but not saved to disk. Individual component crosswalks
+are cached separately when provided.}
 
-\item{weight}{Character. Weighting variable. One of c("population", "housing", "land").}
+\item{weight}{Character. Weighting variable for Geocorr crosswalks. One of
+c("population", "housing", "land").}
 }
 \value{
-A data frame containing the crosswalk between the specified geographies.
-Data are tidy-formatted, with each observation reflecting a unique
-source-target-weighting factor combination. Note that all (typically two
-or three) available weighting factors are returned.
+A list with a consistent structure:
+\describe{
+\item{crosswalks}{A named list of crosswalk tibbles (step_1, step_2, etc.).
+Single-step transformations have one crosswalk; multi-step have two or more.}
+\item{plan}{The crosswalk plan describing the transformation steps}
+\item{message}{A formatted message describing the crosswalk chain}
+}
 
-A dataframe representing the requested crosswalk for all 51 states
-and Puerto Rico. Depending on the desired geographies and the source of the
-crosswalk (Geocorr vs. NHGIS), some fields may not be included.
+Each crosswalk tibble includes an attribute \code{crosswalk_metadata} (access via
+\code{attr(result$crosswalks$step_1, "crosswalk_metadata")}) containing comprehensive
+information about how the crosswalk was produced.
+
+Columns in returned crosswalk dataframes (some may not be present depending on source):
 \describe{
 \item{source_geoid}{A unique identifier for the source geography}
 \item{target_geoid}{A unique identifier for the target geography}
@@ -57,17 +66,36 @@ from the target geography to the source geography}
 \item{housing_2020}{The estimated overlap in housing units, if applicable}
 \item{land_area_sqmi}{The overlap in land area, if applicable}
 \item{weighting_factor}{The attribute used to calculate allocation factors}
+\item{state_fips}{Two-digit state FIPS code, if applicable}
 }
 }
 \description{
 Retrieves a crosswalk with interpolation values from a source geography to a target
-geography or from a source year to a target year.
+geography, optionally across different years. Always returns a list with a consistent
+structure containing one or more crosswalk tibbles.
 }
 \details{
-This function sources crosswalks from Geocorr 2022 and IPUMS NHGIS.
-Crosswalk weights are from the original sources and have not been modified;
-this function merely standardizes the format of the returned crosswalks and
-enables easy programmatic access and cacheing.
+This function sources crosswalks from Geocorr 2022, IPUMS NHGIS, and
+CT Data Collaborative. Crosswalk weights are from the original sources and
+have not been modified; this function merely standardizes the format of the
+returned crosswalks and enables easy programmatic access and caching.
+
+\strong{Multi-step crosswalks}: When both geography AND year change (e.g.,
+2010 tracts to 2020 ZCTAs), no single crosswalk source provides this directly.
+This function returns multiple crosswalks that should be applied sequentially:
+\enumerate{
+\item First crosswalk changes year (via NHGIS): source_geog(source_year) -> source_geog(target_year)
+\item Second crosswalk changes geography (via Geocorr): source_geog(target_year) -> target_geog(target_year)
+}
+
+\strong{Non-census year support}: For target years 2011, 2012, 2014, 2015, and 2022,
+crosswalks are available only for block groups, tracts, and counties. These
+years correspond to American Community Survey geography changes.
+
+\strong{2020 to 2022 crosswalks}: The 2022 geographic changes only affected
+Connecticut (county-equivalent planning regions replaced historical counties).
+For this case, the function combines CT Data Collaborative crosswalks for
+Connecticut with identity mappings for other states.
 
 Note that an IPUMS NHGIS API key is required to access crosswalks from that
 source. Use \code{usethis::edit_r_environ(scope = "user")} to save your API key
@@ -76,6 +104,40 @@ obtain a key from: https://account.ipums.org/api_keys.
 }
 \examples{
 \dontrun{
-get_crosswalk(
+# Same-year crosswalk between geographies (uses Geocorr)
+# Returns list with one crosswalk in crosswalks$step_1
+result <- get_crosswalk(
+  source_geography = "zcta",
+  target_geography = "puma22",
+  weight = "population",
+  cache = here::here("crosswalks-cache"))
+
+# Apply to data using crosswalk_data()
+output <- crosswalk_data(
+  data = my_data,
+  crosswalk = result,
+  count_columns = "count_population")
+
+# Multi-step crosswalk: both geography AND year change
+# Returns list with two crosswalks in crosswalks$step_1 and crosswalks$step_2
+result <- get_crosswalk(
+  source_geography = "tract",
+  target_geography = "zcta",
+  source_year = 2010,
+  target_year = 2020,
+  weight = "population")
+
+# crosswalk_data() automatically applies all steps
+output <- crosswalk_data(
+  data = my_data,
+  crosswalk = result,
+  count_columns = "count_population")
+
+# To get intermediate results, set return_intermediate = TRUE
+output <- crosswalk_data(
+  data = my_data,
+  crosswalk = result,
+  count_columns = "count_population",
+  return_intermediate = TRUE)
 }
 }
