@@ -1,4 +1,4 @@
-#' Get a Geographic Crosswalk
+#' Get a crosswalk(s) to translate data across time and geographies
 #'
 #' Retrieves a crosswalk with interpolation values from a source geography to a target
 #' geography, optionally across different years. Always returns a list with a consistent

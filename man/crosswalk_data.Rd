@@ -2,7 +2,7 @@
 % Please edit documentation in R/crosswalk_data.R
 \name{crosswalk_data}
 \alias{crosswalk_data}
-\title{Apply a Crosswalk to Transform Data}
+\title{Interpolate data using a crosswalk(s)}
 \usage{
 crosswalk_data(
   data,

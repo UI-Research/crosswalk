@@ -1,7 +1,7 @@
 ## explicitly enable/acknowledge data.table (used by tidytable)
 .datatable.aware = TRUE
 
-#' Apply a Crosswalk to Transform Data
+#' Interpolate data using a crosswalk(s)
 #'
 #' Applies geographic crosswalk weights to transform data from a source geography
 #' to a target geography. Accepts the output from `get_crosswalk()` and automatically

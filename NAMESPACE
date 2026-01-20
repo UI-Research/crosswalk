@@ -2,5 +2,4 @@
 
 export(crosswalk_data)
 export(get_crosswalk)
-export(get_crosswalk_chain)
 export(list_nhgis_crosswalks)
