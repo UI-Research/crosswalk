@@ -1,11 +1,14 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://ui-research.github.io/crosswalk/404.html</loc></url>
+<url><loc>https://ui-research.github.io/crosswalk/AGENTS.html</loc></url>
+<url><loc>https://ui-research.github.io/crosswalk/LICENSE-text.html</loc></url>
 <url><loc>https://ui-research.github.io/crosswalk/LICENSE.html</loc></url>
 <url><loc>https://ui-research.github.io/crosswalk/authors.html</loc></url>
 <url><loc>https://ui-research.github.io/crosswalk/index.html</loc></url>
+<url><loc>https://ui-research.github.io/crosswalk/reference/crosswalk_data.html</loc></url>
 <url><loc>https://ui-research.github.io/crosswalk/reference/get_crosswalk.html</loc></url>
+<url><loc>https://ui-research.github.io/crosswalk/reference/get_crosswalk_chain.html</loc></url>
 <url><loc>https://ui-research.github.io/crosswalk/reference/index.html</loc></url>
 <url><loc>https://ui-research.github.io/crosswalk/reference/list_nhgis_crosswalks.html</loc></url>
-<url><loc>https://ui-research.github.io/crosswalk/reference/standardize_geography.html</loc></url>
 </urlset>
 
