@@ -1,4 +1,4 @@
-# List Available NHGIS Crosswalks
+# List supported NHGIS crosswalks
 
 Returns a tibble of all available NHGIS geographic crosswalks with their
 corresponding parameters that can be used with get_nhgis_crosswalk().

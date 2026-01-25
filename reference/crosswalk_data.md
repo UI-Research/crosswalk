@@ -1,4 +1,4 @@
-# Apply a Crosswalk to Transform Data
+# Interpolate data using a crosswalk(s)
 
 Applies geographic crosswalk weights to transform data from a source
 geography to a target geography. Accepts the output from
@@ -15,7 +15,8 @@ crosswalk_data(
   geoid_column = "geoid",
   count_columns = NULL,
   non_count_columns = NULL,
-  return_intermediate = FALSE
+  return_intermediate = FALSE,
+  show_join_quality = TRUE
 )
 ```
 
@@ -72,6 +73,14 @@ crosswalk_data(
   containing both the final result and intermediate results from each
   step. Default is FALSE, which returns only the final result.
 
+- show_join_quality:
+
+  Logical. If TRUE (default), prints diagnostic messages about join
+  quality, including the number of data rows not matching the crosswalk
+  and vice versa. For state-nested geographies (tract, county, block
+  group, etc.), also reports state-level concentration of unmatched
+  rows. Set to FALSE to suppress these messages.
+
 ## Value
 
 If `return_intermediate = FALSE` (default), a tibble with data
@@ -110,6 +119,11 @@ detect columns based on naming prefixes:
 
 - Columns starting with "mean\_", "median\_", "percent\_", or "ratio\_"
   are treated as non-count variables
+
+**Other columns**: Columns that are not the geoid column, count columns,
+or non-count columns (e.g., metadata like `data_year`) are preserved by
+taking the first non-missing value within each target geography group.
+If all values are missing, NA is returned.
 
 **Multi-step crosswalks**: When
 [`get_crosswalk()`](https://ui-research.github.io/crosswalk/reference/get_crosswalk.md)

@@ -32,6 +32,12 @@
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
 <li class="nav-item"><a class="nav-link" href="reference/index.html">Reference</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
+<li><a class="dropdown-item" href="articles/standardizing-longitudinal-data.html">Standardizing Longitudinal Data</a></li>
+  </ul>
+</li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -51,63 +57,397 @@
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p>This project provides a consistent API and standardized versions of crosswalks to allow for programmatic interpolation over time and between geographies. Say goodbye to manual crosswalk downloads and hello to reproducible workflows.</p>
+<p>This package provides a consistent API and standardized versions of crosswalks to enable consistent approaches that work across different geography and year combinations. The package also facilitates interpolation–that is, adjusting source geography/year values by their crosswalk weights and translating these values to the desired target geography/year–including diagnostics of the joins between source data and crosswalks.</p>
+<p>The package sources crosswalks from:</p>
+<ul>
+<li>
+<strong>Geocorr 2022</strong> (Missouri Census Data Center) - for same-year crosswalks between geographies</li>
+<li>
+<strong>IPUMS NHGIS</strong> - for inter-temporal crosswalks (across different census years)</li>
+<li>
+<strong>CT Data Collaborative</strong> - for Connecticut 2020→2022 crosswalks (planning region changes)</li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="why-use-crosswalk">Why Use <code>crosswalk</code>?<a class="anchor" aria-label="anchor" href="#why-use-crosswalk"></a>
+</h2>
+<ul>
+<li>
+<strong>Programmatic access</strong>: No more manual downloads from web interfaces</li>
+<li>
+<strong>Standardized output</strong>: Consistent column names across all crosswalk sources</li>
+<li>
+<strong>Metadata tracking</strong>: Full provenance stored as attributes</li>
+<li>
+<strong>Multi-step handling</strong>: Automatic chaining when both geography and year change</li>
+<li>
+<strong>Local caching</strong>: Reproducible workflows with cached crosswalks</li>
+</ul>
 </div>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Install dependencies</span></span>
-<span><span class="fu">renv</span><span class="fu">::</span><span class="fu"><a href="https://rstudio.github.io/renv/reference/install.html" class="external-link">install</a></span><span class="op">(</span><span class="st">"UI-Research/crosswalks"</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="co"># Install from GitHub</span></span>
+<span><span class="fu">renv</span><span class="fu">::</span><span class="fu"><a href="https://rstudio.github.io/renv/reference/install.html" class="external-link">install</a></span><span class="op">(</span><span class="st">"UI-Research/crosswalk"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
+<h2 id="overview-1">Overview<a class="anchor" aria-label="anchor" href="#overview-1"></a>
 </h2>
-<p>To get started with <code><a href="https://ui-research.github.io/crosswalk/">library(crosswalk)</a></code>:</p>
+<p>First we obtain a crosswalk and apply it to our data:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Load the package</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ui-research.github.io/crosswalk/">crosswalk</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ui-research.github.io/crosswalk/">crosswalk</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://stringr.tidyverse.org" class="external-link">stringr</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://r-spatial.github.io/sf/" class="external-link">sf</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="co">## obtain a crosswalk to translate data in 2020-vintage place geographies</span></span>
-<span><span class="co">## to 2020-vintage county geographies, weighted by population</span></span>
-<span><span class="va">place_county_crosswalk</span> <span class="op">=</span> <span class="fu"><a href="reference/get_crosswalk.html">get_crosswalk</a></span><span class="op">(</span></span>
-<span>  source_geography <span class="op">=</span> <span class="st">"place"</span>,</span>
-<span>  target_geography <span class="op">=</span> <span class="st">"county"</span>,</span>
-<span>  weight <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"population"</span><span class="op">)</span>,</span>
-<span>  cache <span class="op">=</span> <span class="fu">here</span><span class="fu">::</span><span class="fu">here</span><span class="op">(</span><span class="st">"data"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">source_data</span> <span class="op">=</span> <span class="fu">tidycensus</span><span class="fu">::</span><span class="fu"><a href="https://walker-data.com/tidycensus/reference/get_acs.html" class="external-link">get_acs</a></span><span class="op">(</span></span>
+<span>    year <span class="op">=</span> <span class="fl">2023</span>,</span>
+<span>    geography <span class="op">=</span> <span class="st">"zcta"</span>,</span>
+<span>    output <span class="op">=</span> <span class="st">"wide"</span>,</span>
+<span>    variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>below_poverty_level <span class="op">=</span> <span class="st">"B17001_002"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span></span>
+<span>    source_geoid <span class="op">=</span> <span class="va">GEOID</span>,</span>
+<span>    count_below_poverty_level <span class="op">=</span> <span class="va">below_poverty_levelE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co">## obtain a crosswalk to translate data in 2000-vintage place geographies</span></span>
-<span><span class="co">## to 2010-vintage place geographies. all available weighting options are</span></span>
-<span><span class="co">## returned</span></span>
 <span><span class="fu"><a href="reference/get_crosswalk.html">get_crosswalk</a></span><span class="op">(</span></span>
-<span>  source_year <span class="op">=</span> <span class="fl">2000</span>,</span>
-<span>  target_year <span class="op">=</span> <span class="fl">2010</span>,</span>
-<span>  source_geography <span class="op">=</span> <span class="st">"place"</span>,</span>
-<span>  target_geography <span class="op">=</span> <span class="st">"place"</span>,</span>
-<span>  cache <span class="op">=</span> <span class="fu">here</span><span class="fu">::</span><span class="fu">here</span><span class="op">(</span><span class="st">"data"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<span>  source_geography <span class="op">=</span> <span class="st">"block"</span>,</span>
+<span>  target_geography <span class="op">=</span> <span class="st">"puma"</span>,</span>
+<span>  source_year <span class="op">=</span> <span class="fl">2010</span>,</span>
+<span>  target_year <span class="op">=</span> <span class="fl">2020</span>,</span>
+<span>  weight <span class="op">=</span> <span class="st">"population"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Get a crosswalk from ZCTAs to PUMAs (same year, uses Geocorr (2022))</span></span>
+<span><span class="va">zcta_puma_crosswalk</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_crosswalk.html">get_crosswalk</a></span><span class="op">(</span></span>
+<span>  source_geography <span class="op">=</span> <span class="st">"zcta"</span>,</span>
+<span>  target_geography <span class="op">=</span> <span class="st">"puma22"</span>,</span>
+<span>  weight <span class="op">=</span> <span class="st">"population"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Apply the crosswalk to your data</span></span>
+<span><span class="va">crosswalked_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/crosswalk_data.html">crosswalk_data</a></span><span class="op">(</span></span>
+<span>  geoid_column <span class="op">=</span> <span class="st">"source_geoid"</span>,</span>
+<span>  data <span class="op">=</span> <span class="va">source_data</span>,</span>
+<span>  crosswalk <span class="op">=</span> <span class="va">zcta_puma_crosswalk</span><span class="op">)</span></span></code></pre></div>
+<p>What does the crosswalk(s) reflect and how was it sourced?</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">crosswalked_data</span>, <span class="st">"crosswalk_metadata"</span><span class="op">)</span></span></code></pre></div>
+<p>How well did the crosswalk join to our source data?</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co">## look at all the characteristics of the join(s) between the source data</span></span>
+<span><span class="co">## and the crosswalks</span></span>
+<span><span class="va">join_quality</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">crosswalked_data</span>, <span class="st">"join_quality"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co">## what share of records in the source data do not join to a crosswalk and</span></span>
+<span><span class="co">## thus are dropped during the crosswalking process?</span></span>
+<span><span class="va">join_quality</span><span class="op">$</span><span class="va">pct_data_unmatched</span></span>
+<span></span>
+<span><span class="co">## zctas aren't nested within states, otherwise join_quality$state_analysis_data </span></span>
+<span><span class="co">## would help us to ID whether non-joining source data were clustered within one</span></span>
+<span><span class="co">## or a few states. instead we can join to spatial data to diagnose further:</span></span>
+<span><span class="va">zctas_sf</span> <span class="op">=</span> <span class="fu">tigris</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/tigris/man/zctas.html" class="external-link">zctas</a></span><span class="op">(</span>year <span class="op">=</span> <span class="fl">2023</span><span class="op">)</span></span>
+<span><span class="va">states_sf</span> <span class="op">=</span> <span class="fu">tigris</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/tigris/man/states.html" class="external-link">states</a></span><span class="op">(</span>year <span class="op">=</span> <span class="fl">2023</span>, cb <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co">## apart from DC, which has a disproportionate number of non-joining ZCTAs--</span></span>
+<span><span class="co">## seemingly corresponding to federal areas and buildings--the distribution of</span></span>
+<span><span class="co">## non-joining ZCTAs appears proportionate to state-level populations and is </span></span>
+<span><span class="co">## distributed across many states:</span></span>
+<span><span class="va">zctas_sf</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> </span>
+<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">GEOID20</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">join_quality</span><span class="op">$</span><span class="va">data_geoids_unmatched</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/geos_binary_ops.html" class="external-link">st_intersection</a></span><span class="op">(</span><span class="va">states_sf</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">NAME</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu">sf</span><span class="fu">::</span><span class="fu"><a href="https://r-spatial.github.io/sf/reference/st_geometry.html" class="external-link">st_drop_geometry</a></span><span class="op">(</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/count.html" class="external-link">count</a></span><span class="op">(</span><span class="va">NAME</span>, sort <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<p>And how accurate was the crosswalking process?</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">comparison_data</span> <span class="op">=</span> <span class="fu">tidycensus</span><span class="fu">::</span><span class="fu"><a href="https://walker-data.com/tidycensus/reference/get_acs.html" class="external-link">get_acs</a></span><span class="op">(</span></span>
+<span>    year <span class="op">=</span> <span class="fl">2023</span>,</span>
+<span>    geography <span class="op">=</span> <span class="st">"puma"</span>,</span>
+<span>    output <span class="op">=</span> <span class="st">"wide"</span>,</span>
+<span>    variables <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
+<span>      below_poverty_level <span class="op">=</span> <span class="st">"B17001_002"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span></span>
+<span>    source_geoid <span class="op">=</span> <span class="va">GEOID</span>,</span>
+<span>    count_below_poverty_level_acs <span class="op">=</span> <span class="va">below_poverty_levelE</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">combined_data</span> <span class="op">=</span> <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate-joins.html" class="external-link">left_join</a></span><span class="op">(</span></span>
+<span>  <span class="va">comparison_data</span>,</span>
+<span>  <span class="va">crosswalked_data</span>,</span>
+<span>  by <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"source_geoid"</span> <span class="op">=</span> <span class="st">"geoid"</span><span class="op">)</span><span class="op">)</span> </span>
+<span>  </span>
+<span><span class="va">combined_data</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">source_geoid</span>, <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://tidyselect.r-lib.org/reference/starts_with.html" class="external-link">matches</a></span><span class="op">(</span><span class="st">"count"</span><span class="op">)</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>difference_percent <span class="op">=</span> <span class="op">(</span><span class="va">count_below_poverty_level_acs</span> <span class="op">-</span> <span class="va">count_below_poverty_level</span><span class="op">)</span> <span class="op">/</span> <span class="va">count_below_poverty_level_acs</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
+<span>  <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu">ggplot</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu">geom_histogram</span><span class="op">(</span><span class="fu">ggplot2</span><span class="fu">::</span><span class="fu">aes</span><span class="op">(</span>x <span class="op">=</span> <span class="va">difference_percent</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu">theme_minimal</span><span class="op">(</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu">theme</span><span class="op">(</span>panel.grid <span class="op">=</span> <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu">element_blank</span><span class="op">(</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu">scale_x_continuous</span><span class="op">(</span>labels <span class="op">=</span> <span class="fu">scales</span><span class="fu">::</span><span class="va">percent</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu">ggplot2</span><span class="fu">::</span><span class="fu">labs</span><span class="op">(</span></span>
+<span>      title <span class="op">=</span> <span class="st">"Crosswalked data approximates observed values"</span>,</span>
+<span>      subtitle <span class="op">=</span> <span class="st">"Block group-level source data would produce more accurate crosswalked values"</span>,</span>
+<span>      y <span class="op">=</span> <span class="st">""</span>,</span>
+<span>      x <span class="op">=</span> <span class="st">"Percent difference between observed and crosswalked values"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="why-use-librarycrosswalk">Why Use <code>library(crosswalk)</code>?<a class="anchor" aria-label="anchor" href="#why-use-librarycrosswalk"></a>
+<h2 id="core-functions">Core Functions<a class="anchor" aria-label="anchor" href="#core-functions"></a>
 </h2>
-<p>Crosswalks are a critical component of conducting social sciences research as they enable analysts to translate data from one geography and/or temporal vintage to another. For example, if source data are only available at the county level, a crosswalk can help to produce estimates of those source data at the city level, enabling analysis at a geography (the city) that may be either more relevant to target audience(s) and/or may align with the geography of other data that form part of the overarching analysis.</p>
-<p>There are excellent existing resources for crosswalks, including the University of Missouri - Missouri Census Data Center’s Geocorr 2022 crosswalking application and the IPUMS National Historical Geographic Information System (NHGIS). In fact, the crosswalks returned by using <code><a href="https://ui-research.github.io/crosswalk/">library(crosswalk)</a></code> are those from Geocorr and NHGIS.</p>
-<p>So why use this package at all? It provides:</p>
+<p>The package has two main functions:</p>
+<table class="table">
+<colgroup>
+<col width="22%">
+<col width="77%">
+</colgroup>
+<thead><tr class="header">
+<th>Function</th>
+<th>Purpose</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code><a href="reference/get_crosswalk.html">get_crosswalk()</a></code></td>
+<td>Fetch crosswalk(s)</td>
+</tr>
+<tr class="even">
+<td><code><a href="reference/crosswalk_data.html">crosswalk_data()</a></code></td>
+<td>Apply crosswalk(s) to interpolate data to the target geography-year</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section level2">
+<h2 id="understanding-get_crosswalk-output">Understanding <code>get_crosswalk()</code> Output<a class="anchor" aria-label="anchor" href="#understanding-get_crosswalk-output"></a>
+</h2>
+<p><code><a href="reference/get_crosswalk.html">get_crosswalk()</a></code> <strong>always returns a list</strong> structured as follows:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_crosswalk.html">get_crosswalk</a></span><span class="op">(</span></span>
+<span>  source_geography <span class="op">=</span> <span class="st">"tract"</span>,</span>
+<span>  target_geography <span class="op">=</span> <span class="st">"zcta"</span>,</span>
+<span>  source_year <span class="op">=</span> <span class="fl">2010</span>,</span>
+<span>  target_year <span class="op">=</span> <span class="fl">2020</span>,</span>
+<span>  weight <span class="op">=</span> <span class="st">"population"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">result</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "crosswalks" "plan" "message"</span></span></code></pre></div>
+<p>The list contains three elements:</p>
+<table class="table">
+<colgroup>
+<col width="14%">
+<col width="85%">
+</colgroup>
+<thead><tr class="header">
+<th>Element</th>
+<th>Description</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>crosswalks</code></td>
+<td>A named list of crosswalks (<code>step_1</code>, <code>step_2</code>, etc.) of length one or greater</td>
+</tr>
+<tr class="even">
+<td><code>plan</code></td>
+<td>Details about what crosswalks are being fetched</td>
+</tr>
+<tr class="odd">
+<td><code>message</code></td>
+<td>A human-readable description of the crosswalk chain</td>
+</tr>
+</tbody>
+</table>
+<div class="section level3">
+<h3 id="single-step-vs-multi-step-crosswalks">Single-Step vs. Multi-Step Crosswalks<a class="anchor" aria-label="anchor" href="#single-step-vs-multi-step-crosswalks"></a>
+</h3>
+<p><strong>Single-step crosswalks</strong> (same year, different geography OR same geography, different year):</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Same year, different geography (Geocorr)</span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_crosswalk.html">get_crosswalk</a></span><span class="op">(</span></span>
+<span>  source_geography <span class="op">=</span> <span class="st">"tract"</span>,</span>
+<span>  target_geography <span class="op">=</span> <span class="st">"zcta"</span>,</span>
+<span>  weight <span class="op">=</span> <span class="st">"population"</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co"># result$crosswalks$step_1 contains one crosswalk</span></span>
+<span></span>
+<span><span class="co"># Same geography, different year (NHGIS)</span></span>
+<span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_crosswalk.html">get_crosswalk</a></span><span class="op">(</span></span>
+<span>  source_geography <span class="op">=</span> <span class="st">"tract"</span>,</span>
+<span>  target_geography <span class="op">=</span> <span class="st">"tract"</span>,</span>
+<span>  source_year <span class="op">=</span> <span class="fl">2010</span>,</span>
+<span>  target_year <span class="op">=</span> <span class="fl">2020</span></span>
+<span><span class="op">)</span></span>
+<span><span class="co"># result$crosswalks$step_1 contains one crosswalk</span></span></code></pre></div>
+<p><strong>Multi-step crosswalks</strong> (different geography AND different year):</p>
+<p>When both geography and year change, no single crosswalk source provides this directly. The package automatically plans and fetches a two-step chain:</p>
+<ol style="list-style-type: decimal">
+<li>
+<strong>Step 1 (NHGIS)</strong>: Change year, keep geography constant</li>
+<li>
+<strong>Step 2 (Geocorr)</strong>: Change geography at target year</li>
+</ol>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_crosswalk.html">get_crosswalk</a></span><span class="op">(</span></span>
+<span>  source_geography <span class="op">=</span> <span class="st">"tract"</span>,</span>
+<span>  target_geography <span class="op">=</span> <span class="st">"zcta"</span>,</span>
+<span>  source_year <span class="op">=</span> <span class="fl">2010</span>,</span>
+<span>  target_year <span class="op">=</span> <span class="fl">2020</span>,</span>
+<span>  weight <span class="op">=</span> <span class="st">"population"</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Two crosswalks are returned</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">crosswalks</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "step_1" "step_2"</span></span>
+<span></span>
+<span><span class="co"># Step 1: 2010 tracts -&gt; 2020 tracts (NHGIS)</span></span>
+<span><span class="co"># Step 2: 2020 tracts -&gt; 2020 ZCTAs (Geocorr)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="crosswalk-structure">Crosswalk Structure<a class="anchor" aria-label="anchor" href="#crosswalk-structure"></a>
+</h3>
+<p>Each crosswalk contains standardized columns:</p>
+<table class="table">
+<colgroup>
+<col width="41%">
+<col width="58%">
+</colgroup>
+<thead><tr class="header">
+<th>Column</th>
+<th>Description</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>source_geoid</code></td>
+<td>Identifier for source geography</td>
+</tr>
+<tr class="even">
+<td><code>target_geoid</code></td>
+<td>Identifier for target geography</td>
+</tr>
+<tr class="odd">
+<td><code>allocation_factor_source_to_target</code></td>
+<td>Weight for interpolating values</td>
+</tr>
+<tr class="even">
+<td><code>weighting_factor</code></td>
+<td>What attribute was used (population, housing, land)</td>
+</tr>
+</tbody>
+</table>
+<p>Additional columns may include <code>source_year</code>, <code>target_year</code>, <code>population_2020</code>, <code>housing_2020</code>, and <code>land_area_sqmi</code> depending on the source.</p>
+</div>
+<div class="section level3">
+<h3 id="accessing-metadata">Accessing Metadata<a class="anchor" aria-label="anchor" href="#accessing-metadata"></a>
+</h3>
+<p>Each crosswalk tibble has a <code>crosswalk_metadata</code> attribute that documents what the crosswalk represents and how it was created:</p>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">metadata</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">crosswalks</span><span class="op">$</span><span class="va">step_1</span>, <span class="st">"crosswalk_metadata"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">metadata</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "call_parameters" "data_source" "data_source_full_name" "download_url" ...</span></span></code></pre></div>
+</div>
+</div>
+<div class="section level2">
+<h2 id="using-crosswalk_data-to-interpolate-data">Using <code>crosswalk_data()</code> to Interpolate Data<a class="anchor" aria-label="anchor" href="#using-crosswalk_data-to-interpolate-data"></a>
+</h2>
+<p><code><a href="reference/crosswalk_data.html">crosswalk_data()</a></code> applies crosswalk weights to transform your data. It automatically handles multi-step crosswalks.</p>
+<div class="section level3">
+<h3 id="column-naming-convention">Column Naming Convention<a class="anchor" aria-label="anchor" href="#column-naming-convention"></a>
+</h3>
+<p>The function auto-detects columns based on prefixes:</p>
+<table class="table">
+<colgroup>
+<col width="38%">
+<col width="61%">
+</colgroup>
+<thead><tr class="header">
+<th>Prefix</th>
+<th>Treatment</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td><code>count_</code></td>
+<td>Summed after weighting (for counts like population, housing units)</td>
+</tr>
+<tr class="even">
+<td>
+<code>mean_</code>, <code>median_</code>, <code>percent_</code>, <code>ratio_</code>
+</td>
+<td>Weighted mean (for rates, percentages, averages)</td>
+</tr>
+</tbody>
+</table>
+<p>You can also specify columns explicitly via <code>count_columns</code> and <code>non_count_columns</code>. All non-count variables are interpolated using weighted means, weighting by the allocation factor from the crosswalk.</p>
+</div>
+</div>
+<div class="section level2">
+<h2 id="supported-geography-and-year-combinations">Supported Geography and Year Combinations<a class="anchor" aria-label="anchor" href="#supported-geography-and-year-combinations"></a>
+</h2>
+<div class="section level3">
+<h3 id="inter-geography-crosswalks-geocorr">Inter-Geography Crosswalks (Geocorr)<a class="anchor" aria-label="anchor" href="#inter-geography-crosswalks-geocorr"></a>
+</h3>
+<p>2022-vintage crosswalks between any of these geographies:</p>
 <ul>
-<li><p>A consistent, programmatic approach to acquire crosswalks, rather than ad-hoc manual downloads;</p></li>
-<li><p>Standardized and clear crosswalk variable names so that you can easily work with multiple crosswalks using the same workflow;</p></li>
-<li><p>Crosswalk metadata stored within the returned crosswalk–no more commenting in your script with the 15 options you configured prior to clicking “Download”;</p></li>
-<li><p>The ability to easily “cache” crosswalks locally.</p></li>
+<li>block, block group, tract, county</li>
+<li>place, zcta, puma22</li>
+<li>cd118, cd119, urban_area, core_based_statistical_area</li>
 </ul>
-<p>In brief: this package facilitates a well documented and reproducible analysis workflow, building on top of the robust underlying resources already available for crosswalking.</p>
+</div>
+<div class="section level3">
+<h3 id="inter-temporal-crosswalks-nhgis">Inter-Temporal Crosswalks (NHGIS)<a class="anchor" aria-label="anchor" href="#inter-temporal-crosswalks-nhgis"></a>
+</h3>
+<p>NHGIS provides cross-decade crosswalks with the following structure:</p>
+<p><strong>Source geographies:</strong> block, block_group, tract</p>
+<p><strong>Target geographies:</strong> - From blocks (decennial years only): block, block_group, tract, county, place, zcta, puma, urban_area, cbsa - From block_group or tract: block_group, tract, county</p>
+<table class="table">
+<thead><tr class="header">
+<th>Source Years</th>
+<th>Target Years</th>
+</tr></thead>
+<tbody>
+<tr class="odd">
+<td>1990, 2000</td>
+<td>2010, 2014, 2015, 2020, 2022</td>
+</tr>
+<tr class="even">
+<td>2010, 2011, 2012, 2014, 2015</td>
+<td>1990, 2000, 2020, 2022</td>
+</tr>
+<tr class="odd">
+<td>2020, 2022</td>
+<td>1990, 2000, 2010, 2014, 2015</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Notes:</strong> - Within-decade crosswalks (e.g., 2010→2014) are not available from NHGIS - Block→ZCTA, Block→PUMA, etc. are only available for decennial years (1990, 2000, 2010, 2020) - The package automatically uses direct NHGIS crosswalks when available (e.g., <code>get_crosswalk(source_geography = "block", target_geography = "zcta", source_year = 2010, target_year = 2020)</code> returns a single-step NHGIS crosswalk)</p>
+</div>
+<div class="section level3">
+<h3 id="id_20202022-crosswalks-ctdata">2020→2022 Crosswalks (CTData)<a class="anchor" aria-label="anchor" href="#id_20202022-crosswalks-ctdata"></a>
+</h3>
+<p>For 2020 to 2022 transformations, the package uses CT Data Collaborative crosswalks for Connecticut (where planning regions replaced counties) and identity mappings for other states (where no changes occurred).</p>
+</div>
 </div>
 <div class="section level2">
-<h2 id="citations">Citations!<a class="anchor" aria-label="anchor" href="#citations"></a>
+<h2 id="api-keys">API Keys<a class="anchor" aria-label="anchor" href="#api-keys"></a>
 </h2>
-<p>The intellectual work and credit for the underlying crosswalks returned by this package belongs to the original developers of those crosswalks. You should (in the case of Geocorr crosswalks) and in some cases must (in the case of NHGIS crosswalks) appropriately cite the developers when you use these resources.</p>
-<p><strong>For NHGIS</strong>, you should refer to the NHGIS website and terms of use, including the recommended citations provided at: <a href="https://www.nhgis.org/citation-and-use-nhgis-data" class="external-link uri">https://www.nhgis.org/citation-and-use-nhgis-data</a>.</p>
-<p><strong>For Geocorr</strong>, the author of <code><a href="https://ui-research.github.io/crosswalk/">library(crosswalk)</a></code> is unaware of a required or suggested citation format. An example citation might look like:</p>
+<p>NHGIS crosswalks require an IPUMS API key. Get one at <a href="https://account.ipums.org/api_keys" class="external-link uri">https://account.ipums.org/api_keys</a> and add to your <code>.Renviron</code>:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">usethis</span><span class="fu">::</span><span class="fu">edit_r_environ</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="co"># Add: IPUMS_API_KEY=your_key_here</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="caching">Caching<a class="anchor" aria-label="anchor" href="#caching"></a>
+</h2>
+<p>Use the <code>cache</code> parameter to save crosswalks locally for ease:</p>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_crosswalk.html">get_crosswalk</a></span><span class="op">(</span></span>
+<span>  source_geography <span class="op">=</span> <span class="st">"tract"</span>,</span>
+<span>  target_geography <span class="op">=</span> <span class="st">"zcta"</span>,</span>
+<span>  weight <span class="op">=</span> <span class="st">"population"</span>,</span>
+<span>  cache <span class="op">=</span> <span class="fu">here</span><span class="fu">::</span><span class="fu">here</span><span class="op">(</span><span class="st">"crosswalks-cache"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="citations">Citations<a class="anchor" aria-label="anchor" href="#citations"></a>
+</h2>
+<p>The intellectual credit for the underlying crosswalks belongs to the original developers.</p>
+<p><strong>For NHGIS</strong>, see citation requirements at: <a href="https://www.nhgis.org/citation-and-use-nhgis-data" class="external-link uri">https://www.nhgis.org/citation-and-use-nhgis-data</a></p>
+<p><strong>For Geocorr</strong>, a suggested citation:</p>
 <blockquote>
-<p>Missouri Census Data Center, University of Missouri. (2022). Geocorr 2022: Geographic Correspondence Engine. Retrieved [202X-XX-XX] from: <a href="https://mcdc.missouri.edu/applications/geocorr2022.html" class="external-link uri">https://mcdc.missouri.edu/applications/geocorr2022.html</a>.</p>
+<p>Missouri Census Data Center, University of Missouri. (2022). Geocorr 2022: Geographic Correspondence Engine. Retrieved from: <a href="https://mcdc.missouri.edu/applications/geocorr2022.html" class="external-link uri">https://mcdc.missouri.edu/applications/geocorr2022.html</a></p>
 </blockquote>
 </div>
 </div>

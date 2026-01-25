@@ -3,10 +3,8 @@
 ## All functions
 
 - [`crosswalk_data()`](https://ui-research.github.io/crosswalk/reference/crosswalk_data.md)
-  : Apply a Crosswalk to Transform Data
+  : Interpolate data using a crosswalk(s)
 - [`get_crosswalk()`](https://ui-research.github.io/crosswalk/reference/get_crosswalk.md)
-  : Get a Geographic Crosswalk
-- [`get_crosswalk_chain()`](https://ui-research.github.io/crosswalk/reference/get_crosswalk_chain.md)
-  : Get a Chain of Crosswalks for Multi-Step Transformations
+  : Get a crosswalk(s) to translate data across time and geographies
 - [`list_nhgis_crosswalks()`](https://ui-research.github.io/crosswalk/reference/list_nhgis_crosswalks.md)
-  : List Available NHGIS Crosswalks
+  : List supported NHGIS crosswalks

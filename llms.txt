@@ -4,113 +4,365 @@ An R interface to inter-geography and inter-temporal crosswalks.
 
 ## Overview
 
-This project provides a consistent API and standardized versions of
-crosswalks to allow for programmatic interpolation over time and between
-geographies. Say goodbye to manual crosswalk downloads and hello to
-reproducible workflows.
+This package provides a consistent API and standardized versions of
+crosswalks to enable consistent approaches that work across different
+geography and year combinations. The package also facilitates
+interpolation–that is, adjusting source geography/year values by their
+crosswalk weights and translating these values to the desired target
+geography/year–including diagnostics of the joins between source data
+and crosswalks.
+
+The package sources crosswalks from:
+
+- **Geocorr 2022** (Missouri Census Data Center) - for same-year
+  crosswalks between geographies
+- **IPUMS NHGIS** - for inter-temporal crosswalks (across different
+  census years)
+- **CT Data Collaborative** - for Connecticut 2020→2022 crosswalks
+  (planning region changes)
+
+## Why Use `crosswalk`?
+
+- **Programmatic access**: No more manual downloads from web interfaces
+- **Standardized output**: Consistent column names across all crosswalk
+  sources
+- **Metadata tracking**: Full provenance stored as attributes
+- **Multi-step handling**: Automatic chaining when both geography and
+  year change
+- **Local caching**: Reproducible workflows with cached crosswalks
 
 ## Installation
 
 ``` r
-# Install dependencies
-renv::install("UI-Research/crosswalks")
+# Install from GitHub
+renv::install("UI-Research/crosswalk")
 ```
 
-## Usage
+## Overview
 
-To get started with
-[`library(crosswalk)`](https://ui-research.github.io/crosswalk/):
+First we obtain a crosswalk and apply it to our data:
 
 ``` r
-# Load the package
 library(crosswalk)
+library(dplyr)
+library(stringr)
+library(sf)
 
-## obtain a crosswalk to translate data in 2020-vintage place geographies
-## to 2020-vintage county geographies, weighted by population
-place_county_crosswalk = get_crosswalk(
-  source_geography = "place",
-  target_geography = "county",
-  weight = c("population"),
-  cache = here::here("data"))
+source_data = tidycensus::get_acs(
+    year = 2023,
+    geography = "zcta",
+    output = "wide",
+    variables = c(below_poverty_level = "B17001_002")) %>%
+  dplyr::select(
+    source_geoid = GEOID,
+    count_below_poverty_level = below_poverty_levelE)
 
-## obtain a crosswalk to translate data in 2000-vintage place geographies
-## to 2010-vintage place geographies. all available weighting options are
-## returned
 get_crosswalk(
-  source_year = 2000,
-  target_year = 2010,
-  source_geography = "place",
-  target_geography = "place",
-  cache = here::here("data"))
+  source_geography = "block",
+  target_geography = "puma",
+  source_year = 2010,
+  target_year = 2020,
+  weight = "population")
+
+# Get a crosswalk from ZCTAs to PUMAs (same year, uses Geocorr (2022))
+zcta_puma_crosswalk <- get_crosswalk(
+  source_geography = "zcta",
+  target_geography = "puma22",
+  weight = "population")
+
+# Apply the crosswalk to your data
+crosswalked_data <- crosswalk_data(
+  geoid_column = "source_geoid",
+  data = source_data,
+  crosswalk = zcta_puma_crosswalk)
 ```
 
-## Why Use `library(crosswalk)`?
+What does the crosswalk(s) reflect and how was it sourced?
 
-Crosswalks are a critical component of conducting social sciences
-research as they enable analysts to translate data from one geography
-and/or temporal vintage to another. For example, if source data are only
-available at the county level, a crosswalk can help to produce estimates
-of those source data at the city level, enabling analysis at a geography
-(the city) that may be either more relevant to target audience(s) and/or
-may align with the geography of other data that form part of the
-overarching analysis.
+``` r
+attr(crosswalked_data, "crosswalk_metadata")
+```
 
-There are excellent existing resources for crosswalks, including the
-University of Missouri - Missouri Census Data Center’s Geocorr 2022
-crosswalking application and the IPUMS National Historical Geographic
-Information System (NHGIS). In fact, the crosswalks returned by using
-[`library(crosswalk)`](https://ui-research.github.io/crosswalk/) are
-those from Geocorr and NHGIS.
+How well did the crosswalk join to our source data?
 
-So why use this package at all? It provides:
+``` r
+## look at all the characteristics of the join(s) between the source data
+## and the crosswalks
+join_quality = attr(crosswalked_data, "join_quality")
 
-- A consistent, programmatic approach to acquire crosswalks, rather than
-  ad-hoc manual downloads;
+## what share of records in the source data do not join to a crosswalk and
+## thus are dropped during the crosswalking process?
+join_quality$pct_data_unmatched
 
-- Standardized and clear crosswalk variable names so that you can easily
-  work with multiple crosswalks using the same workflow;
+## zctas aren't nested within states, otherwise join_quality$state_analysis_data 
+## would help us to ID whether non-joining source data were clustered within one
+## or a few states. instead we can join to spatial data to diagnose further:
+zctas_sf = tigris::zctas(year = 2023)
+states_sf = tigris::states(year = 2023, cb = TRUE)
 
-- Crosswalk metadata stored within the returned crosswalk–no more
-  commenting in your script with the 15 options you configured prior to
-  clicking “Download”;
+## apart from DC, which has a disproportionate number of non-joining ZCTAs--
+## seemingly corresponding to federal areas and buildings--the distribution of
+## non-joining ZCTAs appears proportionate to state-level populations and is 
+## distributed across many states:
+zctas_sf %>% 
+  dplyr::filter(GEOID20 %in% join_quality$data_geoids_unmatched) %>%
+  sf::st_intersection(states_sf %>% select(NAME)) %>%
+  sf::st_drop_geometry() %>%
+  dplyr::count(NAME, sort = TRUE)
+```
 
-- The ability to easily “cache” crosswalks locally.
+And how accurate was the crosswalking process?
 
-In brief: this package facilitates a well documented and reproducible
-analysis workflow, building on top of the robust underlying resources
-already available for crosswalking.
+``` r
+comparison_data = tidycensus::get_acs(
+    year = 2023,
+    geography = "puma",
+    output = "wide",
+    variables = c(
+      below_poverty_level = "B17001_002")) %>%
+  dplyr::select(
+    source_geoid = GEOID,
+    count_below_poverty_level_acs = below_poverty_levelE)
 
-## Citations!
+combined_data = dplyr::left_join(
+  comparison_data,
+  crosswalked_data,
+  by = c("source_geoid" = "geoid")) 
+  
+combined_data %>%
+  dplyr::select(source_geoid, dplyr::matches("count")) %>%
+  dplyr::mutate(difference_percent = (count_below_poverty_level_acs - count_below_poverty_level) / count_below_poverty_level_acs) %>%
+  ggplot2::ggplot() +
+    ggplot2::geom_histogram(ggplot2::aes(x = difference_percent)) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(panel.grid = ggplot2::element_blank()) +
+    ggplot2::scale_x_continuous(labels = scales::percent) +
+    ggplot2::labs(
+      title = "Crosswalked data approximates observed values",
+      subtitle = "Block group-level source data would produce more accurate crosswalked values",
+      y = "",
+      x = "Percent difference between observed and crosswalked values")
+```
 
-The intellectual work and credit for the underlying crosswalks returned
-by this package belongs to the original developers of those crosswalks.
-You should (in the case of Geocorr crosswalks) and in some cases must
-(in the case of NHGIS crosswalks) appropriately cite the developers when
-you use these resources.
+## Core Functions
 
-**For NHGIS**, you should refer to the NHGIS website and terms of use,
-including the recommended citations provided at:
-<https://www.nhgis.org/citation-and-use-nhgis-data>.
+The package has two main functions:
 
-**For Geocorr**, the author of
-[`library(crosswalk)`](https://ui-research.github.io/crosswalk/) is
-unaware of a required or suggested citation format. An example citation
-might look like:
+| Function                                                                                  | Purpose                                                             |
+|-------------------------------------------------------------------------------------------|---------------------------------------------------------------------|
+| [`get_crosswalk()`](https://ui-research.github.io/crosswalk/reference/get_crosswalk.md)   | Fetch crosswalk(s)                                                  |
+| [`crosswalk_data()`](https://ui-research.github.io/crosswalk/reference/crosswalk_data.md) | Apply crosswalk(s) to interpolate data to the target geography-year |
+
+## Understanding `get_crosswalk()` Output
+
+[`get_crosswalk()`](https://ui-research.github.io/crosswalk/reference/get_crosswalk.md)
+**always returns a list** structured as follows:
+
+``` r
+result <- get_crosswalk(
+  source_geography = "tract",
+  target_geography = "zcta",
+  source_year = 2010,
+  target_year = 2020,
+  weight = "population"
+)
+
+names(result)
+#> [1] "crosswalks" "plan" "message"
+```
+
+The list contains three elements:
+
+| Element      | Description                                                                    |
+|--------------|--------------------------------------------------------------------------------|
+| `crosswalks` | A named list of crosswalks (`step_1`, `step_2`, etc.) of length one or greater |
+| `plan`       | Details about what crosswalks are being fetched                                |
+| `message`    | A human-readable description of the crosswalk chain                            |
+
+### Single-Step vs. Multi-Step Crosswalks
+
+**Single-step crosswalks** (same year, different geography OR same
+geography, different year):
+
+``` r
+# Same year, different geography (Geocorr)
+result <- get_crosswalk(
+  source_geography = "tract",
+  target_geography = "zcta",
+  weight = "population"
+)
+# result$crosswalks$step_1 contains one crosswalk
+
+# Same geography, different year (NHGIS)
+result <- get_crosswalk(
+  source_geography = "tract",
+  target_geography = "tract",
+  source_year = 2010,
+  target_year = 2020
+)
+# result$crosswalks$step_1 contains one crosswalk
+```
+
+**Multi-step crosswalks** (different geography AND different year):
+
+When both geography and year change, no single crosswalk source provides
+this directly. The package automatically plans and fetches a two-step
+chain:
+
+1.  **Step 1 (NHGIS)**: Change year, keep geography constant
+2.  **Step 2 (Geocorr)**: Change geography at target year
+
+``` r
+result <- get_crosswalk(
+  source_geography = "tract",
+  target_geography = "zcta",
+  source_year = 2010,
+  target_year = 2020,
+  weight = "population"
+)
+
+# Two crosswalks are returned
+names(result$crosswalks)
+#> [1] "step_1" "step_2"
+
+# Step 1: 2010 tracts -> 2020 tracts (NHGIS)
+# Step 2: 2020 tracts -> 2020 ZCTAs (Geocorr)
+```
+
+### Crosswalk Structure
+
+Each crosswalk contains standardized columns:
+
+| Column                               | Description                                         |
+|--------------------------------------|-----------------------------------------------------|
+| `source_geoid`                       | Identifier for source geography                     |
+| `target_geoid`                       | Identifier for target geography                     |
+| `allocation_factor_source_to_target` | Weight for interpolating values                     |
+| `weighting_factor`                   | What attribute was used (population, housing, land) |
+
+Additional columns may include `source_year`, `target_year`,
+`population_2020`, `housing_2020`, and `land_area_sqmi` depending on the
+source.
+
+### Accessing Metadata
+
+Each crosswalk tibble has a `crosswalk_metadata` attribute that
+documents what the crosswalk represents and how it was created:
+
+``` r
+metadata <- attr(result$crosswalks$step_1, "crosswalk_metadata")
+names(metadata)
+#> [1] "call_parameters" "data_source" "data_source_full_name" "download_url" ...
+```
+
+## Using `crosswalk_data()` to Interpolate Data
+
+[`crosswalk_data()`](https://ui-research.github.io/crosswalk/reference/crosswalk_data.md)
+applies crosswalk weights to transform your data. It automatically
+handles multi-step crosswalks.
+
+### Column Naming Convention
+
+The function auto-detects columns based on prefixes:
+
+| Prefix                                   | Treatment                                                          |
+|------------------------------------------|--------------------------------------------------------------------|
+| `count_`                                 | Summed after weighting (for counts like population, housing units) |
+| `mean_`, `median_`, `percent_`, `ratio_` | Weighted mean (for rates, percentages, averages)                   |
+
+You can also specify columns explicitly via `count_columns` and
+`non_count_columns`. All non-count variables are interpolated using
+weighted means, weighting by the allocation factor from the crosswalk.
+
+## Supported Geography and Year Combinations
+
+### Inter-Geography Crosswalks (Geocorr)
+
+2022-vintage crosswalks between any of these geographies:
+
+- block, block group, tract, county
+- place, zcta, puma22
+- cd118, cd119, urban_area, core_based_statistical_area
+
+### Inter-Temporal Crosswalks (NHGIS)
+
+NHGIS provides cross-decade crosswalks with the following structure:
+
+**Source geographies:** block, block_group, tract
+
+**Target geographies:** - From blocks (decennial years only): block,
+block_group, tract, county, place, zcta, puma, urban_area, cbsa - From
+block_group or tract: block_group, tract, county
+
+| Source Years                 | Target Years                 |
+|------------------------------|------------------------------|
+| 1990, 2000                   | 2010, 2014, 2015, 2020, 2022 |
+| 2010, 2011, 2012, 2014, 2015 | 1990, 2000, 2020, 2022       |
+| 2020, 2022                   | 1990, 2000, 2010, 2014, 2015 |
+
+**Notes:** - Within-decade crosswalks (e.g., 2010→2014) are not
+available from NHGIS - Block→ZCTA, Block→PUMA, etc. are only available
+for decennial years (1990, 2000, 2010, 2020) - The package automatically
+uses direct NHGIS crosswalks when available (e.g.,
+`get_crosswalk(source_geography = "block", target_geography = "zcta", source_year = 2010, target_year = 2020)`
+returns a single-step NHGIS crosswalk)
+
+### 2020→2022 Crosswalks (CTData)
+
+For 2020 to 2022 transformations, the package uses CT Data Collaborative
+crosswalks for Connecticut (where planning regions replaced counties)
+and identity mappings for other states (where no changes occurred).
+
+## API Keys
+
+NHGIS crosswalks require an IPUMS API key. Get one at
+<https://account.ipums.org/api_keys> and add to your `.Renviron`:
+
+``` r
+usethis::edit_r_environ()
+# Add: IPUMS_API_KEY=your_key_here
+```
+
+## Caching
+
+Use the `cache` parameter to save crosswalks locally for ease:
+
+``` r
+result <- get_crosswalk(
+  source_geography = "tract",
+  target_geography = "zcta",
+  weight = "population",
+  cache = here::here("crosswalks-cache"))
+```
+
+## Citations
+
+The intellectual credit for the underlying crosswalks belongs to the
+original developers.
+
+**For NHGIS**, see citation requirements at:
+<https://www.nhgis.org/citation-and-use-nhgis-data>
+
+**For Geocorr**, a suggested citation:
 
 > Missouri Census Data Center, University of Missouri. (2022). Geocorr
-> 2022: Geographic Correspondence Engine. Retrieved \[202X-XX-XX\] from:
-> <https://mcdc.missouri.edu/applications/geocorr2022.html>.
+> 2022: Geographic Correspondence Engine. Retrieved from:
+> <https://mcdc.missouri.edu/applications/geocorr2022.html>
 
 # Package index
 
 ## All functions
 
 - [`crosswalk_data()`](https://ui-research.github.io/crosswalk/reference/crosswalk_data.md)
-  : Apply a Crosswalk to Transform Data
+  : Interpolate data using a crosswalk(s)
 - [`get_crosswalk()`](https://ui-research.github.io/crosswalk/reference/get_crosswalk.md)
-  : Get a Geographic Crosswalk
-- [`get_crosswalk_chain()`](https://ui-research.github.io/crosswalk/reference/get_crosswalk_chain.md)
-  : Get a Chain of Crosswalks for Multi-Step Transformations
+  : Get a crosswalk(s) to translate data across time and geographies
 - [`list_nhgis_crosswalks()`](https://ui-research.github.io/crosswalk/reference/list_nhgis_crosswalks.md)
-  : List Available NHGIS Crosswalks
+  : List supported NHGIS crosswalks
 
+# Articles
+
+### All vignettes
+
+- [Standardizing Longitudinal
+  Data](https://ui-research.github.io/crosswalk/articles/standardizing-longitudinal-data.md):
