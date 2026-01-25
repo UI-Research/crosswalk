@@ -408,6 +408,80 @@ list_nhgis_crosswalks <- function() {
   return(nhgis_crosswalks)
 }
 
+
+#' Check if Direct NHGIS Crosswalk is Available
+#'
+#' Internal helper function that checks if NHGIS provides a direct crosswalk
+#' for the given source/target geography and year combination. This is used
+#' to determine if a single-step NHGIS crosswalk can be used instead of
+#' a multi-step approach.
+#'
+#' @param source_geography Character. Source geography name.
+#' @param target_geography Character. Target geography name.
+#' @param source_year Character or numeric. Source year.
+#' @param target_year Character or numeric. Target year.
+#'
+#' @return Logical. TRUE if NHGIS has a direct crosswalk, FALSE otherwise.
+#' @keywords internal
+#' @noRd
+is_nhgis_crosswalk_available <- function(
+    source_geography,
+    target_geography,
+    source_year,
+    target_year) {
+
+  # Get the list of available crosswalks
+  available_crosswalks <- list_nhgis_crosswalks()
+
+  # Standardize inputs for matching
+  source_year_chr <- as.character(source_year)
+  target_year_chr <- as.character(target_year)
+
+  # Standardize geography names to match list_nhgis_crosswalks() output
+  source_geog_std <- standardize_geography_for_nhgis_check(source_geography)
+  target_geog_std <- standardize_geography_for_nhgis_check(target_geography)
+
+  # Check if matching crosswalk exists
+  match_exists <- available_crosswalks |>
+    dplyr::filter(
+      source_geography == source_geog_std,
+      target_geography == target_geog_std,
+      source_year == source_year_chr,
+      target_year == target_year_chr) |>
+    nrow() > 0
+
+  return(match_exists)
+}
+
+
+#' Standardize Geography for NHGIS Availability Check
+#'
+#' Internal helper to standardize geography names to match list_nhgis_crosswalks() output.
+#'
+#' @param geography Character. Geography name in various formats.
+#' @return Character. Standardized geography name matching list_nhgis_crosswalks() output.
+#' @keywords internal
+#' @noRd
+standardize_geography_for_nhgis_check <- function(geography) {
+  geography <- geography |>
+    stringr::str_to_lower() |>
+    stringr::str_squish() |>
+    stringr::str_replace_all("_", " ")
+
+  dplyr::case_when(
+    geography %in% c("blk", "block", "blocks", "census block") ~ "block",
+    geography %in% c("bg", "blockgroup", "block group", "census block group") ~ "block_group",
+    geography %in% c("tr", "tract", "tracts", "census tract") ~ "tract",
+    geography %in% c("co", "county", "counties", "cnty") ~ "county",
+    geography %in% c("pl", "place", "places") ~ "place",
+    geography %in% c("zcta", "zctas", "zip code", "zip code tabulation area") ~ "zcta",
+    geography %in% c("puma", "pumas", "puma22", "public use microdata area") ~ "puma",
+    geography %in% c("cbsa", "core based statistical area") ~ "core_based_statistical_area",
+    geography %in% c("ua", "urban area", "urban areas") ~ "urban_area",
+    TRUE ~ geography)
+}
+
+
 #' Get NHGIS Geographic Crosswalk
 #'
 #' Retrieves a geographic crosswalk from the IPUMS NHGIS API based on user-specified

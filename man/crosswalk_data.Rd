@@ -10,7 +10,8 @@ crosswalk_data(
   geoid_column = "geoid",
   count_columns = NULL,
   non_count_columns = NULL,
-  return_intermediate = FALSE
+  return_intermediate = FALSE,
+  show_join_quality = TRUE
 )
 }
 \arguments{
@@ -40,6 +41,12 @@ detects columns with prefixes "mean_", "median_", "percent_", or "ratio_".}
 \item{return_intermediate}{Logical. If TRUE and crosswalk has multiple steps,
 returns a list containing both the final result and intermediate results
 from each step. Default is FALSE, which returns only the final result.}
+
+\item{show_join_quality}{Logical. If TRUE (default), prints diagnostic messages
+about join quality, including the number of data rows not matching the crosswalk
+and vice versa. For state-nested geographies (tract, county, block group, etc.),
+also reports state-level concentration of unmatched rows. Set to FALSE to
+suppress these messages.}
 }
 \value{
 If \code{return_intermediate = FALSE} (default), a tibble with data summarized
@@ -74,6 +81,11 @@ both NULL, the function will automatically detect columns based on naming prefix
 \item Columns starting with "mean_", "median_", "percent_", or "ratio_" are treated
 as non-count variables
 }
+
+\strong{Other columns}: Columns that are not the geoid column, count columns, or
+non-count columns (e.g., metadata like \code{data_year}) are preserved by taking
+the first non-missing value within each target geography group. If all values
+are missing, NA is returned.
 
 \strong{Multi-step crosswalks}: When \code{get_crosswalk()} returns multiple crosswalks
 (for transformations that change both geography and year), this function

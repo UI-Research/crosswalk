@@ -28,6 +28,11 @@
 #' @param return_intermediate Logical. If TRUE and crosswalk has multiple steps,
 #'    returns a list containing both the final result and intermediate results
 #'    from each step. Default is FALSE, which returns only the final result.
+#' @param show_join_quality Logical. If TRUE (default), prints diagnostic messages
+#'    about join quality, including the number of data rows not matching the crosswalk
+#'    and vice versa. For state-nested geographies (tract, county, block group, etc.),
+#'    also reports state-level concentration of unmatched rows. Set to FALSE to
+#'    suppress these messages.
 #'
 #' @return If `return_intermediate = FALSE` (default), a tibble with data summarized
 #'    to the final target geography.
@@ -54,6 +59,11 @@
 #' - Columns starting with "count_" are treated as count variables
 #' - Columns starting with "mean_", "median_", "percent_", or "ratio_" are treated
 #'   as non-count variables
+#'
+#' **Other columns**: Columns that are not the geoid column, count columns, or
+#' non-count columns (e.g., metadata like `data_year`) are preserved by taking
+#' the first non-missing value within each target geography group. If all values
+#' are missing, NA is returned.
 #'
 #' **Multi-step crosswalks**: When `get_crosswalk()` returns multiple crosswalks
 #' (for transformations that change both geography and year), this function
@@ -108,7 +118,8 @@ crosswalk_data <- function(
     geoid_column = "geoid",
     count_columns = NULL,
     non_count_columns = NULL,
-    return_intermediate = FALSE) {
+    return_intermediate = FALSE,
+    show_join_quality = TRUE) {
 
   # Determine if crosswalk is a list (from get_crosswalk) or a single tibble
   crosswalk_list <- extract_crosswalk_list(crosswalk)
@@ -166,7 +177,10 @@ crosswalk_data <- function(
       crosswalk = step_crosswalk,
       geoid_column = current_geoid_column,
       count_columns = count_columns,
-      non_count_columns = non_count_columns)
+      non_count_columns = non_count_columns,
+      step_number = i,
+      total_steps = n_steps,
+      show_join_quality = show_join_quality)
 
     # Store intermediate result if requested
     if (return_intermediate) {
@@ -246,6 +260,295 @@ validate_crosswalk_tibble <- function(crosswalk, name) {
 }
 
 
+#' Check if Geography is Nested Within States
+#'
+#' Internal function that determines whether a geography type has GEOIDs
+#' where the first two characters represent the state FIPS code.
+#'
+#' Geographies nested within states (state FIPS derivable from GEOID):
+#' - block, block_group, tract, county, place, puma, congressional districts
+#'
+#' Geographies NOT nested within states (cross state boundaries):
+#' - zcta, cbsa/core_based_statistical_area, urban_area
+#'
+#' @param geography Character. The geography type to check.
+#' @return Logical. TRUE if geography is nested within states.
+#' @keywords internal
+#' @noRd
+is_state_nested_geography <- function(geography) {
+  if (is.null(geography) || is.na(geography)) {
+    return(FALSE)
+  }
+
+  geography_lower <- geography |>
+    stringr::str_to_lower() |>
+    stringr::str_squish() |>
+    stringr::str_replace_all("_", " ")
+
+  # Geographies where GEOID starts with state FIPS
+
+  state_nested <- c(
+    "block", "blocks", "blk",
+    "block group", "blockgroup", "bg",
+    "tract", "tracts", "tr",
+    "county", "counties", "co",
+    "place", "places", "pl",
+    "puma", "pumas", "puma22",
+    "cd118", "cd119", "congressional district"
+  )
+
+  geography_lower %in% state_nested
+}
+
+
+#' State FIPS to Abbreviation Lookup
+#'
+#' Internal lookup table for converting state FIPS codes to abbreviations.
+#' @keywords internal
+#' @noRd
+state_fips_to_abbr <- tibble::tibble(
+  state_fips = c(
+    "01", "02", "04", "05", "06", "08", "09", "10", "11", "12",
+    "13", "15", "16", "17", "18", "19", "20", "21", "22", "23",
+    "24", "25", "26", "27", "28", "29", "30", "31", "32", "33",
+    "34", "35", "36", "37", "38", "39", "40", "41", "42", "44",
+    "45", "46", "47", "48", "49", "50", "51", "53", "54", "55",
+    "56", "72", "78", "66", "60", "69"
+  ),
+  state_abbr = c(
+    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL",
+    "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME",
+    "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH",
+    "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI",
+    "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI",
+    "WY", "PR", "VI", "GU", "AS", "MP"
+  )
+)
+
+
+#' Analyze State Concentration of Unmatched GEOIDs
+#'
+#' Internal function that analyzes the state-level distribution of unmatched GEOIDs.
+#'
+#' @param unmatched_geoids Character vector of GEOIDs that did not match.
+#' @return A list with state_counts tibble, top_states tibble, and is_concentrated flag.
+#' @keywords internal
+#' @noRd
+analyze_state_concentration <- function(unmatched_geoids) {
+  if (length(unmatched_geoids) == 0) {
+    return(NULL)
+  }
+
+  state_counts <- tibble::tibble(
+    geoid = unmatched_geoids,
+    state_fips = stringr::str_sub(geoid, 1, 2)
+  ) |>
+    dplyr::count(state_fips, name = "n_unmatched") |>
+    dplyr::mutate(
+      pct_of_unmatched = n_unmatched / sum(n_unmatched) * 100
+    ) |>
+    dplyr::arrange(dplyr::desc(n_unmatched))
+
+  top_states <- state_counts |>
+    dplyr::slice_head(n = 3)
+
+  is_concentrated <- any(state_counts$pct_of_unmatched > 15)
+
+  list(
+    state_counts = state_counts,
+    top_states = top_states,
+    is_concentrated = is_concentrated
+  )
+}
+
+
+#' Format Join Quality Message
+#'
+#' Internal function that formats join quality diagnostics as messages.
+#'
+#' @param join_quality List of join quality statistics.
+#' @param step_number Integer. Current step number.
+#' @param total_steps Integer. Total number of steps.
+#' @return Character vector of messages to print.
+#' @keywords internal
+#' @noRd
+format_join_quality_message <- function(join_quality, step_number, total_steps) {
+  messages <- character(0)
+
+  step_prefix <- if (total_steps > 1) {
+    stringr::str_c("Step ", step_number, " join quality: ")
+  } else {
+    "Join quality: "
+  }
+
+  # Report unmatched data rows
+  if (join_quality$n_data_unmatched > 0) {
+    msg1 <- stringr::str_c(
+      step_prefix,
+      format(join_quality$n_data_unmatched, big.mark = ","),
+      " of ",
+      format(join_quality$n_data_total, big.mark = ","),
+      " data rows (",
+      sprintf("%.1f%%", join_quality$pct_data_unmatched),
+      ") did not match the crosswalk."
+    )
+    messages <- c(messages, msg1)
+
+    # Add state concentration info if available
+    if (!is.null(join_quality$state_analysis_data) &&
+        nrow(join_quality$state_analysis_data$top_states) > 0) {
+
+      top_states_str <- join_quality$state_analysis_data$top_states |>
+        dplyr::left_join(state_fips_to_abbr, by = "state_fips") |>
+        dplyr::mutate(
+          state_abbr = dplyr::if_else(is.na(state_abbr), state_fips, state_abbr),
+          label = stringr::str_c(
+            state_abbr, " (",
+            sprintf("%.0f%%", pct_of_unmatched), ", ",
+            format(n_unmatched, big.mark = ","), " rows)"
+          )
+        ) |>
+        dplyr::pull(label) |>
+        stringr::str_c(collapse = ", ")
+
+      msg2 <- stringr::str_c("  Top states with unmatched data rows: ", top_states_str)
+      messages <- c(messages, msg2)
+    }
+  }
+
+  # Report crosswalk source GEOIDs not in data
+  if (join_quality$n_crosswalk_unmatched > 0) {
+    msg3 <- stringr::str_c(
+      step_prefix,
+      format(join_quality$n_crosswalk_unmatched, big.mark = ","),
+      " of ",
+      format(join_quality$n_crosswalk_total, big.mark = ","),
+      " crosswalk source GEOIDs (",
+      sprintf("%.1f%%", join_quality$pct_crosswalk_unmatched),
+      ") were not in input data."
+    )
+    messages <- c(messages, msg3)
+
+    # Add state concentration info if available
+    if (!is.null(join_quality$state_analysis_crosswalk) &&
+        nrow(join_quality$state_analysis_crosswalk$top_states) > 0) {
+
+      top_states_str <- join_quality$state_analysis_crosswalk$top_states |>
+        dplyr::left_join(state_fips_to_abbr, by = "state_fips") |>
+        dplyr::mutate(
+          state_abbr = dplyr::if_else(is.na(state_abbr), state_fips, state_abbr),
+          label = stringr::str_c(
+            state_abbr, " (",
+            sprintf("%.0f%%", pct_of_unmatched), ", ",
+            format(n_unmatched, big.mark = ","), " rows)"
+          )
+        ) |>
+        dplyr::pull(label) |>
+        stringr::str_c(collapse = ", ")
+
+      msg4 <- stringr::str_c("  Top states not in data: ", top_states_str)
+      messages <- c(messages, msg4)
+    }
+
+    msg5 <- "  (This is expected if your data covers a geographic subset.)"
+    messages <- c(messages, msg5)
+  }
+
+  return(messages)
+}
+
+
+#' Report Join Quality Between Data and Crosswalk
+#'
+#' Internal function that computes and reports join quality diagnostics.
+#'
+#' @param data The input data tibble.
+#' @param crosswalk The crosswalk tibble.
+#' @param geoid_column Column name for source geoid in data.
+#' @param step_number Integer. Which step this is (for multi-step reporting).
+#' @param total_steps Integer. Total number of steps.
+#' @param source_geography Character or NULL. The source geography type, used to
+#'    determine if state-level analysis is applicable.
+#' @return A list with join quality statistics (also prints messages if issues found).
+#' @keywords internal
+#' @noRd
+report_join_quality <- function(data, crosswalk, geoid_column, step_number = 1,
+                                total_steps = 1, source_geography = NULL) {
+
+  # Ensure geoid columns are character for consistent comparison
+  data_geoids <- data |>
+    dplyr::mutate(dplyr::across(dplyr::all_of(geoid_column), as.character)) |>
+    dplyr::pull(!!rlang::sym(geoid_column)) |>
+    unique()
+
+  crosswalk_source_geoids <- crosswalk |>
+    dplyr::pull(source_geoid) |>
+    unique()
+
+  # Data rows not in crosswalk
+  data_not_in_crosswalk <- setdiff(data_geoids, crosswalk_source_geoids)
+  n_data_unmatched <- length(data_not_in_crosswalk)
+  n_data_total <- length(data_geoids)
+  pct_data_unmatched <- if (n_data_total > 0) {
+    n_data_unmatched / n_data_total * 100
+  } else {
+    0
+  }
+
+  # Crosswalk source GEOIDs not in data
+  crosswalk_not_in_data <- setdiff(crosswalk_source_geoids, data_geoids)
+  n_crosswalk_unmatched <- length(crosswalk_not_in_data)
+  n_crosswalk_total <- length(crosswalk_source_geoids)
+  pct_crosswalk_unmatched <- if (n_crosswalk_total > 0) {
+    n_crosswalk_unmatched / n_crosswalk_total * 100
+  } else {
+    0
+  }
+
+  # State concentration analysis only for state-nested geographies
+  # (ZCTAs, CBSAs, urban areas cross state boundaries so state analysis not meaningful)
+  do_state_analysis <- is_state_nested_geography(source_geography)
+
+  # State concentration analysis for unmatched data rows
+  state_analysis_data <- if (n_data_unmatched > 0 && do_state_analysis) {
+    analyze_state_concentration(data_not_in_crosswalk)
+  } else {
+    NULL
+  }
+
+  # State concentration analysis for crosswalk rows not in data
+  state_analysis_crosswalk <- if (n_crosswalk_unmatched > 0 && do_state_analysis) {
+    analyze_state_concentration(crosswalk_not_in_data)
+  } else {
+    NULL
+  }
+
+  # Build quality statistics
+  join_quality <- list(
+    n_data_total = n_data_total,
+    n_data_unmatched = n_data_unmatched,
+    pct_data_unmatched = pct_data_unmatched,
+    data_geoids_unmatched = data_not_in_crosswalk,
+    state_analysis_data = state_analysis_data,
+    n_crosswalk_total = n_crosswalk_total,
+    n_crosswalk_unmatched = n_crosswalk_unmatched,
+    pct_crosswalk_unmatched = pct_crosswalk_unmatched,
+    crosswalk_geoids_unmatched = crosswalk_not_in_data,
+    state_analysis_crosswalk = state_analysis_crosswalk,
+    source_geography = source_geography,
+    state_analysis_applicable = do_state_analysis
+  )
+
+  # Print messages if there are issues
+  messages <- format_join_quality_message(join_quality, step_number, total_steps)
+  if (length(messages) > 0) {
+    purrr::walk(messages, message)
+  }
+
+  return(join_quality)
+}
+
+
 #' Apply a Single Crosswalk Step
 #'
 #' Internal function that applies one crosswalk tibble to data.
@@ -255,6 +558,9 @@ validate_crosswalk_tibble <- function(crosswalk, name) {
 #' @param geoid_column Column name for source geoid
 #' @param count_columns Count variable columns
 #' @param non_count_columns Non-count variable columns
+#' @param step_number Integer. Current step number for multi-step reporting.
+#' @param total_steps Integer. Total number of steps for multi-step reporting.
+#' @param show_join_quality Logical. Whether to report join quality diagnostics.
 #' @return Crosswalked data
 #' @keywords internal
 #' @noRd
@@ -263,7 +569,10 @@ apply_single_crosswalk <- function(
     crosswalk,
     geoid_column,
     count_columns,
-    non_count_columns) {
+    non_count_columns,
+    step_number = 1,
+    total_steps = 1,
+    show_join_quality = TRUE) {
 
   # Check if crosswalk is empty
   if (nrow(crosswalk) == 0) {
@@ -276,6 +585,26 @@ apply_single_crosswalk <- function(
   # Store metadata for later attachment
   crosswalk_metadata <- attr(crosswalk, "crosswalk_metadata")
 
+  # Extract source geography from metadata for state analysis determination
+  source_geography <- if (!is.null(crosswalk_metadata)) {
+    crosswalk_metadata$source_geography
+  } else {
+    NULL
+  }
+
+  # Report join quality (if enabled)
+  join_quality <- if (show_join_quality) {
+    report_join_quality(
+      data = data,
+      crosswalk = crosswalk,
+      geoid_column = geoid_column,
+      step_number = step_number,
+      total_steps = total_steps,
+      source_geography = source_geography)
+  } else {
+    NULL
+  }
+
   # Determine grouping columns (target_geography_name may not always be present)
   group_cols <- "target_geoid"
   if ("target_geography_name" %in% names(crosswalk)) {
@@ -285,6 +614,17 @@ apply_single_crosswalk <- function(
   # Filter to columns that exist in current data (intermediate steps may have fewer)
   current_count_cols <- intersect(count_columns, names(data))
   current_non_count_cols <- intersect(non_count_columns, names(data))
+
+  # Identify "other" columns (not geoid, count, or non-count columns)
+  # These will be aggregated by taking the first non-missing value
+  crosswalk_cols <- c("source_geoid", "target_geoid", "allocation_factor_source_to_target",
+                      "target_geography_name", "weighting_factor", "source_year", "target_year",
+                      "population_2020", "housing_2020", "land_area_sqmi")
+  other_cols <- setdiff(
+    names(data),
+    c(geoid_column, current_count_cols, current_non_count_cols, crosswalk_cols)
+  )
+
 
   # Join crosswalk to data
   result <- data |>
@@ -305,6 +645,10 @@ apply_single_crosswalk <- function(
       tidytable::across(
         .cols = tidytable::all_of(current_non_count_cols),
         .fns = ~ stats::weighted.mean(.x, allocation_factor_source_to_target, na.rm = TRUE)),
+      ## other columns: take first non-missing value (or NA if all missing)
+      tidytable::across(
+        .cols = tidytable::all_of(other_cols),
+        .fns = ~ dplyr::first(.x, na_rm = TRUE)),
       tidytable::across(
         .cols = tidytable::all_of(c(current_count_cols, current_non_count_cols)),
         .fns = ~ sum(!is.na(.x)),
@@ -312,7 +656,7 @@ apply_single_crosswalk <- function(
     tidytable::mutate(
       tidytable::across(
         .cols = tidytable::all_of(c(current_count_cols, current_non_count_cols)),
-        .fns = ~ tidytable::if_else(get(stringr::str_c(tidytable::cur_column(), "_validx$")) > 0, .x, NA))) |>
+        .fns = ~ tidytable::if_else(get(stringr::str_c(tidytable::cur_column(), "_validx")) > 0, .x, NA))) |>
     dplyr::select(-dplyr::matches("_validx$")) |>
     dplyr::rename_with(
       .cols = dplyr::everything(),
@@ -321,6 +665,9 @@ apply_single_crosswalk <- function(
 
   # Attach metadata
   attr(result, "crosswalk_metadata") <- crosswalk_metadata
+
+  # Attach join quality statistics
+  attr(result, "join_quality") <- join_quality
 
   return(result)
 }

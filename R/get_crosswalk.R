@@ -359,4 +359,6 @@ and counties. The provided geography '", geography, "' is not supported.")}
   return(result)
 }
 
-utils::globalVariables(c("allocation_factor_source_to_target"))
+utils::globalVariables(c(
+  "allocation_factor_source_to_target", "geoid", "label", 
+  "n_unmatched", "pct_of_unmatched", "state_abbr"))

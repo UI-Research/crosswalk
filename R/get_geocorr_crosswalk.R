@@ -44,7 +44,7 @@ get_geocorr_crosswalk <- function(
     target_geography,
     weight = "population",
     cache = NULL) {
-
+  
   outpath = "no file exists here"
   ## identify the relevant file paths for potentially-cached crosswalks
   if (!is.null(cache)) {
@@ -239,7 +239,7 @@ get_geocorr_crosswalk <- function(
 
     df1 = readr::read_csv(file.path("https://mcdc.missouri.edu", "temp", csv_path), show_col_types = FALSE) |>
       janitor::clean_names() }
-
+  
   df2 = df1 |>
     dplyr::slice(2:nrow(df1)) |>
     ## naming conventions for some geographies are inconsistent; we standardize
@@ -291,7 +291,10 @@ get_geocorr_crosswalk <- function(
       dplyr::across(
         .cols = dplyr::matches("^cd11"),
         .fns = ~ stringr::str_c(stab, "-", .x),
-        .names = "{.col}_name")) |>
+        .names = "{.col}_name"),
+      dplyr::across(
+        .cols = dplyr::matches("puma22"),
+        .fns = ~ stringr::str_c(state, .x) )) |>
     dplyr::rename_with(
       .cols = dplyr::matches("state|stab"),
       .fn = ~ stringr::str_replace_all(.x, c("state" = "state_fips", "stab" = "state_abbreviation"))) |>

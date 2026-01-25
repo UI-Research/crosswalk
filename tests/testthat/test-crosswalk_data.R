@@ -612,3 +612,357 @@ test_that("crosswalk_data handles numeric GEOIDs", {
 
   expect_s3_class(result, "tbl_df")
 })
+
+# ==============================================================================
+# Join quality reporting tests
+# ==============================================================================
+
+test_that("crosswalk_data attaches join_quality attribute", {
+  mock_data <- tibble::tibble(
+    geoid = c("A", "B"),
+    count_population = c(1000, 2000))
+
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("A", "B"),
+    target_geoid = c("X", "X"),
+    target_geography_name = c("test", "test"),
+    allocation_factor_source_to_target = c(0.5, 0.5))
+
+  result <- crosswalk_data(
+    data = mock_data,
+    crosswalk = mock_crosswalk,
+    geoid_column = "geoid",
+    count_columns = c("count_population"))
+
+  join_quality <- attr(result, "join_quality")
+  expect_type(join_quality, "list")
+  expect_true("n_data_total" %in% names(join_quality))
+  expect_true("n_data_unmatched" %in% names(join_quality))
+  expect_true("n_crosswalk_total" %in% names(join_quality))
+  expect_true("n_crosswalk_unmatched" %in% names(join_quality))
+})
+
+test_that("crosswalk_data reports correct join quality for perfect match", {
+  mock_data <- tibble::tibble(
+    geoid = c("A", "B"),
+    count_population = c(1000, 2000))
+
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("A", "B"),
+    target_geoid = c("X", "X"),
+    target_geography_name = c("test", "test"),
+    allocation_factor_source_to_target = c(0.5, 0.5))
+
+  result <- crosswalk_data(
+    data = mock_data,
+    crosswalk = mock_crosswalk,
+    geoid_column = "geoid",
+    count_columns = c("count_population"))
+
+  join_quality <- attr(result, "join_quality")
+  expect_equal(join_quality$n_data_unmatched, 0)
+  expect_equal(join_quality$n_crosswalk_unmatched, 0)
+  expect_equal(join_quality$pct_data_unmatched, 0)
+})
+
+test_that("crosswalk_data reports unmatched data rows", {
+  mock_data <- tibble::tibble(
+    geoid = c("A", "B", "C"),  # C not in crosswalk
+    count_population = c(1000, 2000, 3000))
+
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("A", "B"),
+    target_geoid = c("X", "X"),
+    target_geography_name = c("test", "test"),
+    allocation_factor_source_to_target = c(0.5, 0.5))
+
+  expect_message(
+    result <- crosswalk_data(
+      data = mock_data,
+      crosswalk = mock_crosswalk,
+      geoid_column = "geoid",
+      count_columns = c("count_population")),
+    regexp = "did not match the crosswalk")
+
+  join_quality <- attr(result, "join_quality")
+  expect_equal(join_quality$n_data_unmatched, 1)
+  expect_equal(join_quality$n_data_total, 3)
+  expect_true("C" %in% join_quality$data_geoids_unmatched)
+})
+
+test_that("crosswalk_data reports unmatched crosswalk rows", {
+  mock_data <- tibble::tibble(
+    geoid = c("A"),
+    count_population = c(1000))
+
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("A", "B", "C"),  # B and C not in data
+    target_geoid = c("X", "Y", "Z"),
+    target_geography_name = c("test", "test", "test"),
+    allocation_factor_source_to_target = c(1.0, 1.0, 1.0))
+
+  expect_message(
+    result <- crosswalk_data(
+      data = mock_data,
+      crosswalk = mock_crosswalk,
+      geoid_column = "geoid",
+      count_columns = c("count_population")),
+    regexp = "were not in input data")
+
+  join_quality <- attr(result, "join_quality")
+  expect_equal(join_quality$n_crosswalk_unmatched, 2)
+  expect_equal(join_quality$n_crosswalk_total, 3)
+})
+
+test_that("crosswalk_data reports state concentration for unmatched data rows", {
+  # Create data with state-based GEOIDs where unmatched rows are concentrated in NY (36)
+  mock_data <- tibble::tibble(
+    geoid = c("01001", "01002", "36001", "36002", "36003", "36004", "36005"),
+    count_population = c(1000, 2000, 3000, 4000, 5000, 6000, 7000))
+
+  # Crosswalk only has AL (01) counties - include metadata for state analysis
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("01001", "01002"),
+    target_geoid = c("X", "X"),
+    target_geography_name = c("test", "test"),
+    allocation_factor_source_to_target = c(0.5, 0.5))
+
+  # Add metadata indicating this is a county crosswalk (state-nested geography)
+  attr(mock_crosswalk, "crosswalk_metadata") <- list(source_geography = "county")
+
+  expect_message(
+    result <- crosswalk_data(
+      data = mock_data,
+      crosswalk = mock_crosswalk,
+      geoid_column = "geoid",
+      count_columns = c("count_population")),
+    regexp = "Top states with unmatched data rows")
+
+  join_quality <- attr(result, "join_quality")
+  expect_equal(join_quality$n_data_unmatched, 5)
+
+  # Check state analysis
+  expect_false(is.null(join_quality$state_analysis_data))
+  expect_true(join_quality$state_analysis_data$is_concentrated)
+
+  # NY should be top state
+  top_state <- join_quality$state_analysis_data$top_states$state_fips[1]
+  expect_equal(top_state, "36")
+})
+
+test_that("crosswalk_data does NOT report state concentration for ZCTAs (non-state-nested)", {
+  # ZCTAs cross state boundaries, so state analysis should not be performed
+  mock_data <- tibble::tibble(
+    geoid = c("01001", "01002", "36001", "36002", "36003"),
+    count_population = c(1000, 2000, 3000, 4000, 5000))
+
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("01001", "01002"),
+    target_geoid = c("X", "X"),
+    allocation_factor_source_to_target = c(0.5, 0.5))
+
+  # Add metadata indicating this is a ZCTA crosswalk (NOT state-nested)
+  attr(mock_crosswalk, "crosswalk_metadata") <- list(source_geography = "zcta")
+
+  # Should report unmatched rows but NOT state concentration
+  expect_message(
+    result <- crosswalk_data(
+      data = mock_data,
+      crosswalk = mock_crosswalk,
+      geoid_column = "geoid",
+      count_columns = c("count_population")),
+    regexp = "did not match the crosswalk")
+
+  join_quality <- attr(result, "join_quality")
+  expect_equal(join_quality$n_data_unmatched, 3)
+
+  # State analysis should NOT be performed for ZCTAs
+  expect_true(is.null(join_quality$state_analysis_data))
+  expect_false(join_quality$state_analysis_applicable)
+})
+
+test_that("crosswalk_data show_join_quality=FALSE suppresses messages", {
+  mock_data <- tibble::tibble(
+    geoid = c("A", "B", "C"),  # C not in crosswalk
+    count_population = c(1000, 2000, 3000))
+
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("A", "B"),
+    target_geoid = c("X", "X"),
+    allocation_factor_source_to_target = c(0.5, 0.5))
+
+  # With show_join_quality = FALSE, should NOT produce join quality messages
+  # (but will still produce "Applying crosswalk step..." message)
+  expect_no_message(
+    result <- crosswalk_data(
+      data = mock_data,
+      crosswalk = mock_crosswalk,
+      geoid_column = "geoid",
+      count_columns = c("count_population"),
+      show_join_quality = FALSE),
+    message = "did not match")
+
+  # join_quality attribute should be NULL when disabled
+  join_quality <- attr(result, "join_quality")
+  expect_null(join_quality)
+})
+
+test_that("crosswalk_data silent when join is perfect", {
+  mock_data <- tibble::tibble(
+    geoid = c("A", "B"),
+    count_population = c(1000, 2000))
+
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("A", "B"),
+    target_geoid = c("X", "X"),
+    target_geography_name = c("test", "test"),
+    allocation_factor_source_to_target = c(0.5, 0.5))
+
+  # Should NOT produce any join quality messages (only "Applying crosswalk step..." message)
+  expect_message(
+    result <- crosswalk_data(
+      data = mock_data,
+      crosswalk = mock_crosswalk,
+      geoid_column = "geoid",
+      count_columns = c("count_population")),
+    regexp = "Applying crosswalk step")
+
+  # And should NOT have "did not match" message
+  expect_no_message(
+    result2 <- crosswalk_data(
+      data = mock_data,
+      crosswalk = mock_crosswalk,
+      geoid_column = "geoid",
+      count_columns = c("count_population")),
+    message = "did not match")
+})
+
+# ==============================================================================
+# Other column handling tests
+# ==============================================================================
+
+test_that("crosswalk_data preserves other columns using first non-missing value", {
+  mock_data <- tibble::tibble(
+    geoid = c("A", "B"),
+    count_population = c(1000, 2000),
+    data_year = c(2018, 2018),
+    vintage = c(2010, 2010))
+
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("A", "B"),
+    target_geoid = c("X", "X"),
+    target_geography_name = c("test", "test"),
+    allocation_factor_source_to_target = c(0.5, 0.5))
+
+  result <- crosswalk_data(
+    data = mock_data,
+    crosswalk = mock_crosswalk,
+    geoid_column = "geoid",
+    count_columns = c("count_population"))
+
+  # Other columns should be preserved
+  expect_true("data_year" %in% colnames(result))
+  expect_true("vintage" %in% colnames(result))
+
+  # Should take first value (both are same in this case)
+  expect_equal(result$data_year[1], 2018)
+  expect_equal(result$vintage[1], 2010)
+})
+
+test_that("crosswalk_data takes first non-missing value for other columns", {
+  mock_data <- tibble::tibble(
+    geoid = c("A", "B", "C"),
+    count_population = c(1000, 2000, 3000),
+    data_year = c(NA, 2019, 2019))
+
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("A", "B", "C"),
+    target_geoid = c("X", "X", "X"),
+    target_geography_name = c("test", "test", "test"),
+    allocation_factor_source_to_target = c(0.3, 0.3, 0.4))
+
+  result <- crosswalk_data(
+    data = mock_data,
+    crosswalk = mock_crosswalk,
+    geoid_column = "geoid",
+    count_columns = c("count_population"))
+
+  # Should take first non-missing value (2019 from B)
+  expect_equal(result$data_year[1], 2019)
+})
+
+test_that("crosswalk_data returns NA for other columns when all values missing", {
+  mock_data <- tibble::tibble(
+    geoid = c("A", "B"),
+    count_population = c(1000, 2000),
+    data_year = c(NA_integer_, NA_integer_))
+
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("A", "B"),
+    target_geoid = c("X", "X"),
+    target_geography_name = c("test", "test"),
+    allocation_factor_source_to_target = c(0.5, 0.5))
+
+  result <- crosswalk_data(
+    data = mock_data,
+    crosswalk = mock_crosswalk,
+    geoid_column = "geoid",
+    count_columns = c("count_population"))
+
+  # Should return NA when all values are missing
+  expect_true(is.na(result$data_year[1]))
+})
+
+test_that("crosswalk_data handles multiple other columns with different types", {
+  mock_data <- tibble::tibble(
+    geoid = c("A", "B"),
+    count_population = c(1000, 2000),
+    data_year = c(2018L, 2018L),
+    source_name = c("Urban", "Urban"),
+    weight_factor = c(1.5, 1.5))
+
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("A", "B"),
+    target_geoid = c("X", "X"),
+    target_geography_name = c("test", "test"),
+    allocation_factor_source_to_target = c(0.5, 0.5))
+
+  result <- crosswalk_data(
+    data = mock_data,
+    crosswalk = mock_crosswalk,
+    geoid_column = "geoid",
+    count_columns = c("count_population"))
+
+  # All other columns should be preserved with correct types
+
+  expect_true("data_year" %in% colnames(result))
+  expect_true("source_name" %in% colnames(result))
+  expect_true("weight_factor" %in% colnames(result))
+
+  expect_equal(result$data_year[1], 2018L)
+  expect_equal(result$source_name[1], "Urban")
+  expect_equal(result$weight_factor[1], 1.5)
+})
+
+test_that("crosswalk_data other columns work correctly with one-to-many mapping", {
+  # Source A maps to two targets (X and Y), B maps to X only
+  mock_data <- tibble::tibble(
+    geoid = c("A", "B"),
+    count_population = c(1000, 2000),
+    data_year = c(2020, 2020))
+
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("A", "A", "B"),
+    target_geoid = c("X", "Y", "X"),
+    target_geography_name = c("test", "test", "test"),
+    allocation_factor_source_to_target = c(0.6, 0.4, 1.0))
+
+  result <- crosswalk_data(
+    data = mock_data,
+    crosswalk = mock_crosswalk,
+    geoid_column = "geoid",
+    count_columns = c("count_population"))
+
+  # Both target geographies should have data_year preserved
+  expect_true(all(result$data_year == 2020))
+})
