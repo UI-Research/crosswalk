@@ -2,7 +2,7 @@
 % Please edit documentation in R/get_nhgis_crosswalk.R
 \name{list_nhgis_crosswalks}
 \alias{list_nhgis_crosswalks}
-\title{List Available NHGIS Crosswalks}
+\title{List supported NHGIS crosswalks}
 \usage{
 list_nhgis_crosswalks()
 }

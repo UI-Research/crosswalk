@@ -116,6 +116,98 @@ test_that("plan_crosswalk_chain multi-step works for block_group", {
 })
 
 # ==============================================================================
+# Direct NHGIS crosswalk tests (geography + year change with direct NHGIS crosswalk)
+# ==============================================================================
+
+test_that("plan_crosswalk_chain detects direct NHGIS crosswalk for block to zcta", {
+  # block 2010 -> zcta 2020 is available directly from NHGIS
+  plan <- plan_crosswalk_chain(
+    source_geography = "block",
+    target_geography = "zcta",
+    source_year = 2010,
+    target_year = 2020)
+
+  expect_false(plan$is_multi_step)
+  expect_equal(nrow(plan$steps), 1)
+  expect_equal(plan$steps$crosswalk_source[1], "nhgis")
+  expect_true(stringr::str_detect(plan$steps$description[1], "direct NHGIS"))
+})
+
+test_that("plan_crosswalk_chain detects direct NHGIS crosswalk for block to puma", {
+  # block 2010 -> puma 2020 is available directly from NHGIS
+  plan <- plan_crosswalk_chain(
+    source_geography = "block",
+    target_geography = "puma",
+    source_year = 2010,
+    target_year = 2020)
+
+  expect_false(plan$is_multi_step)
+  expect_equal(nrow(plan$steps), 1)
+  expect_equal(plan$steps$crosswalk_source[1], "nhgis")
+})
+
+test_that("plan_crosswalk_chain detects direct NHGIS crosswalk for block to place", {
+  # block 2010 -> place 2020 is available directly from NHGIS
+  plan <- plan_crosswalk_chain(
+    source_geography = "block",
+    target_geography = "place",
+    source_year = 2010,
+    target_year = 2020)
+
+  expect_false(plan$is_multi_step)
+  expect_equal(plan$steps$crosswalk_source[1], "nhgis")
+})
+
+test_that("plan_crosswalk_chain detects direct NHGIS crosswalk for block to urban_area", {
+  # block 2010 -> urban_area 2020 is available directly from NHGIS
+  plan <- plan_crosswalk_chain(
+    source_geography = "block",
+    target_geography = "urban_area",
+    source_year = 2010,
+    target_year = 2020)
+
+  expect_false(plan$is_multi_step)
+  expect_equal(plan$steps$crosswalk_source[1], "nhgis")
+})
+
+test_that("plan_crosswalk_chain detects direct NHGIS crosswalk for block to cbsa", {
+  # block 2010 -> cbsa 2020 is available directly from NHGIS
+  plan <- plan_crosswalk_chain(
+    source_geography = "block",
+    target_geography = "cbsa",
+    source_year = 2010,
+    target_year = 2020)
+
+  expect_false(plan$is_multi_step)
+  expect_equal(plan$steps$crosswalk_source[1], "nhgis")
+})
+
+test_that("plan_crosswalk_chain still uses multi-step for tract to zcta (no direct NHGIS)", {
+  # tract 2010 -> zcta 2020 is NOT available directly from NHGIS
+  # So it should still require multi-step
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "zcta",
+    source_year = 2010,
+    target_year = 2020)
+
+  expect_true(plan$is_multi_step)
+  expect_equal(nrow(plan$steps), 2)
+})
+
+test_that("plan_crosswalk_chain detects direct NHGIS crosswalk for reverse direction", {
+  # block 2020 -> zcta 2010 is available directly from NHGIS
+  plan <- plan_crosswalk_chain(
+    source_geography = "block",
+    target_geography = "zcta",
+    source_year = 2020,
+    target_year = 2010)
+
+  expect_false(plan$is_multi_step)
+  expect_equal(plan$steps$crosswalk_source[1], "nhgis")
+})
+
+# ==============================================================================
 # Error handling tests
 # ==============================================================================
 

@@ -113,7 +113,32 @@ plan_crosswalk_chain <- function(
     return(result)
   }
 
-  # Case 4: Different geography AND different year - multi-step required
+  # Case 4: Different geography AND different year
+  # First, check if NHGIS has a direct crosswalk for this combination
+  # (e.g., block 2010 -> zcta 2020 is available directly from NHGIS)
+  nhgis_direct_available <- is_nhgis_crosswalk_available(
+    source_geography = source_geography,
+    target_geography = target_geography,
+    source_year = source_year,
+    target_year = target_year)
+
+  if (nhgis_direct_available) {
+    # Single-step NHGIS crosswalk available
+    result$steps <- tibble::tibble(
+      step_number = 1L,
+      source_geography = source_geography,
+      source_year = source_year_chr,
+      target_geography = target_geography,
+      target_year = target_year_chr,
+      crosswalk_source = "nhgis",
+      description = stringr::str_c(
+        source_year_chr, " ", source_geog_std, " -> ",
+        target_year_chr, " ", target_geog_std, " (direct NHGIS crosswalk)"))
+    result$composition_note <- "Single crosswalk; use allocation_factor_source_to_target directly."
+    return(result)
+  }
+
+  # No direct NHGIS crosswalk available - multi-step required
   result$is_multi_step <- TRUE
 
   # Check if NHGIS supports the source geography for inter-temporal crosswalk

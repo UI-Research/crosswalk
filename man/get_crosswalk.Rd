@@ -2,7 +2,7 @@
 % Please edit documentation in R/get_crosswalk.R
 \name{get_crosswalk}
 \alias{get_crosswalk}
-\title{Get a Geographic Crosswalk}
+\title{Get a crosswalk(s) to translate data across time and geographies}
 \usage{
 get_crosswalk(
   source_geography,

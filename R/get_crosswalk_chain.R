@@ -18,28 +18,8 @@
 #'     \item{message}{A formatted message describing the crosswalk chain}
 #'   }
 #'
-#' @export
-#' @examples
-#' \dontrun{
-#' # Get crosswalks for 2010 tracts to 2020 ZCTAs (requires two steps)
-#' chain <- get_crosswalk_chain(
-#'   source_geography = "tract",
-#'   target_geography = "zcta",
-#'   source_year = 2010,
-#'   target_year = 2020,
-#'   weight = "population")
-#'
-#' # Apply crosswalks sequentially
-#' data_step1 <- crosswalk_data(
-#'   data = my_data,
-#'   crosswalk = chain$crosswalks$step_1,
-#'   count_columns = "count_population")
-#'
-#' data_final <- crosswalk_data(
-#'   data = data_step1,
-#'   crosswalk = chain$crosswalks$step_2,
-#'   count_columns = "count_population")
-#' }
+#' @keywords internal
+#' @noRd
 get_crosswalk_chain <- function(
     source_geography,
     target_geography,
