@@ -84,3 +84,7 @@ config.yml
 docs
 CLAUDE.md
 settings.local.json
+/doc/
+/Meta/
+
+/.quarto/

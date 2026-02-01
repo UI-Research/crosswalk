@@ -15,26 +15,55 @@
 #'     Since no geographic changes occurred between 2020 and 2022 outside Connecticut,
 #'     source_geoid equals target_geoid with allocation_factor = 1.
 #'
+#'   **Reverse direction (2022 -> 2020)**: For block, block_group, and tract geographies,
+#'   the crosswalk can be reversed by swapping source/target columns since these are
+#'   identity mappings (same boundaries, different FIPS codes). County 2022 -> 2020 is
+#'   NOT supported because Connecticut's county boundaries changed (9 planning regions
+#'   to 8 counties requires different allocation factors).
+#'
 #' @param geography Character. Geography type: one of "block", "block_group", "tract",
-#'    or "county".
+#'    or "county" (county only for 2020 -> 2022 direction).
+#' @param source_year Numeric. Year of the source geography, either 2020 or 2022.
+#'    Default is 2020.
+#' @param target_year Numeric. Year of the target geography, either 2020 or 2022.
+#'    Default is 2022.
 #' @param cache Directory path. Where to download the crosswalk to. If NULL (default),
 #'    crosswalk is returned but not saved to disk.
 #'
-#' @return A tibble containing the national 2020-2022 crosswalk with columns:
+#' @return A tibble containing the national crosswalk with columns:
 #'   \describe{
-#'     \item{source_geoid}{The 2020 FIPS code}
-#'     \item{target_geoid}{The 2022 FIPS code}
+#'     \item{source_geoid}{The source year FIPS code}
+#'     \item{target_geoid}{The target year FIPS code}
 #'     \item{source_geography_name}{The geography type}
 #'     \item{target_geography_name}{The geography type}
-#'     \item{source_year}{2020}
-#'     \item{target_year}{2022}
+#'     \item{source_year}{The source year (2020 or 2022)}
+#'     \item{target_year}{The target year (2020 or 2022)}
 #'     \item{allocation_factor_source_to_target}{1 for all records (identity or CT FIPS change)}
 #'     \item{weighting_factor}{"identity" for non-CT, varies for CT county}
 #'     \item{state_fips}{Two-digit state FIPS code}
 #'   }
 #' @keywords internal
 #' @noRd
-get_ctdata_crosswalk <- function(geography, cache = NULL) {
+get_ctdata_crosswalk <- function(geography, source_year = 2020, target_year = 2022, cache = NULL) {
+
+  # Validate year parameters
+  source_year <- as.numeric(source_year)
+  target_year <- as.numeric(target_year)
+
+  valid_combinations <- list(
+    c(2020, 2022),
+    c(2022, 2020))
+
+  year_combo <- c(source_year, target_year)
+  is_valid_combo <- any(sapply(valid_combinations, function(x) identical(x, year_combo)))
+
+  if (!is_valid_combo) {
+    stop(
+"CTData crosswalks are only available for 2020 <-> 2022.
+The provided years (", source_year, " -> ", target_year, ") are not supported.")}
+
+  # Determine direction
+  is_reverse <- source_year == 2022 && target_year == 2020
 
   geography_standardized <- geography |>
     stringr::str_to_lower() |>
@@ -53,6 +82,14 @@ get_ctdata_crosswalk <- function(geography, cache = NULL) {
 "2020-2022 crosswalks are only available for blocks, block groups, tracts, and counties.
 The provided geography '", geography, "' is not supported.")}
 
+  # County 2022 -> 2020 is not supported (requires different allocation factors)
+  if (is_reverse && geography_standardized == "county") {
+    stop(
+"County crosswalks from 2022 to 2020 are not supported.
+Connecticut's county boundaries changed (9 planning regions -> 8 counties),
+requiring population-weighted disaggregation which is not implemented.
+Only block, block_group, and tract geographies support the 2022 -> 2020 direction.")}
+
   if (is.null(cache)) {
     cache_path <- tempdir()
   } else {
@@ -61,7 +98,7 @@ The provided geography '", geography, "' is not supported.")}
 
   csv_path <- file.path(
     cache_path,
-    stringr::str_c("crosswalk_national_2020_to_2022_", geography_standardized, ".csv"))
+    stringr::str_c("crosswalk_national_", source_year, "_to_", target_year, "_", geography_standardized, ".csv"))
 
   ctdata_urls <- list(
     block = "https://raw.githubusercontent.com/CT-Data-Collaborative/2022-block-crosswalk/main/2022blockcrosswalk.csv",
@@ -76,7 +113,7 @@ The provided geography '", geography, "' is not supported.")}
 
   # Check cache for full national crosswalk
   if (file.exists(csv_path) & !is.null(cache)) {
-    message("Reading national 2020-2022 crosswalk from cache.")
+    message(stringr::str_c("Reading national ", source_year, "-", target_year, " crosswalk from cache."))
     result <- readr::read_csv(
       csv_path,
       col_types = readr::cols(.default = readr::col_character(),
@@ -84,11 +121,7 @@ The provided geography '", geography, "' is not supported.")}
       show_col_types = FALSE)
 
     # Weighting note for metadata
-    weighting_note <- if (geography_standardized == "county") {
-      "CT county crosswalk uses population-weighted allocation factors from ACS 2021."
-    } else {
-      "All records have allocation_factor = 1 (identity mapping or CT FIPS code change)."
-    }
+    weighting_note <- "All records have allocation_factor = 1 (identity mapping or CT FIPS code change)."
 
     attr(result, "crosswalk_metadata") <- list(
       data_source = "ctdata_nhgis_combined",
@@ -96,14 +129,10 @@ The provided geography '", geography, "' is not supported.")}
       ctdata_download_url = ctdata_download_url,
       ctdata_github_repository = "https://github.com/CT-Data-Collaborative",
       ctdata_documentation_url = "https://github.com/CT-Data-Collaborative/2022-tract-crosswalk",
-      nhgis_crosswalk_used = if (geography_standardized != "county") {
-        stringr::str_c(geography_standardized, "2010_", geography_standardized, "2020")
-      } else {
-        "N/A (county GEOIDs from tidycensus)"
-      },
+      nhgis_crosswalk_used = stringr::str_c(geography_standardized, "2010_", geography_standardized, "2020"),
       nhgis_citation_url = "https://www.nhgis.org/citation-and-use-nhgis-data",
-      source_year = "2020",
-      target_year = "2022",
+      source_year = as.character(source_year),
+      target_year = as.character(target_year),
       source_geography = geography,
       source_geography_standardized = geography_standardized,
       target_geography = geography,
@@ -304,6 +333,28 @@ The provided geography '", geography, "' is not supported.")}
     format(nrow(result), big.mark = ","), " total records."))
 
   # ===========================================================================
+  # STEP 4b: Reverse direction if needed (2022 -> 2020)
+  # ===========================================================================
+
+  if (is_reverse) {
+    message("Reversing crosswalk direction to 2022 -> 2020...")
+
+    # For identity crosswalks (block, block_group, tract), simply swap columns
+    # Note: County is not supported for reverse direction (checked earlier)
+    result <- result |>
+      dplyr::mutate(
+        # Swap source and target geoids
+        temp_geoid = source_geoid,
+        source_geoid = target_geoid,
+        target_geoid = temp_geoid,
+        # Update years
+        source_year = "2022",
+        target_year = "2020") |>
+      dplyr::select(-temp_geoid) |>
+      dplyr::arrange(source_geoid)
+  }
+
+  # ===========================================================================
   # STEP 5: Cache and return
   # ===========================================================================
 
@@ -315,17 +366,13 @@ The provided geography '", geography, "' is not supported.")}
     message(stringr::str_c("Cached to: ", csv_path))
   }
 
-  message(
-"National 2020-2022 crosswalk constructed:
+  message(stringr::str_c(
+"National ", source_year, "-", target_year, " crosswalk constructed:
 - Connecticut: CT Data Collaborative (https://github.com/CT-Data-Collaborative)
-- Other states: Identity mapping derived from NHGIS 2010-2020 crosswalk")
+- Other states: Identity mapping derived from NHGIS 2010-2020 crosswalk"))
 
   # Attach metadata to result
-  weighting_note <- if (geography_standardized == "county") {
-    "CT county crosswalk uses population-weighted allocation factors from ACS 2021."
-  } else {
-    "All records have allocation_factor = 1 (identity mapping or CT FIPS code change)."
-  }
+  weighting_note <- "All records have allocation_factor = 1 (identity mapping or CT FIPS code change)."
 
   attr(result, "crosswalk_metadata") <- list(
     data_source = "ctdata_nhgis_combined",
@@ -333,14 +380,10 @@ The provided geography '", geography, "' is not supported.")}
     ctdata_download_url = ctdata_download_url,
     ctdata_github_repository = "https://github.com/CT-Data-Collaborative",
     ctdata_documentation_url = "https://github.com/CT-Data-Collaborative/2022-tract-crosswalk",
-    nhgis_crosswalk_used = if (geography_standardized != "county") {
-      stringr::str_c(geography_standardized, "2010_", geography_standardized, "2020")
-    } else {
-      "N/A (county GEOIDs from tidycensus)"
-    },
+    nhgis_crosswalk_used = stringr::str_c(geography_standardized, "2010_", geography_standardized, "2020"),
     nhgis_citation_url = "https://www.nhgis.org/citation-and-use-nhgis-data",
-    source_year = "2020",
-    target_year = "2022",
+    source_year = as.character(source_year),
+    target_year = as.character(target_year),
     source_geography = geography,
     source_geography_standardized = geography_standardized,
     target_geography = geography,
@@ -363,5 +406,5 @@ utils::globalVariables(c(
   "block_fips_2020", "block_fips_2022", "ce_fips_2022", "county_fips_2020",
   "county_fips_2022", "geoid_2020", "population_2020", "population_2020_total",
   "source_geography_name", "source_geoid", "source_year", "state_fips",
-  "target_geography_name", "target_geoid", "target_year", "tract_fips_2020",
-  "tract_fips_2022", "weighting_factor"))
+  "target_geography_name", "target_geoid", "target_year", "temp_geoid",
+  "tract_fips_2020", "tract_fips_2022", "weighting_factor"))
