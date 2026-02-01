@@ -27,6 +27,7 @@ Imports:
     tidytable,
     utils
 Suggests:
+    ggplot2,
     testthat (>= 3.0.0),
     tidycensus,
     knitr,
