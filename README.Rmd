@@ -8,8 +8,12 @@ knitr::opts_chunk$set(
   comment = "#>",
   fig.path = "man/figures/README-",
   out.width = "100%",
-  eval = FALSE
-)
+  eval = TRUE,
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE)
+
+devtools::load_all()
 ```
 
 # crosswalk
@@ -62,13 +66,6 @@ source_data = tidycensus::get_acs(
     source_geoid = GEOID,
     count_below_poverty_level = below_poverty_levelE)
 
-get_crosswalk(
-  source_geography = "block",
-  target_geography = "puma",
-  source_year = 2010,
-  target_year = 2020,
-  weight = "population")
-
 # Get a crosswalk from ZCTAs to PUMAs (same year, uses Geocorr (2022))
 zcta_puma_crosswalk <- get_crosswalk(
   source_geography = "zcta",
@@ -77,9 +74,15 @@ zcta_puma_crosswalk <- get_crosswalk(
 
 # Apply the crosswalk to your data
 crosswalked_data <- crosswalk_data(
-  geoid_column = "source_geoid",
   data = source_data,
   crosswalk = zcta_puma_crosswalk)
+
+## Or in a single step
+crosswalked_data = crosswalk_data(
+  data = source_data,
+  source_geography = "zcta",
+  target_geography = "puma22",
+  weight = "population")
 ```
 
 What does the crosswalk(s) reflect and how was it sourced?

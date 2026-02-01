@@ -300,8 +300,8 @@ get_geocorr_crosswalk <- function(
       .fn = ~ stringr::str_replace_all(.x, c("state" = "state_fips", "stab" = "state_abbreviation"))) |>
     dplyr::select(
       dplyr::matches("state"),
-      source_geoid = source_geography,
-      target_geoid = target_geography,
+      source_geoid = !!rlang::sym(source_geography),
+      target_geoid = !!rlang::sym(target_geography),
       source_geography_name = !!stringr::str_c(source_geography, "_name"),
       target_geography_name = !!stringr::str_c(target_geography, "_name"),
       allocation_factor_source_to_target = afact,

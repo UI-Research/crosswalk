@@ -279,3 +279,118 @@ test_that("CT county crosswalk maps 8 old counties to 9 planning regions", {
   expect_true(all(non_ct_result$allocation_factor_source_to_target == 1))
   expect_true(all(non_ct_result$source_geoid == non_ct_result$target_geoid))
 })
+
+# ==============================================================================
+# Reverse direction tests (2022 -> 2020)
+# ==============================================================================
+
+test_that("get_ctdata_crosswalk supports 2022 -> 2020 for tracts", {
+  skip_if_offline()
+  skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
+
+  result <- get_ctdata_crosswalk(geography = "tract", source_year = 2022, target_year = 2020)
+
+  expect_s3_class(result, "tbl_df")
+
+  # Check years are reversed
+  expect_equal(unique(result$source_year), "2022")
+  expect_equal(unique(result$target_year), "2020")
+
+  # CT tracts should have reversed geoids (2022 FIPS -> 2020 FIPS)
+  ct_tracts <- result |> dplyr::filter(state_fips == "09")
+  expect_equal(nrow(ct_tracts), 879)
+  expect_true(all(ct_tracts$source_geoid != ct_tracts$target_geoid))
+
+  # Non-CT tracts should still have identical geoids (identity mapping both directions)
+  non_ct_tracts <- result |> dplyr::filter(state_fips != "09")
+  expect_true(all(non_ct_tracts$source_geoid == non_ct_tracts$target_geoid))
+
+  # Allocation factors should all be 1 (identity)
+  expect_true(all(result$allocation_factor_source_to_target == 1))
+})
+
+test_that("get_ctdata_crosswalk supports 2022 -> 2020 for blocks", {
+  skip_if_offline()
+  skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
+
+  result <- get_ctdata_crosswalk(geography = "block", source_year = 2022, target_year = 2020)
+
+  expect_s3_class(result, "tbl_df")
+  expect_equal(unique(result$source_year), "2022")
+  expect_equal(unique(result$target_year), "2020")
+
+  # Block GEOIDs should be 15 characters
+  expect_true(all(stringr::str_length(result$source_geoid) == 15))
+  expect_true(all(stringr::str_length(result$target_geoid) == 15))
+
+  # All records should have allocation_factor = 1
+  expect_true(all(result$allocation_factor_source_to_target == 1))
+})
+
+test_that("get_ctdata_crosswalk supports 2022 -> 2020 for block_groups", {
+  skip_if_offline()
+  skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
+
+  result <- get_ctdata_crosswalk(geography = "block_group", source_year = 2022, target_year = 2020)
+
+  expect_s3_class(result, "tbl_df")
+  expect_equal(unique(result$source_year), "2022")
+  expect_equal(unique(result$target_year), "2020")
+
+  # Block group GEOIDs should be 12 characters
+  expect_true(all(stringr::str_length(result$source_geoid) == 12))
+  expect_true(all(stringr::str_length(result$target_geoid) == 12))
+
+  # All records should have allocation_factor = 1
+  expect_true(all(result$allocation_factor_source_to_target == 1))
+})
+
+test_that("get_ctdata_crosswalk errors on 2022 -> 2020 for county", {
+  expect_error(
+    get_ctdata_crosswalk(geography = "county", source_year = 2022, target_year = 2020),
+    regexp = "County crosswalks from 2022 to 2020 are not supported")
+})
+
+test_that("2022 -> 2020 crosswalk is inverse of 2020 -> 2022 for tracts", {
+  skip_if_offline()
+  skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
+
+  forward <- get_ctdata_crosswalk(geography = "tract", source_year = 2020, target_year = 2022)
+  reverse <- get_ctdata_crosswalk(geography = "tract", source_year = 2022, target_year = 2020)
+
+  # Same number of rows
+  expect_equal(nrow(forward), nrow(reverse))
+
+  # Forward source_geoid should match reverse target_geoid
+  forward_ct <- forward |>
+    dplyr::filter(state_fips == "09") |>
+    dplyr::arrange(source_geoid)
+  reverse_ct <- reverse |>
+    dplyr::filter(state_fips == "09") |>
+    dplyr::arrange(target_geoid)
+
+  expect_equal(forward_ct$source_geoid, reverse_ct$target_geoid)
+  expect_equal(forward_ct$target_geoid, reverse_ct$source_geoid)
+})
+
+test_that("get_ctdata_crosswalk metadata reflects direction", {
+  skip_if_offline()
+  skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
+
+  result <- get_ctdata_crosswalk(geography = "tract", source_year = 2022, target_year = 2020)
+
+  metadata <- attr(result, "crosswalk_metadata")
+
+  expect_equal(metadata$source_year, "2022")
+  expect_equal(metadata$target_year, "2020")
+})
+
+test_that("get_ctdata_crosswalk errors on invalid year combinations", {
+  expect_error(
+    get_ctdata_crosswalk(geography = "tract", source_year = 2010, target_year = 2020),
+    regexp = "CTData crosswalks are only available for 2020 <-> 2022")
+
+  expect_error(
+    get_ctdata_crosswalk(geography = "tract", source_year = 2020, target_year = 2010),
+    regexp = "CTData crosswalks are only available for 2020 <-> 2022")
+})

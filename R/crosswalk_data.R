@@ -4,8 +4,9 @@
 #' Interpolate data using a crosswalk(s)
 #'
 #' Applies geographic crosswalk weights to transform data from a source geography
-#' to a target geography. Accepts the output from `get_crosswalk()` and automatically
-#' applies all crosswalk steps sequentially for multi-step transformations.
+#' to a target geography. Can either accept a pre-fetched crosswalk from
+#' `get_crosswalk()` or fetch the crosswalk automatically using the provided
+#' geography and year parameters.
 #'
 #' @param data A data frame or tibble containing the data to crosswalk.
 #' @param crosswalk The output from `get_crosswalk()` - a list containing:
@@ -15,9 +16,24 @@
 #'      \item{message}{Description of the crosswalk chain}
 #'    }
 #'    Alternatively, a single crosswalk tibble can be provided for backwards
-#'    compatibility.
+#'    compatibility. If NULL, the crosswalk will be fetched using `source_geography`
+#'    and `target_geography` parameters.
+#' @param source_geography Character or NULL. Source geography name. Required if
+#'    `crosswalk` is NULL. One of c("block", "block group", "tract", "place",
+#'    "county", "urban_area", "zcta", "puma", "cd118", "cd119",
+#'    "core_based_statistical_area").
+#' @param target_geography Character or NULL. Target geography name. Required if
+#'    `crosswalk` is NULL. Same options as `source_geography`.
+#' @param source_year Numeric or NULL. Year of the source geography. If NULL and
+#'    crosswalk is being fetched, uses same-year crosswalk via Geocorr.
+#' @param target_year Numeric or NULL. Year of the target geography. If NULL and
+#'    crosswalk is being fetched, uses same-year crosswalk via Geocorr.
+#' @param weight Character. Weighting variable for Geocorr crosswalks when fetching.
+#'    One of c("population", "housing", "land"). Default is "population".
+#' @param cache Directory path or NULL. Where to cache fetched crosswalks. If NULL
+#'    (default), crosswalk is fetched but not saved to disk.
 #' @param geoid_column Character. The name of the column in `data` containing
-#'    the source geography identifiers (GEOIDs). Default is "geoid".
+#'    the source geography identifiers (GEOIDs). Default is "source_geoid".
 #' @param count_columns Character vector or NULL. Column names in `data` that represent
 #'    count variables. These will be summed after multiplying by the allocation factor.
 #'    If NULL (default), automatically detects columns with the prefix "count_".
@@ -47,6 +63,15 @@
 #'    underlying crosswalk (access via `attr(result, "crosswalk_metadata")`).
 #'
 #' @details
+#' **Two usage patterns**:
+#'
+#' 1. **Pre-fetched crosswalk**: Pass the output of `get_crosswalk()` to the
+#'    `crosswalk` parameter. Useful when you want to inspect or reuse the crosswalk.
+#'
+#' 2. **Direct crosswalking**: Pass `source_geography` and `target_geography`
+#'    (and optionally `source_year`, `target_year`, `weight`, `cache`) and the
+#'    crosswalk will be fetched automatically. Useful for one-off transformations.
+#'
 #' **Count variables** (specified in `count_columns`) are interpolated by summing
 #' the product of the value and the allocation factor across all source geographies
 #' that overlap with each target geography.
@@ -72,7 +97,7 @@
 #' @export
 #' @examples
 #' \dontrun{
-#' # Single-step crosswalk
+#' # Option 1: Pre-fetched crosswalk
 #' crosswalk <- get_crosswalk(
 #'   source_geography = "tract",
 #'   target_geography = "zcta",
@@ -84,7 +109,27 @@
 #'   geoid_column = "tract_geoid",
 #'   count_columns = c("count_population", "count_housing_units"))
 #'
-#' # Multi-step crosswalk (geography + year change)
+#' # Option 2: Direct crosswalking (crosswalk fetched automatically)
+#' result <- crosswalk_data(
+#'   data = my_tract_data,
+#'   source_geography = "tract",
+#'   target_geography = "zcta",
+#'   weight = "population",
+#'   geoid_column = "tract_geoid",
+#'   count_columns = c("count_population", "count_housing_units"))
+#'
+#' # Direct crosswalking with year change
+#' result <- crosswalk_data(
+#'   data = my_data,
+#'   source_geography = "tract",
+#'   target_geography = "zcta",
+#'   source_year = 2010,
+#'   target_year = 2020,
+#'   weight = "population",
+#'   geoid_column = "tract_geoid",
+#'   count_columns = "count_population")
+#'
+#' # Pre-fetched crosswalk with intermediate results
 #' crosswalk <- get_crosswalk(
 #'   source_geography = "tract",
 #'   target_geography = "zcta",
@@ -92,14 +137,6 @@
 #'   target_year = 2020,
 #'   weight = "population")
 #'
-#' # Automatically applies both steps
-#' result <- crosswalk_data(
-#'   data = my_data,
-#'   crosswalk = crosswalk,
-#'   geoid_column = "tract_geoid",
-#'   count_columns = "count_population")
-#'
-#' # To get intermediate results
 #' result <- crosswalk_data(
 #'   data = my_data,
 #'   crosswalk = crosswalk,
@@ -114,12 +151,46 @@
 
 crosswalk_data <- function(
     data,
-    crosswalk,
-    geoid_column = "geoid",
+    crosswalk = NULL,
+    source_geography = NULL,
+    target_geography = NULL,
+    source_year = NULL,
+    target_year = NULL,
+    weight = "population",
+    cache = NULL,
+    geoid_column = "source_geoid",
     count_columns = NULL,
     non_count_columns = NULL,
     return_intermediate = FALSE,
     show_join_quality = TRUE) {
+
+  # Determine if we need to fetch the crosswalk
+  crosswalk_provided <- !is.null(crosswalk)
+  geography_provided <- !is.null(source_geography) && !is.null(target_geography)
+
+  if (!crosswalk_provided && !geography_provided) {
+    stop(
+      "Either provide a crosswalk via the 'crosswalk' parameter, or provide ",
+      "'source_geography' and 'target_geography' to fetch a crosswalk automatically.")
+  }
+
+  if (crosswalk_provided && geography_provided) {
+    warning(
+      "Both 'crosswalk' and geography parameters provided. ",
+      "Using the provided 'crosswalk' and ignoring geography parameters.")
+  }
+
+  # Fetch crosswalk if not provided
+  if (!crosswalk_provided) {
+    message("Fetching crosswalk from ", source_geography, " to ", target_geography, "...")
+    crosswalk <- get_crosswalk(
+      source_geography = source_geography,
+      target_geography = target_geography,
+      source_year = source_year,
+      target_year = target_year,
+      weight = weight,
+      cache = cache)
+  }
 
   # Determine if crosswalk is a list (from get_crosswalk) or a single tibble
   crosswalk_list <- extract_crosswalk_list(crosswalk)
@@ -236,7 +307,8 @@ extract_crosswalk_list <- function(crosswalk) {
   stop(
     "Invalid crosswalk input. Expected either:\n",
     "  1. Output from get_crosswalk() (a list with $crosswalks element), or\n",
-    "  2. A single crosswalk tibble with columns: source_geoid, target_geoid, allocation_factor_source_to_target")
+    "  2. A single crosswalk tibble with columns: source_geoid, target_geoid, allocation_factor_source_to_target\n",
+    "Alternatively, leave 'crosswalk' NULL and provide 'source_geography' and 'target_geography' to fetch automatically.")
 }
 
 
@@ -617,8 +689,13 @@ apply_single_crosswalk <- function(
 
   # Identify "other" columns (not geoid, count, or non-count columns)
   # These will be aggregated by taking the first non-missing value
+  # Include both original crosswalk column names AND their renamed versions
+  # (e.g., "geography_name" which comes from "target_geography_name" after renaming)
+  # to prevent duplicates in multi-step crosswalks
   crosswalk_cols <- c("source_geoid", "target_geoid", "allocation_factor_source_to_target",
-                      "target_geography_name", "weighting_factor", "source_year", "target_year",
+                      "source_geography_name", "target_geography_name",
+                      "geography_name", "geoid",
+                      "weighting_factor", "source_year", "target_year",
                       "population_2020", "housing_2020", "land_area_sqmi")
   other_cols <- setdiff(
     names(data),

@@ -966,3 +966,4 @@ test_that("crosswalk_data other columns work correctly with one-to-many mapping"
   # Both target geographies should have data_year preserved
   expect_true(all(result$data_year == 2020))
 })
+

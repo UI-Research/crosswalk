@@ -203,9 +203,10 @@ get_crosswalk_single <- function(
   use_geocorr <- is.null(source_year) || is.null(target_year) ||
     (!is.null(source_year) && !is.null(target_year) && isTRUE(source_year == target_year))
 
-  # Use CTData for 2020 to 2022 (Connecticut planning region changes)
+  # Use CTData for 2020 <-> 2022 (Connecticut planning region changes)
   use_ctdata <- !is.null(source_year_chr) && !is.null(target_year_chr) &&
-    source_year_chr == "2020" && target_year_chr == "2022"
+    ((source_year_chr == "2020" && target_year_chr == "2022") ||
+     (source_year_chr == "2022" && target_year_chr == "2020"))
 
   if (use_geocorr) {
     crosswalk_source <- "geocorr"
@@ -219,6 +220,8 @@ get_crosswalk_single <- function(
   if (crosswalk_source == "ctdata_2020_2022") {
     result <- get_crosswalk_2020_2022(
       geography = source_geography,
+      source_year = source_year,
+      target_year = target_year,
       cache = cache)
 
   } else if (crosswalk_source == "nhgis") {
@@ -317,22 +320,25 @@ get_crosswalk_single <- function(
 }
 
 
-#' Get 2020 to 2022 Crosswalk (National)
+#' Get 2020 <-> 2022 Crosswalk (National)
 #'
-#' Internal function that handles the special case of 2020 to 2022 crosswalks.
+#' Internal function that handles the special case of 2020 to 2022 crosswalks
+#' (and the reverse direction for identity crosswalks).
 #' Returns a nationally comprehensive crosswalk with Connecticut data from
 #' CT Data Collaborative (handling the planning region changes) and identity
 #' mappings for all other states (where no changes occurred).
 #'
 #' @param geography Character. Geography type: one of "block", "block_group",
-#'    "tract", or "county".
+#'    "tract", or "county" (county only for 2020 -> 2022 direction).
+#' @param source_year Numeric. Year of the source geography, either 2020 or 2022.
+#' @param target_year Numeric. Year of the target geography, either 2020 or 2022.
 #' @param cache Directory path for caching component crosswalks.
 #'
-#' @return A tibble containing the national 2020-2022 crosswalk with Connecticut
+#' @return A tibble containing the national crosswalk with Connecticut
 #'    from CTData and identity mappings for other states.
 #' @keywords internal
 #' @noRd
-get_crosswalk_2020_2022 <- function(geography, cache = NULL) {
+get_crosswalk_2020_2022 <- function(geography, source_year = 2020, target_year = 2022, cache = NULL) {
 
   geography_standardized <- geography |>
     stringr::str_to_lower() |>
@@ -348,12 +354,14 @@ get_crosswalk_2020_2022 <- function(geography, cache = NULL) {
 
   if (is.na(geography_standardized)) {
     stop(
-"2020 to 2022 crosswalks are only available for blocks, block groups, tracts,
+"2020 <-> 2022 crosswalks are only available for blocks, block groups, tracts,
 and counties. The provided geography '", geography, "' is not supported.")}
 
   # get_ctdata_crosswalk() now returns nationally comprehensive data
   result <- get_ctdata_crosswalk(
     geography = geography_standardized,
+    source_year = source_year,
+    target_year = target_year,
     cache = cache)
 
   return(result)
