@@ -53,7 +53,7 @@
   <main id="main" class="col-md-9"><div class="section level1">
 <div class="page-header"><h1 id="crosswalk">crosswalk<a class="anchor" aria-label="anchor" href="#crosswalk"></a>
 </h1></div>
-<p>An R interface to inter-geography and inter-temporal crosswalks.</p>
+<p>An R package providing a simple interface to access and apply crosswalks.</p>
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
@@ -77,11 +77,11 @@
 <li>
 <strong>Standardized output</strong>: Consistent column names across all crosswalk sources</li>
 <li>
-<strong>Metadata tracking</strong>: Full provenance stored as attributes</li>
+<strong>Metadata tracking</strong>: Full provenance of crosswalks stored as attributes</li>
 <li>
-<strong>Multi-step handling</strong>: Automatic chaining when both geography and year change</li>
+<strong>Crosswalk chaining</strong>: Automatic chaining when multiple crosswalks are required</li>
 <li>
-<strong>Local caching</strong>: Reproducible workflows with cached crosswalks</li>
+<strong>Local caching</strong>: Reproducible workflows with locally-cached crosswalks for speed</li>
 </ul>
 </div>
 <div class="section level2">
@@ -90,13 +90,17 @@
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Install from GitHub</span></span>
 <span><span class="fu">renv</span><span class="fu">::</span><span class="fu"><a href="https://rstudio.github.io/renv/reference/install.html" class="external-link">install</a></span><span class="op">(</span><span class="st">"UI-Research/crosswalk"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; # Downloading packages -------------------------------------------------------</span></span>
+<span><span class="co">#&gt; - Downloading crosswalk 0.0.0.9001 from GitHub ... OK [95.7 Kb in 0.54s]</span></span>
+<span><span class="co">#&gt; Successfully downloaded 1 package in 1 second.</span></span>
+<span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; The following package(s) will be installed:</span></span>
 <span><span class="co">#&gt; - crosswalk [UI-Research/crosswalk]</span></span>
-<span><span class="co">#&gt; These packages will be installed into "C:/Users/wcurrangroome/AppData/Local/Temp/RtmpSkgo68/temp_libpathd7e02418a38".</span></span>
+<span><span class="co">#&gt; These packages will be installed into "C:/Users/wcurrangroome/AppData/Local/Temp/RtmpkTRpSB/temp_libpath1dfc460a4888".</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; # Installing packages --------------------------------------------------------</span></span>
-<span><span class="co">#&gt; - Installing crosswalk 0.0.0.9001 ...           OK [copied from cache in 0.24s]</span></span>
-<span><span class="co">#&gt; Successfully installed 1 package in 0.26 seconds.</span></span></code></pre></div>
+<span><span class="co">#&gt; - Installing crosswalk 0.0.0.9001 ...           OK [built from source and cached in 2.1s]</span></span>
+<span><span class="co">#&gt; Successfully installed 1 package in 2.4 seconds.</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="overview-1">Overview<a class="anchor" aria-label="anchor" href="#overview-1"></a>
@@ -209,7 +213,7 @@
 <span><span class="co">#&gt; NULL</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $retrieved_at</span></span>
-<span><span class="co">#&gt; [1] "2026-02-01 00:09:21 EST"</span></span>
+<span><span class="co">#&gt; [1] "2026-02-02 13:20:20 EST"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $cached</span></span>
 <span><span class="co">#&gt; [1] FALSE</span></span>
@@ -331,7 +335,7 @@
 <div class="section level2">
 <h2 id="core-functions">Core Functions<a class="anchor" aria-label="anchor" href="#core-functions"></a>
 </h2>
-<p>The package has two main functions:</p>
+<p>The package has two main functions, though you can also specify the needed crosswalk(s) directly from <code><a href="reference/crosswalk_data.html">crosswalk_data()</a></code> and omit the intermediate <code><a href="reference/get_crosswalk.html">get_crosswalk()</a></code> call.</p>
 <table class="table">
 <colgroup>
 <col width="50%">
@@ -363,8 +367,7 @@
 <span>  target_geography <span class="op">=</span> <span class="st">"zcta"</span>,</span>
 <span>  source_year <span class="op">=</span> <span class="fl">2010</span>,</span>
 <span>  target_year <span class="op">=</span> <span class="fl">2020</span>,</span>
-<span>  weight <span class="op">=</span> <span class="st">"population"</span></span>
-<span><span class="op">)</span></span>
+<span>  weight <span class="op">=</span> <span class="st">"population"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">result</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "crosswalks" "plan"       "message"</span></span>
@@ -403,8 +406,7 @@
 <span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_crosswalk.html">get_crosswalk</a></span><span class="op">(</span></span>
 <span>  source_geography <span class="op">=</span> <span class="st">"tract"</span>,</span>
 <span>  target_geography <span class="op">=</span> <span class="st">"zcta"</span>,</span>
-<span>  weight <span class="op">=</span> <span class="st">"population"</span></span>
-<span><span class="op">)</span></span>
+<span>  weight <span class="op">=</span> <span class="st">"population"</span><span class="op">)</span></span>
 <span><span class="co"># result$crosswalks$step_1 contains one crosswalk</span></span>
 <span></span>
 <span><span class="co"># Same geography, different year (NHGIS)</span></span>
@@ -412,11 +414,10 @@
 <span>  source_geography <span class="op">=</span> <span class="st">"tract"</span>,</span>
 <span>  target_geography <span class="op">=</span> <span class="st">"tract"</span>,</span>
 <span>  source_year <span class="op">=</span> <span class="fl">2010</span>,</span>
-<span>  target_year <span class="op">=</span> <span class="fl">2020</span></span>
-<span><span class="op">)</span></span>
+<span>  target_year <span class="op">=</span> <span class="fl">2020</span><span class="op">)</span></span>
 <span><span class="co"># result$crosswalks$step_1 contains one crosswalk</span></span></code></pre></div>
-<p><strong>Multi-step crosswalks</strong> (different geography AND different year):</p>
-<p>When both geography and year change, no single crosswalk source provides this directly. The package automatically plans and fetches a two-step chain:</p>
+<p><strong>Multi-step crosswalks</strong> (when a single, direct crosswalk is not available):</p>
+<p>For some source year/geography -&gt; target year/geography specifications do not have a crosswalk. In such cases, two or more crosswalks may be needed. The package automatically plans and fetches the required crosswalks:</p>
 <ol style="list-style-type: decimal">
 <li>
 <strong>Step 1 (NHGIS)</strong>: Change year, keep geography constant</li>
@@ -429,8 +430,7 @@
 <span>  target_geography <span class="op">=</span> <span class="st">"zcta"</span>,</span>
 <span>  source_year <span class="op">=</span> <span class="fl">2010</span>,</span>
 <span>  target_year <span class="op">=</span> <span class="fl">2020</span>,</span>
-<span>  weight <span class="op">=</span> <span class="st">"population"</span></span>
-<span><span class="op">)</span></span>
+<span>  weight <span class="op">=</span> <span class="st">"population"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Two crosswalks are returned</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">result</span><span class="op">$</span><span class="va">crosswalks</span><span class="op">)</span></span>
@@ -472,7 +472,7 @@
 </tr>
 </tbody>
 </table>
-<p>Additional columns may include <code>source_year</code>, <code>target_year</code>, <code>population_2020</code>, <code>housing_2020</code>, and <code>land_area_sqmi</code> depending on the source.</p>
+<p>Additional columns may include <code>source_year</code>, <code>target_year</code>, <code>population_2020</code>, <code>housing_2020</code>, and <code>land_area_sqmi</code> depending on the source of the crosswalk.</p>
 </div>
 <div class="section level3">
 <h3 id="accessing-metadata">Accessing Metadata<a class="anchor" aria-label="anchor" href="#accessing-metadata"></a>
@@ -499,7 +499,7 @@
 <div class="section level2">
 <h2 id="using-crosswalk_data-to-interpolate-data">Using <code>crosswalk_data()</code> to Interpolate Data<a class="anchor" aria-label="anchor" href="#using-crosswalk_data-to-interpolate-data"></a>
 </h2>
-<p><code><a href="reference/crosswalk_data.html">crosswalk_data()</a></code> applies crosswalk weights to transform your data. It automatically handles multi-step crosswalks.</p>
+<p><code><a href="reference/crosswalk_data.html">crosswalk_data()</a></code> applies crosswalk weights to transform your data. It automatically handles multi-step crosswalks. If you’re in a hurry, you can omit a call to <code><a href="reference/get_crosswalk.html">get_crosswalk()</a></code> and specify the needed crosswalk parameters to <code><a href="reference/crosswalk_data.html">crosswalk_data()</a></code>, which will pass these to <code><a href="reference/get_crosswalk.html">get_crosswalk()</a></code> behind the scenes.</p>
 <div class="section level3">
 <h3 id="column-naming-convention">Column Naming Convention<a class="anchor" aria-label="anchor" href="#column-naming-convention"></a>
 </h3>
@@ -604,6 +604,11 @@
 <blockquote>
 <p>Missouri Census Data Center, University of Missouri. (2022). Geocorr 2022: Geographic Correspondence Engine. Retrieved from: <a href="https://mcdc.missouri.edu/applications/geocorr2022.html" class="external-link uri">https://mcdc.missouri.edu/applications/geocorr2022.html</a></p>
 </blockquote>
+<p><strong>For CTData</strong>, a suggested citation (adjust for alternate source geography):</p>
+<blockquote>
+<p>CT Data Collaborative. (2023). 2022 Census Tract Crosswalk. Retrieved from: <a href="https://github.com/CT-Data-Collaborative/2022-tract-crosswalk" class="external-link uri">https://github.com/CT-Data-Collaborative/2022-tract-crosswalk</a>.</p>
+</blockquote>
+<p><strong>For this package</strong>, refer here: <a href="https://ui-research.github.io/crosswalk/authors.html#citation" class="uri">https://ui-research.github.io/crosswalk/authors.html#citation</a></p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="license">
