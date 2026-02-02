@@ -9,7 +9,7 @@ vignette: >
 
 ```{r, include = FALSE}
 # Only evaluate chunks if IPUMS API key is available
-has_api_key <- nzchar(Sys.getenv("IPUMS_API_KEY"))
+has_api_key <- nchar(Sys.getenv("IPUMS_API_KEY")) > 10
 
 knitr::opts_chunk$set(
   collapse = TRUE,
