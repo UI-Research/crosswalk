@@ -8,12 +8,15 @@ vignette: >
 ---
 
 ```{r, include = FALSE}
+# Only evaluate chunks if IPUMS API key is available
+has_api_key <- nchar(Sys.getenv("IPUMS_API_KEY")) > 10
+
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
   message = FALSE,
   echo = TRUE,
-  eval = TRUE)
+  eval = has_api_key)
 ```
 
 ## Overview
@@ -75,13 +78,11 @@ glimpse(hmda_data[["2018"]])
 
 ## Step 2: Prepare Data for Crosswalking
 
-The HMDA data includes a `tractid` column that contains the 11-digit tract GEOID.
-Let's prepare a subset of variables for crosswalking. We'll focus on a subset of variables
+We'll focus on a subset of variables for crosswalking
 (total applications by race/ethnicity and median loan amounts). We could explicitly pass the 
 variables we want to crosswalk to the appropriate parameter (`count_columns` or `non_count_columns`), 
 but it's easy (and nice practice) to prefix these variables with their unit types ("count" and "median", 
-respectively), and `crosswalk_data()` will crosswalk each appropriately by default since they have these
-standard unit prefixes in their names.
+respectively), and `crosswalk_data()` will crosswalk each appropriately by default.
 
 ```{r prepare-data, echo = FALSE}
 prepare_hmda <- function(data) {
@@ -121,7 +122,7 @@ tract_crosswalk$message
 ## Step 4: Apply the Crosswalk to 2018-2021 Data
 
 Now we apply the crosswalk to the four years of data that use 2010 tract definitions.
-We can see in the console-printed output that relatively small, though not insignificant, 
+We can see that relatively small, though not insignificant, 
 fractions of records in our source data do not join to our crosswalk. When this occurs, source
 data is effectively lost because it has no associated target geography nor allocation factor
 assigned to it.
@@ -171,8 +172,8 @@ hmda_crosswalked |>
 
 ## Result: A Panel Dataset in 2020 Tract Definitions
 We now have a single dataframe with all six years of HMDA data standardized to 2020
-tract definitions. Due to changes in tract geographies between decades, we were unable
-to accurately compare neighborhood changes over time. 
+tract definitions. Due to changes in tract geographies between decades, we were previously
+unable to accurately compare neighborhood changes over time. 
 
 Now, we have apples-to-apples measurements for tracts from 2018 through 2023.
 
