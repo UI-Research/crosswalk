@@ -1,18 +1,25 @@
 # Interpolate data using a crosswalk(s)
 
 Applies geographic crosswalk weights to transform data from a source
-geography to a target geography. Accepts the output from
+geography to a target geography. Can either accept a pre-fetched
+crosswalk from
 [`get_crosswalk()`](https://ui-research.github.io/crosswalk/reference/get_crosswalk.md)
-and automatically applies all crosswalk steps sequentially for
-multi-step transformations.
+or fetch the crosswalk automatically using the provided geography and
+year parameters.
 
 ## Usage
 
 ``` r
 crosswalk_data(
   data,
-  crosswalk,
-  geoid_column = "geoid",
+  crosswalk = NULL,
+  source_geography = NULL,
+  target_geography = NULL,
+  source_year = NULL,
+  target_year = NULL,
+  weight = "population",
+  cache = NULL,
+  geoid_column = "source_geoid",
   count_columns = NULL,
   non_count_columns = NULL,
   return_intermediate = FALSE,
@@ -45,12 +52,45 @@ crosswalk_data(
   :   Description of the crosswalk chain
 
   Alternatively, a single crosswalk tibble can be provided for backwards
-  compatibility.
+  compatibility. If NULL, the crosswalk will be fetched using
+  `source_geography` and `target_geography` parameters.
+
+- source_geography:
+
+  Character or NULL. Source geography name. Required if `crosswalk` is
+  NULL. One of c("block", "block group", "tract", "place", "county",
+  "urban_area", "zcta", "puma", "cd118", "cd119",
+  "core_based_statistical_area").
+
+- target_geography:
+
+  Character or NULL. Target geography name. Required if `crosswalk` is
+  NULL. Same options as `source_geography`.
+
+- source_year:
+
+  Numeric or NULL. Year of the source geography. If NULL and crosswalk
+  is being fetched, uses same-year crosswalk via Geocorr.
+
+- target_year:
+
+  Numeric or NULL. Year of the target geography. If NULL and crosswalk
+  is being fetched, uses same-year crosswalk via Geocorr.
+
+- weight:
+
+  Character. Weighting variable for Geocorr crosswalks when fetching.
+  One of c("population", "housing", "land"). Default is "population".
+
+- cache:
+
+  Directory path or NULL. Where to cache fetched crosswalks. If NULL
+  (default), crosswalk is fetched but not saved to disk.
 
 - geoid_column:
 
   Character. The name of the column in `data` containing the source
-  geography identifiers (GEOIDs). Default is "geoid".
+  geography identifiers (GEOIDs). Default is "source_geoid".
 
 - count_columns:
 
@@ -103,6 +143,18 @@ the underlying crosswalk (access via
 
 ## Details
 
+**Two usage patterns**:
+
+1.  **Pre-fetched crosswalk**: Pass the output of
+    [`get_crosswalk()`](https://ui-research.github.io/crosswalk/reference/get_crosswalk.md)
+    to the `crosswalk` parameter. Useful when you want to inspect or
+    reuse the crosswalk.
+
+2.  **Direct crosswalking**: Pass `source_geography` and
+    `target_geography` (and optionally `source_year`, `target_year`,
+    `weight`, `cache`) and the crosswalk will be fetched automatically.
+    Useful for one-off transformations.
+
 **Count variables** (specified in `count_columns`) are interpolated by
 summing the product of the value and the allocation factor across all
 source geographies that overlap with each target geography.
@@ -135,7 +187,7 @@ sequence.
 
 ``` r
 if (FALSE) { # \dontrun{
-# Single-step crosswalk
+# Option 1: Pre-fetched crosswalk
 crosswalk <- get_crosswalk(
   source_geography = "tract",
   target_geography = "zcta",
@@ -147,7 +199,27 @@ result <- crosswalk_data(
   geoid_column = "tract_geoid",
   count_columns = c("count_population", "count_housing_units"))
 
-# Multi-step crosswalk (geography + year change)
+# Option 2: Direct crosswalking (crosswalk fetched automatically)
+result <- crosswalk_data(
+  data = my_tract_data,
+  source_geography = "tract",
+  target_geography = "zcta",
+  weight = "population",
+  geoid_column = "tract_geoid",
+  count_columns = c("count_population", "count_housing_units"))
+
+# Direct crosswalking with year change
+result <- crosswalk_data(
+  data = my_data,
+  source_geography = "tract",
+  target_geography = "zcta",
+  source_year = 2010,
+  target_year = 2020,
+  weight = "population",
+  geoid_column = "tract_geoid",
+  count_columns = "count_population")
+
+# Pre-fetched crosswalk with intermediate results
 crosswalk <- get_crosswalk(
   source_geography = "tract",
   target_geography = "zcta",
@@ -155,14 +227,6 @@ crosswalk <- get_crosswalk(
   target_year = 2020,
   weight = "population")
 
-# Automatically applies both steps
-result <- crosswalk_data(
-  data = my_data,
-  crosswalk = crosswalk,
-  geoid_column = "tract_geoid",
-  count_columns = "count_population")
-
-# To get intermediate results
 result <- crosswalk_data(
   data = my_data,
   crosswalk = crosswalk,
