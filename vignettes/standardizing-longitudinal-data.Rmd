@@ -73,7 +73,8 @@ names(hmda_data) = metadata$year %>% as.character()
 Let's inspect the structure of the data:
 
 ```{r inspect-data}
-glimpse(hmda_data[["2018"]])
+## just view the first ten columns
+glimpse(hmda_data[["2018"]] %>% select(1:10))
 ```
 
 ## Step 2: Prepare Data for Crosswalking
@@ -84,7 +85,7 @@ variables we want to crosswalk to the appropriate parameter (`count_columns` or 
 but it's easy (and nice practice) to prefix these variables with their unit types ("count" and "median", 
 respectively), and `crosswalk_data()` will crosswalk each appropriately by default.
 
-```{r prepare-data, echo = FALSE}
+```{r prepare-data}
 prepare_hmda <- function(data) {
   data |>
     rename_with(.cols = matches("^geo20"), .fn = ~ "source_geoid") |>
@@ -127,7 +128,7 @@ fractions of records in our source data do not join to our crosswalk. When this 
 data is effectively lost because it has no associated target geography nor allocation factor
 assigned to it.
 
-```{r apply-crosswalk, echo = FALSE}
+```{r apply-crosswalk}
 # Years that need crosswalking (2010 vintage)
 years_to_crosswalk <- c("2018", "2019", "2020", "2021")
 
@@ -158,7 +159,9 @@ hmda_crosswalked |>
     attr("join_quality") |> 
     pluck("data_geoids_unmatched") |>
     head(5))
+```
 
+```{r}
 ## how many source records are we unable to crosswalk each year, excluding
 ## those with "X" in their GEOIDs? under 30 each year.
 hmda_crosswalked |>
@@ -178,20 +181,13 @@ unable to accurately compare neighborhood changes over time.
 Now, we have apples-to-apples measurements for tracts from 2018 through 2023.
 
 ```{r final-summary}
-hmda_combined <- bind_rows(hmda_crosswalked) |>
-  ## data for years that are crosswalked have slightly different/additional columsn
-  mutate(
-    geoid = if_else(is.na(geoid), source_geoid, geoid)) |>
-  select(-c(geography_name, source_geoid, vintage)) |>
-  arrange(geoid, data_year) |>
-  mutate(
-    state = str_sub(geoid, 1, 2),
-    percent_race_white_purchase = count_race_white_purchase / count_owner_purchase_originations)
-
 ## there's a little bit of variation year-to-year in terms of which tracts have
 ## reported HMDA data, but for the majority, we have observations in each of the
 ## six years:
-hmda_combined |>
+hmda_combined <- bind_rows(hmda_crosswalked) |>
+  ## data for years that are crosswalked have slightly different/additional columns
+  mutate(
+    geoid = if_else(is.na(geoid), source_geoid, geoid)) |>
   count(geoid) |>
   count(n)
 ```

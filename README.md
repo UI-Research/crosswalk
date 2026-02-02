@@ -1,7 +1,8 @@
 
 # crosswalk
 
-An R interface to inter-geography and inter-temporal crosswalks.
+An R package providing a simple interface to access and apply
+crosswalks.
 
 ## Overview
 
@@ -27,23 +28,29 @@ The package sources crosswalks from:
 - **Programmatic access**: No more manual downloads from web interfaces
 - **Standardized output**: Consistent column names across all crosswalk
   sources
-- **Metadata tracking**: Full provenance stored as attributes
-- **Multi-step handling**: Automatic chaining when both geography and
-  year change
-- **Local caching**: Reproducible workflows with cached crosswalks
+- **Metadata tracking**: Full provenance of crosswalks stored as
+  attributes
+- **Crosswalk chaining**: Automatic chaining when multiple crosswalks
+  are required
+- **Local caching**: Reproducible workflows with locally-cached
+  crosswalks for speed
 
 ## Installation
 
 ``` r
 # Install from GitHub
 renv::install("UI-Research/crosswalk")
+#> # Downloading packages -------------------------------------------------------
+#> - Downloading crosswalk 0.0.0.9001 from GitHub ... OK [95.7 Kb in 0.54s]
+#> Successfully downloaded 1 package in 1 second.
+#> 
 #> The following package(s) will be installed:
 #> - crosswalk [UI-Research/crosswalk]
-#> These packages will be installed into "C:/Users/wcurrangroome/AppData/Local/Temp/RtmpSkgo68/temp_libpathd7e02418a38".
+#> These packages will be installed into "C:/Users/wcurrangroome/AppData/Local/Temp/RtmpkTRpSB/temp_libpath1dfc460a4888".
 #> 
 #> # Installing packages --------------------------------------------------------
-#> - Installing crosswalk 0.0.0.9001 ...           OK [copied from cache in 0.24s]
-#> Successfully installed 1 package in 0.26 seconds.
+#> - Installing crosswalk 0.0.0.9001 ...           OK [built from source and cached in 2.1s]
+#> Successfully installed 1 package in 2.4 seconds.
 ```
 
 ## Overview
@@ -160,7 +167,7 @@ attr(crosswalked_data, "crosswalk_metadata")
 #> NULL
 #> 
 #> $retrieved_at
-#> [1] "2026-02-01 00:09:21 EST"
+#> [1] "2026-02-02 13:20:20 EST"
 #> 
 #> $cached
 #> [1] FALSE
@@ -289,7 +296,9 @@ combined_data %>%
 
 ## Core Functions
 
-The package has two main functions:
+The package has two main functions, though you can also specify the
+needed crosswalk(s) directly from `crosswalk_data()` and omit the
+intermediate `get_crosswalk()` call.
 
 | Function | Purpose |
 |----|----|
@@ -306,8 +315,7 @@ result <- get_crosswalk(
   target_geography = "zcta",
   source_year = 2010,
   target_year = 2020,
-  weight = "population"
-)
+  weight = "population")
 
 names(result)
 #> [1] "crosswalks" "plan"       "message"
@@ -332,8 +340,7 @@ geography, different year):
 result <- get_crosswalk(
   source_geography = "tract",
   target_geography = "zcta",
-  weight = "population"
-)
+  weight = "population")
 # result$crosswalks$step_1 contains one crosswalk
 
 # Same geography, different year (NHGIS)
@@ -341,16 +348,17 @@ result <- get_crosswalk(
   source_geography = "tract",
   target_geography = "tract",
   source_year = 2010,
-  target_year = 2020
-)
+  target_year = 2020)
 # result$crosswalks$step_1 contains one crosswalk
 ```
 
-**Multi-step crosswalks** (different geography AND different year):
+**Multi-step crosswalks** (when a single, direct crosswalk is not
+available):
 
-When both geography and year change, no single crosswalk source provides
-this directly. The package automatically plans and fetches a two-step
-chain:
+For some source year/geography -\> target year/geography specifications
+do not have a crosswalk. In such cases, two or more crosswalks may be
+needed. The package automatically plans and fetches the required
+crosswalks:
 
 1.  **Step 1 (NHGIS)**: Change year, keep geography constant
 2.  **Step 2 (Geocorr)**: Change geography at target year
@@ -361,8 +369,7 @@ result <- get_crosswalk(
   target_geography = "zcta",
   source_year = 2010,
   target_year = 2020,
-  weight = "population"
-)
+  weight = "population")
 
 # Two crosswalks are returned
 names(result$crosswalks)
@@ -386,7 +393,7 @@ Each crosswalk contains standardized columns:
 
 Additional columns may include `source_year`, `target_year`,
 `population_2020`, `housing_2020`, and `land_area_sqmi` depending on the
-source.
+source of the crosswalk.
 
 ### Accessing Metadata
 
@@ -414,7 +421,10 @@ names(metadata)
 ## Using `crosswalk_data()` to Interpolate Data
 
 `crosswalk_data()` applies crosswalk weights to transform your data. It
-automatically handles multi-step crosswalks.
+automatically handles multi-step crosswalks. If you’re in a hurry, you
+can omit a call to `get_crosswalk()` and specify the needed crosswalk
+parameters to `crosswalk_data()`, which will pass these to
+`get_crosswalk()` behind the scenes.
 
 ### Column Naming Convention
 
@@ -503,3 +513,12 @@ original developers.
 > Missouri Census Data Center, University of Missouri. (2022). Geocorr
 > 2022: Geographic Correspondence Engine. Retrieved from:
 > <https://mcdc.missouri.edu/applications/geocorr2022.html>
+
+**For CTData**, a suggested citation (adjust for alternate source
+geography):
+
+> CT Data Collaborative. (2023). 2022 Census Tract Crosswalk. Retrieved
+> from: <https://github.com/CT-Data-Collaborative/2022-tract-crosswalk>.
+
+**For this package**, refer here:
+<https://ui-research.github.io/crosswalk/authors.html#citation>
