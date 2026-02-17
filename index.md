@@ -15,8 +15,10 @@ and crosswalks.
 
 The package sources crosswalks from:
 
-- **Geocorr 2022** (Missouri Census Data Center) - for same-year
-  crosswalks between geographies
+- **Geocorr** (Missouri Census Data Center) - for same-year crosswalks
+  between geographies. Uses GeoCorr 2022 (2020 Census geography) for
+  2020s data and GeoCorr 2018 (2010 Census geography) for 2010s data.
+  The correct version is selected automatically based on year context.
 - **IPUMS NHGIS** - for inter-temporal crosswalks (across different
   census years)
 - **CT Data Collaborative** - for Connecticut 2020→2022 crosswalks
@@ -395,7 +397,8 @@ Each crosswalk contains standardized columns:
 | `weighting_factor`                   | What attribute was used (population, housing, land) |
 
 Additional columns may include `source_year`, `target_year`,
-`population_2020`, `housing_2020`, and `land_area_sqmi` depending on the
+`population_2020`, `housing_2020` (or `population_2010`, `housing_2010`
+for 2010s-vintage crosswalks), and `land_area_sqmi` depending on the
 source of the crosswalk.
 
 ### Accessing Metadata
@@ -451,11 +454,23 @@ weighted means, weighting by the allocation factor from the crosswalk.
 
 ### Inter-Geography Crosswalks (Geocorr)
 
-2022-vintage crosswalks between any of these geographies:
+The package supports inter-geography crosswalks for both 2020s and 2010s
+Census geographies, automatically selecting the correct GeoCorr version
+based on the year context you provide.
+
+**2020s geography (GeoCorr 2022, 2020 Census):** Used when years are
+2020+, or when no year is specified.
 
 - block, block group, tract, county
 - place, zcta, puma22
 - cd118, cd119, urban_area, core_based_statistical_area
+
+**2010s geography (GeoCorr 2018, 2010 Census):** Used when years are in
+the 2010s (2010-2019).
+
+- block, block group, tract, county
+- place, zcta, puma12
+- cd115, cd116
 
 ### Inter-Temporal Crosswalks (NHGIS)
 
@@ -516,11 +531,15 @@ original developers.
 **For NHGIS**, see citation requirements at:
 <https://www.nhgis.org/citation-and-use-nhgis-data>
 
-**For Geocorr**, a suggested citation:
+**For Geocorr**, suggested citations:
 
 > Missouri Census Data Center, University of Missouri. (2022). Geocorr
 > 2022: Geographic Correspondence Engine. Retrieved from:
 > <https://mcdc.missouri.edu/applications/geocorr2022.html>
+
+> Missouri Census Data Center, University of Missouri. (2018). Geocorr
+> 2018: Geographic Correspondence Engine. Retrieved from:
+> <https://mcdc.missouri.edu/applications/geocorr2018.html>
 
 **For CTData**, a suggested citation (adjust for alternate source
 geography):

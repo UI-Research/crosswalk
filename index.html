@@ -61,7 +61,7 @@
 <p>The package sources crosswalks from:</p>
 <ul>
 <li>
-<strong>Geocorr 2022</strong> (Missouri Census Data Center) - for same-year crosswalks between geographies</li>
+<strong>Geocorr</strong> (Missouri Census Data Center) - for same-year crosswalks between geographies. Uses GeoCorr 2022 (2020 Census geography) for 2020s data and GeoCorr 2018 (2010 Census geography) for 2010s data. The correct version is selected automatically based on year context.</li>
 <li>
 <strong>IPUMS NHGIS</strong> - for inter-temporal crosswalks (across different census years)</li>
 <li>
@@ -472,7 +472,7 @@
 </tr>
 </tbody>
 </table>
-<p>Additional columns may include <code>source_year</code>, <code>target_year</code>, <code>population_2020</code>, <code>housing_2020</code>, and <code>land_area_sqmi</code> depending on the source of the crosswalk.</p>
+<p>Additional columns may include <code>source_year</code>, <code>target_year</code>, <code>population_2020</code>, <code>housing_2020</code> (or <code>population_2010</code>, <code>housing_2010</code> for 2010s-vintage crosswalks), and <code>land_area_sqmi</code> depending on the source of the crosswalk.</p>
 </div>
 <div class="section level3">
 <h3 id="accessing-metadata">Accessing Metadata<a class="anchor" aria-label="anchor" href="#accessing-metadata"></a>
@@ -535,11 +535,18 @@
 <div class="section level3">
 <h3 id="inter-geography-crosswalks-geocorr">Inter-Geography Crosswalks (Geocorr)<a class="anchor" aria-label="anchor" href="#inter-geography-crosswalks-geocorr"></a>
 </h3>
-<p>2022-vintage crosswalks between any of these geographies:</p>
+<p>The package supports inter-geography crosswalks for both 2020s and 2010s Census geographies, automatically selecting the correct GeoCorr version based on the year context you provide.</p>
+<p><strong>2020s geography (GeoCorr 2022, 2020 Census):</strong> Used when years are 2020+, or when no year is specified.</p>
 <ul>
 <li>block, block group, tract, county</li>
 <li>place, zcta, puma22</li>
 <li>cd118, cd119, urban_area, core_based_statistical_area</li>
+</ul>
+<p><strong>2010s geography (GeoCorr 2018, 2010 Census):</strong> Used when years are in the 2010s (2010-2019).</p>
+<ul>
+<li>block, block group, tract, county</li>
+<li>place, zcta, puma12</li>
+<li>cd115, cd116</li>
 </ul>
 </div>
 <div class="section level3">
@@ -600,9 +607,12 @@
 </h2>
 <p>The intellectual credit for the underlying crosswalks belongs to the original developers.</p>
 <p><strong>For NHGIS</strong>, see citation requirements at: <a href="https://www.nhgis.org/citation-and-use-nhgis-data" class="external-link uri">https://www.nhgis.org/citation-and-use-nhgis-data</a></p>
-<p><strong>For Geocorr</strong>, a suggested citation:</p>
+<p><strong>For Geocorr</strong>, suggested citations:</p>
 <blockquote>
 <p>Missouri Census Data Center, University of Missouri. (2022). Geocorr 2022: Geographic Correspondence Engine. Retrieved from: <a href="https://mcdc.missouri.edu/applications/geocorr2022.html" class="external-link uri">https://mcdc.missouri.edu/applications/geocorr2022.html</a></p>
+</blockquote>
+<blockquote>
+<p>Missouri Census Data Center, University of Missouri. (2018). Geocorr 2018: Geographic Correspondence Engine. Retrieved from: <a href="https://mcdc.missouri.edu/applications/geocorr2018.html" class="external-link uri">https://mcdc.missouri.edu/applications/geocorr2018.html</a></p>
 </blockquote>
 <p><strong>For CTData</strong>, a suggested citation (adjust for alternate source geography):</p>
 <blockquote>
