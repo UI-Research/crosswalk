@@ -228,4 +228,15 @@ hmda_combined <- bind_rows(hmda_crosswalked) |>
     geoid = if_else(is.na(geoid), source_geoid, geoid)) |>
   count(geoid) |>
   count(n)
+
+head(hmda_combined)
+#> # A tibble: 6 × 2
+#>       n    nn
+#>   <int> <int>
+#> 1     1   626
+#> 2     2  2457
+#> 3     3   107
+#> 4     4   560
+#> 5     5   414
+#> 6     6 82672
 ```
