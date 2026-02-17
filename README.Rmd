@@ -30,7 +30,7 @@ and crosswalks.
 
 The package sources crosswalks from:
 
--   **Geocorr 2022** (Missouri Census Data Center) - for same-year crosswalks between geographies
+-   **Geocorr** (Missouri Census Data Center) - for same-year crosswalks between geographies. Uses GeoCorr 2022 (2020 Census geography) for 2020s data and GeoCorr 2018 (2010 Census geography) for 2010s data. The correct version is selected automatically based on year context.
 -   **IPUMS NHGIS** - for inter-temporal crosswalks (across different census years)
 -   **CT Data Collaborative** - for Connecticut 2020→2022 crosswalks (planning region changes)
 
@@ -44,17 +44,18 @@ The package sources crosswalks from:
 
 ## Installation
 
-```{r}
+```{r, eval = FALSE}
 # Install from GitHub
 renv::install("UI-Research/crosswalk")
 ```
 
-## Overview
+## Quick Start
 
 First we obtain a crosswalk and apply it to our data:
 ```{r}
 library(crosswalk)
 library(dplyr)
+library(ggplot2)
 library(stringr)
 library(sf)
 
@@ -88,7 +89,7 @@ crosswalked_data = crosswalk_data(
 
 What does the crosswalk(s) reflect and how was it sourced?
 ```{r}
-attr(crosswalked_data, "crosswalk_metadata")
+names(attr(crosswalked_data, "crosswalk_metadata"))
 ```
 
 How well did the crosswalk join to our source data?
@@ -104,8 +105,8 @@ join_quality$pct_data_unmatched
 ## zctas aren't nested within states, otherwise join_quality$state_analysis_data 
 ## would help us to ID whether non-joining source data were clustered within one
 ## or a few states. instead we can join to spatial data to diagnose further:
-zctas_sf = tigris::zctas(year = 2023)
-states_sf = tigris::states(year = 2023, cb = TRUE)
+zctas_sf = tigris::zctas(year = 2023, progress_bar = FALSE)
+states_sf = tigris::states(year = 2023, cb = TRUE, progress_bar = FALSE)
 
 ## apart from DC, which has a disproportionate number of non-joining ZCTAs--
 ## seemingly corresponding to federal areas and buildings--the distribution of
@@ -173,7 +174,6 @@ result <- get_crosswalk(
   weight = "population")
 
 names(result)
-#> [1] "crosswalks" "plan" "message"
 ```
 
 The list contains three elements:
@@ -224,7 +224,6 @@ result <- get_crosswalk(
 
 # Two crosswalks are returned
 names(result$crosswalks)
-#> [1] "step_1" "step_2"
 
 # Step 1: 2010 tracts -> 2020 tracts (NHGIS)
 # Step 2: 2020 tracts -> 2020 ZCTAs (Geocorr)
@@ -252,7 +251,6 @@ represents and how it was created:
 ```{r}
 metadata <- attr(result$crosswalks$step_1, "crosswalk_metadata")
 names(metadata)
-#> [1] "call_parameters" "data_source" "data_source_full_name" "download_url" ...
 ```
 
 ## Using `crosswalk_data()` to Interpolate Data
@@ -277,11 +275,19 @@ All non-count variables are interpolated using weighted means, weighting by the 
 
 ### Inter-Geography Crosswalks (Geocorr)
 
-2022-vintage crosswalks between any of these geographies:
+The package supports inter-geography crosswalks for both 2020s and 2010s Census geographies, automatically selecting the correct GeoCorr version based on the year context you provide.
+
+**2020s geography (GeoCorr 2022, 2020 Census):** Used when years are 2020+, or when no year is specified.
 
 -   block, block group, tract, county
 -   place, zcta, puma22
 -   cd118, cd119, urban_area, core_based_statistical_area
+
+**2010s geography (GeoCorr 2018, 2010 Census):** Used when years are in the 2010s (2010-2019).
+
+-   block, block group, tract, county
+-   place, zcta, puma12
+-   cd115, cd116
 
 ### Inter-Temporal Crosswalks (NHGIS)
 
@@ -315,7 +321,7 @@ For 2020 to 2022 transformations, the package uses CT Data Collaborative crosswa
 
 NHGIS crosswalks require an IPUMS API key. Get one at https://account.ipums.org/api_keys and add to your `.Renviron`:
 
-```{r}
+```{r, eval = FALSE}
 usethis::edit_r_environ()
 # Add: IPUMS_API_KEY=your_key_here
 ```
@@ -324,7 +330,7 @@ usethis::edit_r_environ()
 
 Use the `cache` parameter to save crosswalks locally for ease:
 
-```{r}
+```{r, eval = FALSE}
 result <- get_crosswalk(
   source_geography = "tract",
   target_geography = "zcta",
@@ -339,9 +345,11 @@ The intellectual credit for the underlying crosswalks belongs to the original de
 
 **For NHGIS**, see citation requirements at: https://www.nhgis.org/citation-and-use-nhgis-data
 
-**For Geocorr**, a suggested citation:
+**For Geocorr**, suggested citations:
 
 > Missouri Census Data Center, University of Missouri. (2022). Geocorr 2022: Geographic Correspondence Engine. Retrieved from: https://mcdc.missouri.edu/applications/geocorr2022.html
+
+> Missouri Census Data Center, University of Missouri. (2018). Geocorr 2018: Geographic Correspondence Engine. Retrieved from: https://mcdc.missouri.edu/applications/geocorr2018.html
 
 **For CTData**, a suggested citation (adjust for alternate source geography):
 

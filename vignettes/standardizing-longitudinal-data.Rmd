@@ -15,6 +15,7 @@ knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
   message = FALSE,
+  warning = FALSE,
   echo = TRUE,
   eval = has_api_key)
 ```
@@ -190,4 +191,6 @@ hmda_combined <- bind_rows(hmda_crosswalked) |>
     geoid = if_else(is.na(geoid), source_geoid, geoid)) |>
   count(geoid) |>
   count(n)
+
+head(hmda_combined)
 ```
