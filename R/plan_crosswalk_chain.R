@@ -99,7 +99,13 @@ plan_crosswalk_chain <- function(
 
   # Case 3: Different geography, same year (or no years) - single Geocorr crosswalk
   if (geography_changes && !year_changes) {
-    ref_year <- if (!is.na(target_year_chr)) target_year_chr else "2022"
+    # Determine which GeoCorr version will be used based on year context
+    geocorr_ref <- if (!is.na(target_year_chr)) {
+      target_year_num <- as.numeric(target_year_chr)
+      if (target_year_num >= 2020) "Geocorr 2022" else if (target_year_num >= 2010) "Geocorr 2018" else "Geocorr"
+    } else {
+      "Geocorr 2022"
+    }
     result$steps <- tibble::tibble(
       step_number = 1L,
       source_geography = source_geography,
@@ -108,7 +114,7 @@ plan_crosswalk_chain <- function(
       target_year = target_year_chr,
       crosswalk_source = "geocorr",
       description = stringr::str_c(
-        source_geog_std, " -> ", target_geog_std, " (inter-geography, ", ref_year, ")"))
+        source_geog_std, " -> ", target_geog_std, " (inter-geography, ", geocorr_ref, ")"))
     result$composition_note <- "Single crosswalk; use allocation_factor_source_to_target directly."
     return(result)
   }
@@ -217,12 +223,12 @@ standardize_geography_for_chain <- function(geography) {
     geography %in% c("bg", "blockgroup", "block group", "census block group") ~ "block_group",
     geography %in% c("tr", "tract", "tracts", "census tract") ~ "tract",
     geography %in% c("co", "county", "counties", "cnty") ~ "county",
-    geography %in% c("pl", "place", "places") ~ "place",
-    geography %in% c("zcta", "zctas", "zip code", "zip code tabulation area") ~ "zcta",
-    geography %in% c("puma", "pumas", "puma22", "public use microdata area") ~ "puma",
+    geography %in% c("pl", "place", "places", "placefp") ~ "place",
+    geography %in% c("zcta", "zctas", "zcta5", "zip code", "zip code tabulation area") ~ "zcta",
+    geography %in% c("puma", "pumas", "puma22", "puma12", "public use microdata area") ~ "puma",
     geography %in% c("cbsa", "core based statistical area") ~ "cbsa",
     geography %in% c("ua", "urban area", "urban areas") ~ "urban_area",
-    geography %in% c("cd118", "cd119", "congressional district") ~ geography,
+    geography %in% c("cd115", "cd116", "cd118", "cd119", "congressional district") ~ geography,
     TRUE ~ geography)
 }
 

@@ -474,10 +474,11 @@ standardize_geography_for_nhgis_check <- function(geography) {
     geography %in% c("tr", "tract", "tracts", "census tract") ~ "tract",
     geography %in% c("co", "county", "counties", "cnty") ~ "county",
     geography %in% c("pl", "place", "places") ~ "place",
-    geography %in% c("zcta", "zctas", "zip code", "zip code tabulation area") ~ "zcta",
-    geography %in% c("puma", "pumas", "puma22", "public use microdata area") ~ "puma",
+    geography %in% c("zcta", "zctas", "zcta5", "zip code", "zip code tabulation area") ~ "zcta",
+    geography %in% c("puma", "pumas", "puma22", "puma12", "public use microdata area") ~ "puma",
     geography %in% c("cbsa", "core based statistical area") ~ "core_based_statistical_area",
     geography %in% c("ua", "urban area", "urban areas") ~ "urban_area",
+    geography %in% c("placefp") ~ "place",
     TRUE ~ geography)
 }
 

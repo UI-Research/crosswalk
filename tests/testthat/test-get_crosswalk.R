@@ -320,3 +320,35 @@ test_that("get_crosswalk returns list for multi-step", {
   expect_s3_class(result$crosswalks$step_1, "tbl_df")
   expect_s3_class(result$crosswalks$step_2, "tbl_df")
 })
+
+# ==============================================================================
+# GeoCorr 2018 routing tests
+# ==============================================================================
+
+test_that("get_crosswalk routes same-year 2010 to GeoCorr 2018", {
+  skip_if_offline()
+
+  result <- get_crosswalk(
+    source_geography = "tract",
+    target_geography = "zcta",
+    source_year = 2010,
+    target_year = 2010,
+    weight = "population")
+
+  metadata <- attr(result$crosswalks$step_1, "crosswalk_metadata")
+  expect_equal(metadata$data_source, "geocorr")
+  expect_equal(metadata$reference_year, "2018")
+})
+
+test_that("get_crosswalk routes no-year to GeoCorr 2022", {
+  skip_if_offline()
+
+  result <- get_crosswalk(
+    source_geography = "tract",
+    target_geography = "zcta",
+    weight = "population")
+
+  metadata <- attr(result$crosswalks$step_1, "crosswalk_metadata")
+  expect_equal(metadata$data_source, "geocorr")
+  expect_equal(metadata$reference_year, "2022")
+})

@@ -15,12 +15,14 @@ get_crosswalk(
 }
 \arguments{
 \item{source_geography}{Character. Source geography name. One of c("block",
-"block group", "tract", "place", "county", "urban_area", "zcta", "puma", "cd118",
-"cd119", "urban_area", "core_based_statistical_area").}
+"block group", "tract", "place", "county", "urban_area", "zcta", "puma",
+"puma12", "puma22", "cd115", "cd116", "cd118", "cd119", "urban_area",
+"core_based_statistical_area").}
 
 \item{target_geography}{Character. Target geography name. One of c("block",
-"block group", "tract", "place", "county", "urban_area", "zcta", "puma", "cd118",
-"cd119", "urban_area", "core_based_statistical_area").}
+"block group", "tract", "place", "county", "urban_area", "zcta", "puma",
+"puma12", "puma22", "cd115", "cd116", "cd118", "cd119", "urban_area",
+"core_based_statistical_area").}
 
 \item{source_year}{Character or numeric. Year of the source geography, one of
 c(1990, 2000, 2010, 2020).}
@@ -75,10 +77,23 @@ geography, optionally across different years. Always returns a list with a consi
 structure containing one or more crosswalk tibbles.
 }
 \details{
-This function sources crosswalks from Geocorr 2022, IPUMS NHGIS, and
-CT Data Collaborative. Crosswalk weights are from the original sources and
-have not been modified; this function merely standardizes the format of the
-returned crosswalks and enables easy programmatic access and caching.
+This function sources crosswalks from Geocorr 2022, Geocorr 2018,
+IPUMS NHGIS, and CT Data Collaborative. Crosswalk weights are from the
+original sources and have not been modified; this function merely standardizes
+the format of the returned crosswalks and enables easy programmatic access
+and caching.
+
+\strong{GeoCorr version selection}: For same-year geography crosswalks, the
+appropriate GeoCorr version is selected automatically based on the year:
+\itemize{
+\item Years 2020+ (or no year specified): GeoCorr 2022 (2020 Census geography)
+\item Years 2010-2019: GeoCorr 2018 (2010 Census geography)
+}
+
+\strong{Geography name resolution}: User-facing geography names like "puma",
+"zcta", "place", and "blockgroup" are automatically resolved to the correct
+API codes for the selected GeoCorr version. Version-specific names are also
+accepted (e.g., "puma12" for GeoCorr 2018, "puma22" for GeoCorr 2022).
 
 \strong{Multi-step crosswalks}: When both geography AND year change (e.g.,
 2010 tracts to 2020 ZCTAs), no single crosswalk source provides this directly.

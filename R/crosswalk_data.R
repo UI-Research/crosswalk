@@ -364,9 +364,9 @@ is_state_nested_geography <- function(geography) {
     "block group", "blockgroup", "bg",
     "tract", "tracts", "tr",
     "county", "counties", "co",
-    "place", "places", "pl",
-    "puma", "pumas", "puma22",
-    "cd118", "cd119", "congressional district"
+    "place", "places", "pl", "placefp",
+    "puma", "pumas", "puma22", "puma12",
+    "cd115", "cd116", "cd118", "cd119", "congressional district"
   )
 
   geography_lower %in% state_nested
@@ -696,7 +696,9 @@ apply_single_crosswalk <- function(
                       "source_geography_name", "target_geography_name",
                       "geography_name", "geoid",
                       "weighting_factor", "source_year", "target_year",
-                      "population_2020", "housing_2020", "land_area_sqmi")
+                      "population_2020", "housing_2020",
+                      "population_2010", "housing_2010",
+                      "land_area_sqmi")
   other_cols <- setdiff(
     names(data),
     c(geoid_column, current_count_cols, current_non_count_cols, crosswalk_cols)

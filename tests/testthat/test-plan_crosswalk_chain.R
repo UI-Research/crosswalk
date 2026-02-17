@@ -247,6 +247,14 @@ test_that("standardize_geography_for_chain handles various spellings", {
   expect_equal(crosswalk:::standardize_geography_for_chain("puma"), "puma")
 })
 
+test_that("standardize_geography_for_chain handles 2010-era geography aliases", {
+  expect_equal(crosswalk:::standardize_geography_for_chain("puma12"), "puma")
+  expect_equal(crosswalk:::standardize_geography_for_chain("zcta5"), "zcta")
+  expect_equal(crosswalk:::standardize_geography_for_chain("placefp"), "place")
+  expect_equal(crosswalk:::standardize_geography_for_chain("cd115"), "cd115")
+  expect_equal(crosswalk:::standardize_geography_for_chain("cd116"), "cd116")
+})
+
 test_that("determine_temporal_source returns correct source", {
   expect_equal(crosswalk:::determine_temporal_source("2010", "2020"), "nhgis")
   expect_equal(crosswalk:::determine_temporal_source("2020", "2022"), "ctdata_2020_2022")
@@ -305,4 +313,43 @@ test_that("plan_crosswalk_chain includes composition note for multi-step", {
 
   expect_true(stringr::str_detect(plan$composition_note, "step1_allocation"))
   expect_true(stringr::str_detect(plan$composition_note, "step2_allocation"))
+})
+
+# ==============================================================================
+# GeoCorr 2018 / 2010-era tests
+# ==============================================================================
+
+test_that("plan_crosswalk_chain describes GeoCorr 2018 for same-year 2010 geography change", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "zcta",
+    source_year = 2010,
+    target_year = 2010)
+
+  expect_false(plan$is_multi_step)
+  expect_equal(nrow(plan$steps), 1)
+  expect_equal(plan$steps$crosswalk_source[1], "geocorr")
+  expect_true(stringr::str_detect(plan$steps$description[1], "Geocorr 2018"))
+})
+
+test_that("plan_crosswalk_chain describes GeoCorr 2022 for same-year 2020 geography change", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "zcta",
+    source_year = 2020,
+    target_year = 2020)
+
+  expect_false(plan$is_multi_step)
+  expect_equal(nrow(plan$steps), 1)
+  expect_equal(plan$steps$crosswalk_source[1], "geocorr")
+  expect_true(stringr::str_detect(plan$steps$description[1], "Geocorr 2022"))
+})
+
+test_that("plan_crosswalk_chain describes GeoCorr 2022 when no years specified", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "zcta")
+
+  expect_false(plan$is_multi_step)
+  expect_true(stringr::str_detect(plan$steps$description[1], "Geocorr 2022"))
 })

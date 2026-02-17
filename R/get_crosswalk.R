@@ -4,10 +4,21 @@
 #' geography, optionally across different years. Always returns a list with a consistent
 #' structure containing one or more crosswalk tibbles.
 #'
-#' @details This function sources crosswalks from Geocorr 2022, IPUMS NHGIS, and
-#'    CT Data Collaborative. Crosswalk weights are from the original sources and
-#'    have not been modified; this function merely standardizes the format of the
-#'    returned crosswalks and enables easy programmatic access and caching.
+#' @details This function sources crosswalks from Geocorr 2022, Geocorr 2018,
+#'    IPUMS NHGIS, and CT Data Collaborative. Crosswalk weights are from the
+#'    original sources and have not been modified; this function merely standardizes
+#'    the format of the returned crosswalks and enables easy programmatic access
+#'    and caching.
+#'
+#'    **GeoCorr version selection**: For same-year geography crosswalks, the
+#'    appropriate GeoCorr version is selected automatically based on the year:
+#'    - Years 2020+ (or no year specified): GeoCorr 2022 (2020 Census geography)
+#'    - Years 2010-2019: GeoCorr 2018 (2010 Census geography)
+#'
+#'    **Geography name resolution**: User-facing geography names like "puma",
+#'    "zcta", "place", and "blockgroup" are automatically resolved to the correct
+#'    API codes for the selected GeoCorr version. Version-specific names are also
+#'    accepted (e.g., "puma12" for GeoCorr 2018, "puma22" for GeoCorr 2022).
 #'
 #'    **Multi-step crosswalks**: When both geography AND year change (e.g.,
 #'    2010 tracts to 2020 ZCTAs), no single crosswalk source provides this directly.
@@ -32,15 +43,17 @@
 #' @param source_year Character or numeric. Year of the source geography, one of
 #'    c(1990, 2000, 2010, 2020).
 #' @param source_geography Character. Source geography name. One of c("block",
-#'    "block group", "tract", "place", "county", "urban_area", "zcta", "puma", "cd118",
-#'    "cd119", "urban_area", "core_based_statistical_area").
+#'    "block group", "tract", "place", "county", "urban_area", "zcta", "puma",
+#'    "puma12", "puma22", "cd115", "cd116", "cd118", "cd119", "urban_area",
+#'    "core_based_statistical_area").
 #' @param target_year Character or numeric. Year of the target geography, one of
 #'    c(1990, 2000, 2010, 2020) for decennial crosswalks, or c(2011, 2012, 2014,
 #'    2015, 2022) for non-census year crosswalks (limited to block groups, tracts,
 #'    and counties).
 #' @param target_geography Character. Target geography name. One of c("block",
-#'    "block group", "tract", "place", "county", "urban_area", "zcta", "puma", "cd118",
-#'    "cd119", "urban_area", "core_based_statistical_area").
+#'    "block group", "tract", "place", "county", "urban_area", "zcta", "puma",
+#'    "puma12", "puma22", "cd115", "cd116", "cd118", "cd119", "urban_area",
+#'    "core_based_statistical_area").
 #' @param weight Character. Weighting variable for Geocorr crosswalks. One of
 #'    c("population", "housing", "land").
 #' @param cache Directory path. Where to download the crosswalk to. If NULL (default),
@@ -233,11 +246,13 @@ get_crosswalk_single <- function(
       cache = cache)
 
   } else {
+    geocorr_version <- determine_geocorr_version(target_year)
     result <- get_geocorr_crosswalk(
       source_geography = source_geography,
       target_geography = target_geography,
       weight = weight,
-      cache = cache)
+      cache = cache,
+      geocorr_version = geocorr_version)
   }
 
   # Retrieve metadata from internal function (if present)
@@ -263,7 +278,11 @@ get_crosswalk_single <- function(
     } else {
       switch(crosswalk_source,
         "nhgis" = "IPUMS NHGIS (National Historical Geographic Information System)",
-        "geocorr" = "Geocorr 2022 (Missouri Census Data Center)",
+        "geocorr" = {
+          geocorr_ver <- determine_geocorr_version(target_year)
+          stringr::str_c("Geocorr ", get_geocorr_config(geocorr_ver)$reference_year,
+                        " (Missouri Census Data Center)")
+        },
         "ctdata_2020_2022" = "CT Data Collaborative",
         crosswalk_source)
     },
@@ -317,6 +336,38 @@ get_crosswalk_single <- function(
         as.numeric))
 
   return(result)
+}
+
+
+#' Determine GeoCorr Version Based on Year
+#'
+#' Internal function that selects the appropriate GeoCorr version based on the
+#' target year context. GeoCorr 2022 uses 2020 Census geography (for years >= 2020),
+#' while GeoCorr 2018 uses 2010 Census geography (for years 2010-2019).
+#'
+#' @param year Numeric or NULL. The year to determine version for. If NULL,
+#'    defaults to "2022".
+#' @return Character. Either "2022" or "2018".
+#' @keywords internal
+#' @noRd
+determine_geocorr_version <- function(year) {
+  if (is.null(year)) {
+    return("2022")
+  }
+
+  year_num <- as.numeric(year)
+
+  if (year_num >= 2020) {
+    return("2022")
+  } else if (year_num >= 2010) {
+    return("2018")
+  } else {
+    stop(
+      "GeoCorr crosswalks are not available for years before 2010. ",
+      "The requested year ", year, " is not supported. ",
+      "GeoCorr 2018 covers 2010-2019 (2010 Census geography) and ",
+      "GeoCorr 2022 covers 2020+ (2020 Census geography).")
+  }
 }
 
 
