@@ -14,7 +14,8 @@ get_crosswalk(
   source_year = NULL,
   target_year = NULL,
   cache = NULL,
-  weight = "population"
+  weight = "population",
+  silent = getOption("crosswalk.silent", FALSE)
 )
 ```
 
@@ -56,6 +57,12 @@ get_crosswalk(
 
   Character. Weighting variable for Geocorr crosswalks. One of
   c("population", "housing", "land").
+
+- silent:
+
+  Logical. If `TRUE`, suppresses all informational messages and
+  warnings. Defaults to `getOption("crosswalk.silent", FALSE)`. Set
+  `options(crosswalk.silent = TRUE)` to silence all calls by default.
 
 ## Value
 

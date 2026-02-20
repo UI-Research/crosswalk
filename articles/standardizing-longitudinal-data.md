@@ -35,7 +35,7 @@ Let’s download all six years (2018-2023):
 
 ``` r
 ## metadata object describing data year/vintage/url
-metadata = tibble::tribble(
+metadata = tribble(
   ~ year, ~ vintage, ~ url,
   2018, 2010, "https://urban-data-catalog.s3.amazonaws.com/drupal-root-live/2023/12/20/hmda_tract_2018.csv",
   2019, 2010, "https://urban-data-catalog.s3.amazonaws.com/drupal-root-live/2023/12/20/hmda_tract_2019.csv",

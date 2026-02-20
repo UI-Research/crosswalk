@@ -63,7 +63,8 @@ geography and year parameters.</p>
 <span>  count_columns <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  non_count_columns <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  return_intermediate <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  show_join_quality <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  show_join_quality <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  silent <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">getOption</a></span><span class="op">(</span><span class="st">"crosswalk.silent"</span>, <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -152,7 +153,14 @@ from each step. Default is FALSE, which returns only the final result.</p></dd>
 about join quality, including the number of data rows not matching the crosswalk
 and vice versa. For state-nested geographies (tract, county, block group, etc.),
 also reports state-level concentration of unmatched rows. Set to FALSE to
-suppress these messages.</p></dd>
+suppress these messages. Automatically suppressed when <code>silent = TRUE</code>.</p></dd>
+
+
+<dt id="arg-silent">silent<a class="anchor" aria-label="anchor" href="#arg-silent"></a></dt>
+<dd><p>Logical. If <code>TRUE</code>, suppresses all informational messages and
+warnings, including join quality diagnostics regardless of <code>show_join_quality</code>.
+Defaults to <code>getOption("crosswalk.silent", FALSE)</code>. Set
+<code>options(crosswalk.silent = TRUE)</code> to silence all calls by default.</p></dd>
 
 </dl></div>
     <div class="section level2">

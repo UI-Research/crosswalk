@@ -23,7 +23,8 @@ crosswalk_data(
   count_columns = NULL,
   non_count_columns = NULL,
   return_intermediate = FALSE,
-  show_join_quality = TRUE
+  show_join_quality = TRUE,
+  silent = getOption("crosswalk.silent", FALSE)
 )
 ```
 
@@ -119,7 +120,16 @@ crosswalk_data(
   quality, including the number of data rows not matching the crosswalk
   and vice versa. For state-nested geographies (tract, county, block
   group, etc.), also reports state-level concentration of unmatched
-  rows. Set to FALSE to suppress these messages.
+  rows. Set to FALSE to suppress these messages. Automatically
+  suppressed when `silent = TRUE`.
+
+- silent:
+
+  Logical. If `TRUE`, suppresses all informational messages and
+  warnings, including join quality diagnostics regardless of
+  `show_join_quality`. Defaults to
+  `getOption("crosswalk.silent", FALSE)`. Set
+  `options(crosswalk.silent = TRUE)` to silence all calls by default.
 
 ## Value
 
