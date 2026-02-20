@@ -48,11 +48,11 @@ get_crosswalk_chain <- function(
     message = format_chain_plan_message(plan))
 
   # Print the plan message
-  message(result$message)
+  cw_message(result$message)
 
   # Handle case where no crosswalk is needed
   if (nrow(plan$steps) > 0 && plan$steps$crosswalk_source[1] == "none") {
-    message("Returning empty crosswalk list since no transformation is needed.")
+    cw_message("Returning empty crosswalk list since no transformation is needed.")
     return(result)
   }
 
@@ -61,7 +61,7 @@ get_crosswalk_chain <- function(
     step <- plan$steps[i, ]
     step_name <- stringr::str_c("step_", i)
 
-    message(stringr::str_c("\nFetching ", step_name, ": ", step$description))
+    cw_message(stringr::str_c("\nFetching ", step_name, ": ", step$description))
 
     crosswalk_i <- get_crosswalk_single(
       source_geography = step$source_geography,

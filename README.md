@@ -1,8 +1,7 @@
 
 # crosswalk
 
-An R package providing a simple interface to access and apply
-crosswalks.
+An R package for translating data across space and time.
 
 ## Overview
 
@@ -16,26 +15,22 @@ and crosswalks.
 
 The package sources crosswalks from:
 
-- **Geocorr** (Missouri Census Data Center) - for same-year crosswalks
-  between geographies. Uses GeoCorr 2022 (2020 Census geography) for
-  2020s data and GeoCorr 2018 (2010 Census geography) for 2010s data.
-  The correct version is selected automatically based on year context.
-- **IPUMS NHGIS** - for inter-temporal crosswalks (across different
-  census years)
+- **Geocorr** (Missouri Census Data Center) - for inter-geography
+  crosswalks (same-decade)
+- **IPUMS NHGIS** - for inter-temporal crosswalks (across decades)
 - **CT Data Collaborative** - for Connecticut 2020→2022 crosswalks
   (planning region changes)
 
 ## Why Use `crosswalk`?
 
-- **Programmatic access**: No more manual downloads from web interfaces
+- **Programmatic access**: No more manual downloads from web interfaces;
+  data is cached for speed
 - **Standardized output**: Consistent column names across all crosswalk
   sources
 - **Metadata tracking**: Full provenance of crosswalks stored as
   attributes
 - **Crosswalk chaining**: Automatic chaining when multiple crosswalks
   are required
-- **Local caching**: Reproducible workflows with locally-cached
-  crosswalks for speed
 
 ## Installation
 
@@ -54,13 +49,16 @@ library(dplyr)
 library(ggplot2)
 library(stringr)
 library(sf)
+library(tidycensus)
+library(tigris)
+library(scales)
 
-source_data = tidycensus::get_acs(
+source_data = get_acs(
     year = 2023,
     geography = "zcta",
     output = "wide",
     variables = c(below_poverty_level = "B17001_002")) %>%
-  dplyr::select(
+  select(
     source_geoid = GEOID,
     count_below_poverty_level = below_poverty_levelE)
 
@@ -86,19 +84,10 @@ crosswalked_data = crosswalk_data(
 What does the crosswalk(s) reflect and how was it sourced?
 
 ``` r
-names(attr(crosswalked_data, "crosswalk_metadata"))
-#>  [1] "call_parameters"               "data_source"                  
-#>  [3] "data_source_full_name"         "download_url"                 
-#>  [5] "api_endpoint"                  "documentation_url"            
-#>  [7] "citation_url"                  "github_repository"            
-#>  [9] "source_geography"              "source_geography_standardized"
-#> [11] "target_geography"              "target_geography_standardized"
-#> [13] "source_year"                   "target_year"                  
-#> [15] "reference_year"                "weighting_variable"           
-#> [17] "state_coverage"                "notes"                        
-#> [19] "retrieved_at"                  "cached"                       
-#> [21] "cache_path"                    "read_from_cache"              
-#> [23] "is_multi_step"                 "crosswalk_package_version"
+## and there's more (not shown)
+names(attr(crosswalked_data, "crosswalk_metadata")) %>% head()
+#> [1] "call_parameters"       "data_source"           "data_source_full_name"
+#> [4] "download_url"          "api_endpoint"          "documentation_url"
 ```
 
 How well did the crosswalk join to our source data?
@@ -116,90 +105,55 @@ join_quality$pct_data_unmatched
 ## zctas aren't nested within states, otherwise join_quality$state_analysis_data 
 ## would help us to ID whether non-joining source data were clustered within one
 ## or a few states. instead we can join to spatial data to diagnose further:
-zctas_sf = tigris::zctas(year = 2023, progress_bar = FALSE)
-states_sf = tigris::states(year = 2023, cb = TRUE, progress_bar = FALSE)
+zctas_sf = zctas(year = 2023, progress_bar = FALSE)
+states_sf = states(year = 2023, cb = TRUE, progress_bar = FALSE)
 
 ## apart from DC, which has a disproportionate number of non-joining ZCTAs--
 ## seemingly corresponding to federal areas and buildings--the distribution of
 ## non-joining ZCTAs appears proportionate to state-level populations and is 
 ## distributed across many states:
-zctas_sf %>% 
-  dplyr::filter(GEOID20 %in% join_quality$data_geoids_unmatched) %>%
-  sf::st_intersection(states_sf %>% select(NAME)) %>%
-  sf::st_drop_geometry() %>%
-  dplyr::count(NAME, sort = TRUE)
-#>                    NAME  n
-#> 1  District of Columbia 19
-#> 2              New York 15
-#> 3                 Texas  9
-#> 4            California  8
-#> 5              Colorado  6
-#> 6                  Utah  6
-#> 7               Florida  5
-#> 8          Pennsylvania  5
-#> 9             Tennessee  5
-#> 10             Virginia  5
-#> 11              Alabama  4
-#> 12              Arizona  4
-#> 13             Kentucky  4
-#> 14             Maryland  4
-#> 15                 Ohio  4
-#> 16           Washington  4
-#> 17              Georgia  3
-#> 18            Louisiana  3
-#> 19             Michigan  3
-#> 20       North Carolina  3
-#> 21               Alaska  2
-#> 22        Massachusetts  2
-#> 23          Mississippi  2
-#> 24         North Dakota  2
-#> 25             Arkansas  1
-#> 26               Hawaii  1
-#> 27                Idaho  1
-#> 28             Illinois  1
-#> 29              Indiana  1
-#> 30                 Iowa  1
-#> 31               Kansas  1
-#> 32                Maine  1
-#> 33            Minnesota  1
-#> 34             Missouri  1
-#> 35              Montana  1
-#> 36             Nebraska  1
-#> 37               Nevada  1
-#> 38           New Mexico  1
-#> 39               Oregon  1
-#> 40       South Carolina  1
-#> 41              Vermont  1
-#> 42            Wisconsin  1
+zctas_sf %>%
+  filter(GEOID20 %in% join_quality$data_geoids_unmatched) %>%
+  st_intersection(states_sf %>% select(NAME)) %>%
+  st_drop_geometry() %>%
+  count(NAME, sort = TRUE) %>%
+  head()
+#>                   NAME  n
+#> 1 District of Columbia 19
+#> 2             New York 15
+#> 3                Texas  9
+#> 4           California  8
+#> 5             Colorado  6
+#> 6                 Utah  6
 ```
 
 And how accurate was the crosswalking process?
 
 ``` r
-comparison_data = tidycensus::get_acs(
+comparison_data = get_acs(
     year = 2023,
     geography = "puma",
     output = "wide",
     variables = c(
       below_poverty_level = "B17001_002")) %>%
-  dplyr::select(
+  select(
     source_geoid = GEOID,
     count_below_poverty_level_acs = below_poverty_levelE)
 
-combined_data = dplyr::left_join(
+combined_data = left_join(
   comparison_data,
   crosswalked_data,
-  by = c("source_geoid" = "geoid")) 
-  
+  by = c("source_geoid" = "geoid"))
+
 combined_data %>%
-  dplyr::select(source_geoid, dplyr::matches("count")) %>%
-  dplyr::mutate(difference_percent = (count_below_poverty_level_acs - count_below_poverty_level) / count_below_poverty_level_acs) %>%
-  ggplot2::ggplot() +
-    ggplot2::geom_histogram(ggplot2::aes(x = difference_percent)) +
-    ggplot2::theme_minimal() +
-    ggplot2::theme(panel.grid = ggplot2::element_blank()) +
-    ggplot2::scale_x_continuous(labels = scales::percent) +
-    ggplot2::labs(
+  select(source_geoid, matches("count")) %>%
+  mutate(difference_percent = (count_below_poverty_level_acs - count_below_poverty_level) / count_below_poverty_level_acs) %>%
+  ggplot() +
+    geom_histogram(aes(x = difference_percent)) +
+    theme_minimal() +
+    theme(panel.grid = element_blank()) +
+    scale_x_continuous(labels = percent) +
+    labs(
       title = "Crosswalked data approximates observed values",
       subtitle = "Block group-level source data would produce more accurate crosswalked values",
       y = "",
@@ -219,58 +173,23 @@ intermediate `get_crosswalk()` call.
 | `get_crosswalk()` | Fetch crosswalk(s) |
 | `crosswalk_data()` | Apply crosswalk(s) to interpolate data to the target geography-year |
 
-## Understanding `get_crosswalk()` Output
+## Output Structure
 
 `get_crosswalk()` **always returns a list** structured as follows:
 
-``` r
-result <- get_crosswalk(
-  source_geography = "tract",
-  target_geography = "zcta",
-  source_year = 2010,
-  target_year = 2020,
-  weight = "population")
-
-names(result)
-#> [1] "crosswalks" "plan"       "message"
-```
-
 The list contains three elements:
 
-| Element | Description |
-|----|----|
-| `crosswalks` | A named list of crosswalks (`step_1`, `step_2`, etc.) of length one or greater |
-| `plan` | Details about what crosswalks are being fetched |
-| `message` | A human-readable description of the crosswalk chain |
+| Element      | Description                                           |
+|--------------|-------------------------------------------------------|
+| `crosswalks` | A named list of crosswalks (`step_1`, `step_2`, etc.) |
+| `plan`       | Details about what crosswalks are being fetched       |
+| `message`    | A description of the crosswalk chain                  |
 
-### Single-Step vs. Multi-Step Crosswalks
+### Multi-Step Crosswalks
 
-**Single-step crosswalks** (same year, different geography OR same
-geography, different year):
-
-``` r
-# Same year, different geography (Geocorr)
-result <- get_crosswalk(
-  source_geography = "tract",
-  target_geography = "zcta",
-  weight = "population")
-# result$crosswalks$step_1 contains one crosswalk
-
-# Same geography, different year (NHGIS)
-result <- get_crosswalk(
-  source_geography = "tract",
-  target_geography = "tract",
-  source_year = 2010,
-  target_year = 2020)
-# result$crosswalks$step_1 contains one crosswalk
-```
-
-**Multi-step crosswalks** (when a single, direct crosswalk is not
-available):
-
-For some source year/geography -\> target year/geography specifications
-do not have a crosswalk. In such cases, two or more crosswalks may be
-needed. The package automatically plans and fetches the required
+For some source year/geography -\> target year/geography combinations,
+there is not a single direct crosswalk. In such cases, we need two
+crosswalks. The package automatically plans and fetches the required
 crosswalks:
 
 1.  **Step 1 (NHGIS)**: Change year, keep geography constant
@@ -282,12 +201,10 @@ result <- get_crosswalk(
   target_geography = "zcta",
   source_year = 2010,
   target_year = 2020,
-  weight = "population")
+  weight = "population",
+  silent = TRUE)
 
 # Two crosswalks are returned
-names(result$crosswalks)
-#> [1] "step_1" "step_2"
-
 # Step 1: 2010 tracts -> 2020 tracts (NHGIS)
 # Step 2: 2020 tracts -> 2020 ZCTAs (Geocorr)
 ```
@@ -315,27 +232,16 @@ documents what the crosswalk represents and how it was created:
 ``` r
 metadata <- attr(result$crosswalks$step_1, "crosswalk_metadata")
 names(metadata)
-#>  [1] "call_parameters"               "data_source"                  
-#>  [3] "data_source_full_name"         "download_url"                 
-#>  [5] "api_endpoint"                  "documentation_url"            
-#>  [7] "citation_url"                  "github_repository"            
-#>  [9] "source_geography"              "source_geography_standardized"
-#> [11] "target_geography"              "target_geography_standardized"
-#> [13] "source_year"                   "target_year"                  
-#> [15] "reference_year"                "weighting_variable"           
-#> [17] "state_coverage"                "notes"                        
-#> [19] "retrieved_at"                  "cached"                       
-#> [21] "cache_path"                    "read_from_cache"              
-#> [23] "is_multi_step"                 "crosswalk_package_version"
 ```
 
-## Using `crosswalk_data()` to Interpolate Data
+## Interpolation
 
-`crosswalk_data()` applies crosswalk weights to transform your data. It
-automatically handles multi-step crosswalks. If you’re in a hurry, you
-can omit a call to `get_crosswalk()` and specify the needed crosswalk
-parameters to `crosswalk_data()`, which will pass these to
-`get_crosswalk()` behind the scenes.
+`crosswalk_data()` applies crosswalk weights to transform your data. If
+you’re in a hurry, you can omit a call to `get_crosswalk()` and specify
+the needed crosswalk parameters to `crosswalk_data()`, which will pass
+these to `get_crosswalk()` behind the scenes. Or you can call
+`get_crosswalk()` explicitly and then pass the result to
+`crosswalk_data()`.
 
 ### Column Naming Convention
 
@@ -352,54 +258,22 @@ weighted means, weighting by the allocation factor from the crosswalk.
 
 ## Supported Geography and Year Combinations
 
-### Inter-Geography Crosswalks (Geocorr)
+`get_available_crosswalks()` returns a listing of all supported
+year-geography combinations.
 
-The package supports inter-geography crosswalks for both 2020s and 2010s
-Census geographies, automatically selecting the correct GeoCorr version
-based on the year context you provide.
-
-**2020s geography (GeoCorr 2022, 2020 Census):** Used when years are
-2020+, or when no year is specified.
-
-- block, block group, tract, county
-- place, zcta, puma22
-- cd118, cd119, urban_area, core_based_statistical_area
-
-**2010s geography (GeoCorr 2018, 2010 Census):** Used when years are in
-the 2010s (2010-2019).
-
-- block, block group, tract, county
-- place, zcta, puma12
-- cd115, cd116
-
-### Inter-Temporal Crosswalks (NHGIS)
-
-NHGIS provides cross-decade crosswalks with the following structure:
-
-**Source geographies:** block, block_group, tract
-
-**Target geographies:** - From blocks (decennial years only): block,
-block_group, tract, county, place, zcta, puma, urban_area, cbsa - From
-block_group or tract: block_group, tract, county
-
-| Source Years                 | Target Years                 |
-|------------------------------|------------------------------|
-| 1990, 2000                   | 2010, 2014, 2015, 2020, 2022 |
-| 2010, 2011, 2012, 2014, 2015 | 1990, 2000, 2020, 2022       |
-| 2020, 2022                   | 1990, 2000, 2010, 2014, 2015 |
-
-**Notes:** - Within-decade crosswalks (e.g., 2010→2014) are not
-available from NHGIS - Block→ZCTA, Block→PUMA, etc. are only available
-for decennial years (1990, 2000, 2010, 2020) - The package automatically
-uses direct NHGIS crosswalks when available (e.g.,
-`get_crosswalk(source_geography = "block", target_geography = "zcta", source_year = 2010, target_year = 2020)`
-returns a single-step NHGIS crosswalk)
-
-### 2020→2022 Crosswalks (CTData)
-
-For 2020 to 2022 transformations, the package uses CT Data Collaborative
-crosswalks for Connecticut (where planning regions replaced counties)
-and identity mappings for other states (where no changes occurred).
+``` r
+get_available_crosswalks() %>%
+  head()
+#> # A tibble: 6 × 4
+#>   source_geography target_geography source_year target_year
+#>   <chr>            <chr>                  <int>       <int>
+#> 1 block            block                   1990        2010
+#> 2 block            block                   2000        2010
+#> 3 block            block                   2010        2020
+#> 4 block            block                   2020        2010
+#> 5 block            block                   2020        2022
+#> 6 block            block                   2022        2020
+```
 
 ## API Keys
 
@@ -425,21 +299,17 @@ result <- get_crosswalk(
 
 ## Citations
 
-The intellectual credit for the underlying crosswalks belongs to the
-original developers.
+Cite the organizations that produce the crosswalks returned by this
+package:
 
-**For NHGIS**, see citation requirements at:
+**For NHGIS**, see requirements at:
 <https://www.nhgis.org/citation-and-use-nhgis-data>
 
-**For Geocorr**, suggested citations:
+**For Geocorr**, a suggested citation (update the year):
 
-> Missouri Census Data Center, University of Missouri. (2022). Geocorr
-> 2022: Geographic Correspondence Engine. Retrieved from:
-> <https://mcdc.missouri.edu/applications/geocorr2022.html>
-
-> Missouri Census Data Center, University of Missouri. (2018). Geocorr
-> 2018: Geographic Correspondence Engine. Retrieved from:
-> <https://mcdc.missouri.edu/applications/geocorr2018.html>
+> Missouri Census Data Center, University of Missouri. (2022/2018).
+> Geocorr 2022/2018: Geographic Correspondence Engine. Retrieved from:
+> <https://mcdc.missouri.edu/applications/geocorr2022/2018.html>
 
 **For CTData**, a suggested citation (adjust for alternate source
 geography):

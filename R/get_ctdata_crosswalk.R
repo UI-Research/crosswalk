@@ -113,7 +113,7 @@ Only block, block_group, and tract geographies support the 2022 -> 2020 directio
 
   # Check cache for full national crosswalk
   if (file.exists(csv_path) & !is.null(cache)) {
-    message(stringr::str_c("Reading national ", source_year, "-", target_year, " crosswalk from cache."))
+    cw_message(stringr::str_c("Reading national ", source_year, "-", target_year, " crosswalk from cache."))
     result <- readr::read_csv(
       csv_path,
       col_types = readr::cols(.default = readr::col_character(),
@@ -150,7 +150,7 @@ Only block, block_group, and tract geographies support the 2022 -> 2020 directio
     return(result)
   }
 
-  message("Constructing nationally comprehensive 2020-2022 crosswalk...")
+  cw_message("Constructing nationally comprehensive 2020-2022 crosswalk...")
 
   # ===========================================================================
   # STEP 1: Get all 2020 GEOIDs from NHGIS crosswalk (non-CT) or tidycensus (county)
@@ -167,7 +167,7 @@ Only block, block_group, and tract geographies support the 2022 -> 2020 directio
 
   if (geography_standardized == "county") {
     # For county, use tidycensus since NHGIS doesn't have county -> county crosswalks
-    message("Fetching all 2020 county GEOIDs via tidycensus...")
+    cw_message("Fetching all 2020 county GEOIDs via tidycensus...")
 
     all_2020_geoids <- suppressMessages({
       tidycensus::get_acs(
@@ -182,7 +182,7 @@ Only block, block_group, and tract geographies support the 2022 -> 2020 directio
 
   } else {
     # For block, block_group, tract: use NHGIS 2010 -> 2020 crosswalk
-    message(stringr::str_c(
+    cw_message(stringr::str_c(
       "Fetching NHGIS ", nhgis_source_geog, " 2010 -> 2020 crosswalk to obtain all 2020 GEOIDs..."))
 
     nhgis_crosswalk <- get_nhgis_crosswalk(
@@ -200,7 +200,7 @@ Only block, block_group, and tract geographies support the 2022 -> 2020 directio
       dplyr::pull(target_geoid)
   }
 
-  message(stringr::str_c(
+  cw_message(stringr::str_c(
     "Found ", format(length(all_2020_geoids), big.mark = ","),
     " non-CT 2020 ", geography_standardized, " GEOIDs."))
 
@@ -223,7 +223,7 @@ Only block, block_group, and tract geographies support the 2022 -> 2020 directio
   # STEP 3: Get CT-specific crosswalk from CT Data Collaborative
   # ===========================================================================
 
-  message("Fetching Connecticut crosswalk from CT Data Collaborative...")
+  cw_message("Fetching Connecticut crosswalk from CT Data Collaborative...")
 
   if (geography_standardized == "block") {
     raw_df <- readr::read_csv(ctdata_urls$block, show_col_types = FALSE)
@@ -326,7 +326,7 @@ Only block, block_group, and tract geographies support the 2022 -> 2020 directio
   result <- dplyr::bind_rows(ct_crosswalk, non_ct_crosswalk) |>
     dplyr::arrange(source_geoid)
 
-  message(stringr::str_c(
+  cw_message(stringr::str_c(
     "National 2020-2022 crosswalk constructed: ",
     format(nrow(ct_crosswalk), big.mark = ","), " CT records + ",
     format(nrow(non_ct_crosswalk), big.mark = ","), " non-CT records = ",
@@ -337,7 +337,7 @@ Only block, block_group, and tract geographies support the 2022 -> 2020 directio
   # ===========================================================================
 
   if (is_reverse) {
-    message("Reversing crosswalk direction to 2022 -> 2020...")
+    cw_message("Reversing crosswalk direction to 2022 -> 2020...")
 
     # For identity crosswalks (block, block_group, tract), simply swap columns
     # Note: County is not supported for reverse direction (checked earlier)
@@ -363,10 +363,10 @@ Only block, block_group, and tract geographies support the 2022 -> 2020 directio
       dir.create(cache_path, recursive = TRUE)
     }
     readr::write_csv(result, csv_path)
-    message(stringr::str_c("Cached to: ", csv_path))
+    cw_message(stringr::str_c("Cached to: ", csv_path))
   }
 
-  message(stringr::str_c(
+  cw_message(stringr::str_c(
 "National ", source_year, "-", target_year, " crosswalk constructed:
 - Connecticut: CT Data Collaborative (https://github.com/CT-Data-Collaborative)
 - Other states: Identity mapping derived from NHGIS 2010-2020 crosswalk"))

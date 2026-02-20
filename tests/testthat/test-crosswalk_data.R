@@ -687,6 +687,7 @@ test_that("crosswalk_data reports unmatched data rows", {
   join_quality <- attr(result, "join_quality")
   expect_equal(join_quality$n_data_unmatched, 1)
   expect_equal(join_quality$n_data_total, 3)
+  expect_equal(join_quality$pct_data_unmatched, 1 / 3 * 100)
   expect_true("C" %in% join_quality$data_geoids_unmatched)
 })
 
@@ -712,6 +713,7 @@ test_that("crosswalk_data reports unmatched crosswalk rows", {
   join_quality <- attr(result, "join_quality")
   expect_equal(join_quality$n_crosswalk_unmatched, 2)
   expect_equal(join_quality$n_crosswalk_total, 3)
+  expect_equal(join_quality$pct_crosswalk_unmatched, 2 / 3 * 100)
 })
 
 test_that("crosswalk_data reports state concentration for unmatched data rows", {
