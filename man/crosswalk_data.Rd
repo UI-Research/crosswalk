@@ -17,7 +17,8 @@ crosswalk_data(
   count_columns = NULL,
   non_count_columns = NULL,
   return_intermediate = FALSE,
-  show_join_quality = TRUE
+  show_join_quality = TRUE,
+  silent = getOption("crosswalk.silent", FALSE)
 )
 }
 \arguments{
@@ -73,7 +74,12 @@ from each step. Default is FALSE, which returns only the final result.}
 about join quality, including the number of data rows not matching the crosswalk
 and vice versa. For state-nested geographies (tract, county, block group, etc.),
 also reports state-level concentration of unmatched rows. Set to FALSE to
-suppress these messages.}
+suppress these messages. Automatically suppressed when \code{silent = TRUE}.}
+
+\item{silent}{Logical. If \code{TRUE}, suppresses all informational messages and
+warnings, including join quality diagnostics regardless of \code{show_join_quality}.
+Defaults to \code{getOption("crosswalk.silent", FALSE)}. Set
+\code{options(crosswalk.silent = TRUE)} to silence all calls by default.}
 }
 \value{
 If \code{return_intermediate = FALSE} (default), a tibble with data summarized

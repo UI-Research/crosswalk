@@ -10,7 +10,8 @@ get_crosswalk(
   source_year = NULL,
   target_year = NULL,
   cache = NULL,
-  weight = "population"
+  weight = "population",
+  silent = getOption("crosswalk.silent", FALSE)
 )
 }
 \arguments{
@@ -38,6 +39,10 @@ are cached separately when provided.}
 
 \item{weight}{Character. Weighting variable for Geocorr crosswalks. One of
 c("population", "housing", "land").}
+
+\item{silent}{Logical. If \code{TRUE}, suppresses all informational messages and
+warnings. Defaults to \code{getOption("crosswalk.silent", FALSE)}. Set
+\code{options(crosswalk.silent = TRUE)} to silence all calls by default.}
 }
 \value{
 A list with a consistent structure:

@@ -59,6 +59,9 @@
 #' @param cache Directory path. Where to download the crosswalk to. If NULL (default),
 #'    crosswalk is returned but not saved to disk. Individual component crosswalks
 #'    are cached separately when provided.
+#' @param silent Logical. If `TRUE`, suppresses all informational messages and
+#'    warnings. Defaults to `getOption("crosswalk.silent", FALSE)`. Set
+#'    `options(crosswalk.silent = TRUE)` to silence all calls by default.
 #'
 #' @return A list with a consistent structure:
 #'    \describe{
@@ -137,7 +140,11 @@ get_crosswalk <- function(
   source_year = NULL,
   target_year = NULL,
   cache = NULL,
-  weight = "population") {
+  weight = "population",
+  silent = getOption("crosswalk.silent", FALSE)) {
+
+  old_opts <- options(crosswalk.silent = silent)
+  on.exit(options(old_opts), add = TRUE)
 
   # Check for nested geographies (no crosswalk needed)
   # Determine if years match (both NULL, or both non-NULL and equal)
@@ -150,10 +157,10 @@ get_crosswalk <- function(
     (source_geography == "county" && target_geography == "core_based_statistical_area")
 
   if (is_nested && years_match) {
-    warning(
+    cw_warning(
 "The source geography is nested within the target geography and an empty result
 will be returned. No crosswalk is needed to translate data between nested geographies;
-simply aggregate your data to the desired geography.")
+simply aggregate your data to the desired geography.", call. = FALSE)
 
     # Return empty list structure for consistency
     return(list(
@@ -418,6 +425,64 @@ and counties. The provided geography '", geography, "' is not supported.")}
   return(result)
 }
 
+#' List All Available Crosswalk Combinations
+#'
+#' Returns a tibble of all source/target geography and year combinations
+#' supported by `get_crosswalk()`.
+#'
+#' @return A tibble with columns: `source_geography`, `target_geography`,
+#'   `source_year`, `target_year`.
+#' @export
+get_available_crosswalks <- function() {
+
+  # 1. NHGIS: reuse list_nhgis_crosswalks(), select and coerce years to integer
+  nhgis <- list_nhgis_crosswalks() |>
+    dplyr::select(source_geography, target_geography, source_year, target_year) |>
+    dplyr::mutate(
+      source_year = as.integer(source_year),
+      target_year = as.integer(target_year))
+
+  # 2. Geocorr 2022: all pairwise combinations of 9 canonical geographies
+  geocorr_2022_geographies <- c(
+    "block", "block_group", "tract", "county", "place",
+    "zcta", "puma22", "cd118", "cd119")
+
+  geocorr_2022 <- tidyr::crossing(
+    source_geography = geocorr_2022_geographies,
+    target_geography = geocorr_2022_geographies) |>
+    dplyr::filter(source_geography != target_geography) |>
+    dplyr::mutate(
+      source_year = 2022L,
+      target_year = 2022L)
+
+  # 3. Geocorr 2018: all pairwise combinations of 9 canonical geographies
+  geocorr_2018_geographies <- c(
+    "block", "block_group", "tract", "county", "place",
+    "zcta", "puma12", "cd115", "cd116")
+
+  geocorr_2018 <- tidyr::crossing(
+    source_geography = geocorr_2018_geographies,
+    target_geography = geocorr_2018_geographies) |>
+    dplyr::filter(source_geography != target_geography) |>
+    dplyr::mutate(
+      source_year = 2018L,
+      target_year = 2018L)
+
+  # 4. CTData: 7 manually specified combinations (2020<->2022)
+  ctdata <- tibble::tibble(
+    source_geography = c("block", "block_group", "tract", "county",
+                         "block", "block_group", "tract"),
+    target_geography = c("block", "block_group", "tract", "county",
+                         "block", "block_group", "tract"),
+    source_year = c(rep(2020L, 4), rep(2022L, 3)),
+    target_year = c(rep(2022L, 4), rep(2020L, 3)))
+
+  # 5. Combine, deduplicate, and sort
+  dplyr::bind_rows(nhgis, geocorr_2022, geocorr_2018, ctdata) |>
+    dplyr::distinct() |>
+    dplyr::arrange(source_geography, target_geography, source_year, target_year)
+}
+
 utils::globalVariables(c(
-  "allocation_factor_source_to_target", "geoid", "label", 
+  "allocation_factor_source_to_target", "geoid", "label",
   "n_unmatched", "pct_of_unmatched", "state_abbr"))

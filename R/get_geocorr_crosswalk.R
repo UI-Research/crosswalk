@@ -164,7 +164,7 @@ get_geocorr_crosswalk <- function(
   if (file.exists(outpath) & !is.null(cache)) {
     result = readr::read_csv(outpath, show_col_types = FALSE)
 
-    message("Reading file from cache.")
+    cw_message("Reading file from cache.")
 
     # Attach metadata to cached result
     attr(result, "crosswalk_metadata") <- list(
@@ -188,7 +188,7 @@ get_geocorr_crosswalk <- function(
   base_url <- "https://mcdc.missouri.edu/cgi-bin/broker"
 
   if (is.null(weight)) {
-    message("Setting the default crosswalk weighting variable to: population.")
+    cw_message("Setting the default crosswalk weighting variable to: population.")
     weight = "population"
   }
 
