@@ -353,3 +353,240 @@ test_that("plan_crosswalk_chain describes GeoCorr 2022 when no years specified",
   expect_false(plan$is_multi_step)
   expect_true(stringr::str_detect(plan$steps$description[1], "Geocorr 2022"))
 })
+
+# ==============================================================================
+# find_temporal_path() unit tests
+# ==============================================================================
+
+test_that("find_temporal_path finds direct single-hop path (2010->2020 tract)", {
+  path <- crosswalk:::find_temporal_path("tract", "2010", "2020")
+
+  expect_equal(length(path), 1)
+  expect_equal(path[[1]]$source_year, "2010")
+  expect_equal(path[[1]]$target_year, "2020")
+})
+
+test_that("find_temporal_path finds multi-hop path (1990->2020 tract)", {
+  path <- crosswalk:::find_temporal_path("tract", "1990", "2020")
+
+  expect_equal(length(path), 2)
+  expect_equal(path[[1]]$source_year, "1990")
+  expect_equal(path[[1]]$target_year, "2010")
+  expect_equal(path[[2]]$source_year, "2010")
+  expect_equal(path[[2]]$target_year, "2020")
+})
+
+test_that("find_temporal_path finds multi-hop path (2000->2020 tract)", {
+  path <- crosswalk:::find_temporal_path("tract", "2000", "2020")
+
+  expect_equal(length(path), 2)
+  expect_equal(path[[1]]$source_year, "2000")
+  expect_equal(path[[1]]$target_year, "2010")
+  expect_equal(path[[2]]$source_year, "2010")
+  expect_equal(path[[2]]$target_year, "2020")
+})
+
+test_that("find_temporal_path finds multi-hop path (1990->2020 block)", {
+  path <- crosswalk:::find_temporal_path("block", "1990", "2020")
+
+  expect_equal(length(path), 2)
+  expect_equal(path[[1]]$source_year, "1990")
+  expect_equal(path[[1]]$target_year, "2010")
+  expect_equal(path[[2]]$source_year, "2010")
+  expect_equal(path[[2]]$target_year, "2020")
+})
+
+test_that("find_temporal_path returns NULL for impossible path (2020->1990 tract)", {
+  path <- crosswalk:::find_temporal_path("tract", "2020", "1990")
+
+  expect_null(path)
+})
+
+test_that("find_temporal_path returns NULL for unsupported geography (zcta)", {
+  path <- crosswalk:::find_temporal_path("zcta", "2010", "2020")
+
+  expect_null(path)
+})
+
+test_that("find_temporal_path accepts pre-fetched available_crosswalks", {
+  available <- crosswalk:::list_nhgis_crosswalks()
+  path <- crosswalk:::find_temporal_path("tract", "2010", "2020", available)
+
+  expect_equal(length(path), 1)
+  expect_equal(path[[1]]$source_year, "2010")
+  expect_equal(path[[1]]$target_year, "2020")
+})
+
+# ==============================================================================
+# Multi-hop year-only plan tests
+# ==============================================================================
+
+test_that("plan_crosswalk_chain produces 2-step plan for 1990->2020 tract", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "tract",
+    source_year = 1990,
+    target_year = 2020)
+
+  expect_true(plan$is_multi_step)
+  expect_equal(nrow(plan$steps), 2)
+  expect_equal(plan$steps$crosswalk_source[1], "nhgis")
+  expect_equal(plan$steps$crosswalk_source[2], "nhgis")
+
+  # Step 1: 1990 tract -> 2010 tract
+  expect_equal(plan$steps$source_year[1], "1990")
+  expect_equal(plan$steps$target_year[1], "2010")
+
+  # Step 2: 2010 tract -> 2020 tract
+  expect_equal(plan$steps$source_year[2], "2010")
+  expect_equal(plan$steps$target_year[2], "2020")
+
+  expect_equal(plan$intermediate_geography, "tract")
+  expect_equal(plan$intermediate_year, "2010")
+})
+
+test_that("plan_crosswalk_chain produces 2-step plan for 2000->2020 tract", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "tract",
+    source_year = 2000,
+    target_year = 2020)
+
+  expect_true(plan$is_multi_step)
+  expect_equal(nrow(plan$steps), 2)
+  expect_equal(plan$steps$source_year[1], "2000")
+  expect_equal(plan$steps$target_year[1], "2010")
+  expect_equal(plan$steps$source_year[2], "2010")
+  expect_equal(plan$steps$target_year[2], "2020")
+})
+
+# ==============================================================================
+# 3-step combined plan tests (multi-hop temporal + geography change)
+# ==============================================================================
+
+test_that("plan_crosswalk_chain produces 3-step plan for 2000 tract -> 2020 ZCTA", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "zcta",
+    source_year = 2000,
+    target_year = 2020)
+
+  expect_true(plan$is_multi_step)
+  expect_equal(nrow(plan$steps), 3)
+
+  # Step 1: 2000 tract -> 2010 tract (NHGIS)
+  expect_equal(plan$steps$crosswalk_source[1], "nhgis")
+  expect_equal(plan$steps$source_year[1], "2000")
+  expect_equal(plan$steps$target_year[1], "2010")
+  expect_equal(plan$steps$source_geography[1], "tract")
+  expect_equal(plan$steps$target_geography[1], "tract")
+
+  # Step 2: 2010 tract -> 2020 tract (NHGIS)
+  expect_equal(plan$steps$crosswalk_source[2], "nhgis")
+  expect_equal(plan$steps$source_year[2], "2010")
+  expect_equal(plan$steps$target_year[2], "2020")
+  expect_equal(plan$steps$source_geography[2], "tract")
+  expect_equal(plan$steps$target_geography[2], "tract")
+
+  # Step 3: 2020 tract -> 2020 ZCTA (Geocorr)
+  expect_equal(plan$steps$crosswalk_source[3], "geocorr")
+  expect_equal(plan$steps$source_year[3], "2020")
+  expect_equal(plan$steps$target_year[3], "2020")
+  expect_equal(plan$steps$source_geography[3], "tract")
+  expect_equal(plan$steps$target_geography[3], "zcta")
+
+  expect_equal(plan$intermediate_geography, "tract")
+  expect_equal(plan$intermediate_year, c("2010", "2020"))
+})
+
+test_that("plan_crosswalk_chain produces 3-step plan for 1990 tract -> 2020 PUMA", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "puma",
+    source_year = 1990,
+    target_year = 2020)
+
+  expect_true(plan$is_multi_step)
+  expect_equal(nrow(plan$steps), 3)
+  expect_equal(plan$steps$crosswalk_source[1], "nhgis")
+  expect_equal(plan$steps$crosswalk_source[2], "nhgis")
+  expect_equal(plan$steps$crosswalk_source[3], "geocorr")
+})
+
+# ==============================================================================
+# Error cases for impossible temporal paths
+# ==============================================================================
+
+test_that("plan_crosswalk_chain errors for impossible temporal path (2020->1990 tract)", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "tract",
+    source_year = 2020,
+    target_year = 1990)
+
+  expect_false(is.null(plan$error))
+  expect_true(stringr::str_detect(plan$error, "No temporal crosswalk path"))
+})
+
+test_that("plan_crosswalk_chain errors for impossible temporal path in combined plan", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "zcta",
+    source_year = 2020,
+    target_year = 1990)
+
+  expect_false(is.null(plan$error))
+  expect_true(stringr::str_detect(plan$error, "no temporal crosswalk path"))
+})
+
+# ==============================================================================
+# Format message tests for multi-hop plans
+# ==============================================================================
+
+test_that("format_chain_plan_message formats 3-step plan correctly", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "zcta",
+    source_year = 2000,
+    target_year = 2020)
+
+  message <- crosswalk:::format_chain_plan_message(plan)
+
+  expect_type(message, "character")
+  expect_true(stringr::str_detect(message, "Multi-step"))
+  expect_true(stringr::str_detect(message, "Step 1"))
+  expect_true(stringr::str_detect(message, "Step 2"))
+  expect_true(stringr::str_detect(message, "Step 3"))
+  expect_true(stringr::str_detect(message, "2010, 2020"))
+})
+
+test_that("format_chain_plan_message formats 2-step year-only plan correctly", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "tract",
+    source_year = 1990,
+    target_year = 2020)
+
+  message <- crosswalk:::format_chain_plan_message(plan)
+
+  expect_type(message, "character")
+  expect_true(stringr::str_detect(message, "Multi-step"))
+  expect_true(stringr::str_detect(message, "Step 1"))
+  expect_true(stringr::str_detect(message, "Step 2"))
+})
+
+# ==============================================================================
+# Composition note tests for multi-hop plans
+# ==============================================================================
+
+test_that("plan_crosswalk_chain composition note covers all steps in 3-step plan", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "zcta",
+    source_year = 2000,
+    target_year = 2020)
+
+  expect_true(stringr::str_detect(plan$composition_note, "step1_allocation"))
+  expect_true(stringr::str_detect(plan$composition_note, "step2_allocation"))
+  expect_true(stringr::str_detect(plan$composition_note, "step3_allocation"))
+})

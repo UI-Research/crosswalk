@@ -428,10 +428,13 @@ is_nhgis_crosswalk_available <- function(
     source_geography,
     target_geography,
     source_year,
-    target_year) {
+    target_year,
+    available_crosswalks = NULL) {
 
-  # Get the list of available crosswalks
-  available_crosswalks <- list_nhgis_crosswalks()
+  # Get the list of available crosswalks if not provided
+  if (is.null(available_crosswalks)) {
+    available_crosswalks <- list_nhgis_crosswalks()
+  }
 
   # Standardize inputs for matching
   source_year_chr <- as.character(source_year)
