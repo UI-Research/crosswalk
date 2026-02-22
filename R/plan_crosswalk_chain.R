@@ -81,19 +81,84 @@ plan_crosswalk_chain <- function(
     return(result)
   }
 
-  # Case 2: Same geography, different years - single NHGIS crosswalk
+  # Cache available crosswalks for reuse across checks
+  available_crosswalks <- list_nhgis_crosswalks()
+
+  # Case 2: Same geography, different years - temporal crosswalk(s)
   if (!geography_changes && year_changes) {
-    result$steps <- tibble::tibble(
-      step_number = 1L,
-      source_geography = source_geography,
-      source_year = source_year_chr,
-      target_geography = target_geography,
-      target_year = target_year_chr,
-      crosswalk_source = determine_temporal_source(source_year_chr, target_year_chr),
-      description = stringr::str_c(
-        source_year_chr, " ", source_geog_std, " -> ",
-        target_year_chr, " ", target_geog_std, " (inter-temporal)"))
-    result$composition_note <- "Single crosswalk; use allocation_factor_source_to_target directly."
+    # Check for special sources first (e.g. CTData 2020<->2022)
+    temporal_source <- determine_temporal_source(source_year_chr, target_year_chr)
+    if (temporal_source != "nhgis") {
+      result$steps <- tibble::tibble(
+        step_number = 1L,
+        source_geography = source_geography,
+        source_year = source_year_chr,
+        target_geography = target_geography,
+        target_year = target_year_chr,
+        crosswalk_source = temporal_source,
+        description = stringr::str_c(
+          source_year_chr, " ", source_geog_std, " -> ",
+          target_year_chr, " ", target_geog_std, " (inter-temporal)"))
+      result$composition_note <- "Single crosswalk; use allocation_factor_source_to_target directly."
+      return(result)
+    }
+
+    # Find temporal path via NHGIS same-geography crosswalks
+    temporal_path <- find_temporal_path(
+      source_geog_std, source_year_chr, target_year_chr, available_crosswalks)
+
+    if (is.null(temporal_path)) {
+      result$error <- stringr::str_c(
+        "No temporal crosswalk path found from ", source_year_chr, " to ",
+        target_year_chr, " for geography '", source_geography,
+        "'. NHGIS may not provide same-geography crosswalks for this ",
+        "geography or year combination.")
+      return(result)
+    }
+
+    n_hops <- length(temporal_path)
+
+    if (n_hops == 1L) {
+      # Single temporal hop
+      result$steps <- tibble::tibble(
+        step_number = 1L,
+        source_geography = source_geography,
+        source_year = source_year_chr,
+        target_geography = target_geography,
+        target_year = target_year_chr,
+        crosswalk_source = "nhgis",
+        description = stringr::str_c(
+          source_year_chr, " ", source_geog_std, " -> ",
+          target_year_chr, " ", target_geog_std, " (inter-temporal)"))
+      result$composition_note <- "Single crosswalk; use allocation_factor_source_to_target directly."
+    } else {
+      # Multi-hop temporal chain
+      result$is_multi_step <- TRUE
+      result$intermediate_geography <- source_geography[1]
+      result$intermediate_year <- purrr::map_chr(
+        temporal_path[-n_hops], ~ .x$target_year)
+
+      result$steps <- tibble::tibble(
+        step_number = seq_len(n_hops),
+        source_geography = rep(source_geography[1], n_hops),
+        source_year = purrr::map_chr(temporal_path, ~ .x$source_year),
+        target_geography = rep(target_geography[1], n_hops),
+        target_year = purrr::map_chr(temporal_path, ~ .x$target_year),
+        crosswalk_source = rep("nhgis", n_hops),
+        description = purrr::map_chr(seq_len(n_hops), ~ stringr::str_c(
+          temporal_path[[.x]]$source_year, " ", source_geog_std, " -> ",
+          temporal_path[[.x]]$target_year, " ", source_geog_std,
+          " (inter-temporal via nhgis)")))
+
+      result$composition_note <- stringr::str_c(
+        "Compose crosswalks by joining on intermediate geography (",
+        source_geog_std, " ",
+        paste(result$intermediate_year, collapse = ", "),
+        ") and multiplying allocation factors: final_allocation = ",
+        paste(
+          purrr::map_chr(seq_len(n_hops), ~ stringr::str_c("step", .x, "_allocation")),
+          collapse = " * "))
+    }
     return(result)
   }
 
@@ -126,7 +191,8 @@ plan_crosswalk_chain <- function(
     source_geography = source_geography,
     target_geography = target_geography,
     source_year = source_year,
-    target_year = target_year)
+    target_year = target_year,
+    available_crosswalks = available_crosswalks)
 
   if (nhgis_direct_available) {
     # Single-step NHGIS crosswalk available
@@ -162,16 +228,6 @@ plan_crosswalk_chain <- function(
     return(result)
   }
 
-  # Determine the intermediate point (year-first approach)
-  # Step 1: source_geog(source_year) -> source_geog(target_year) via NHGIS
-  # Step 2: source_geog(target_year) -> target_geog(target_year) via Geocorr
-
-  result$intermediate_geography <- source_geography[1]
-  result$intermediate_year <- target_year_chr[1]
-
-  # Determine temporal crosswalk source for step 1
-  step1_source <- determine_temporal_source(source_year_chr[1], target_year_chr[1])
-
   # Use first element to ensure scalar values
   src_geog <- source_geography[1]
   tgt_geog <- target_geography[1]
@@ -180,25 +236,66 @@ plan_crosswalk_chain <- function(
   src_std <- source_geog_std[1]
   tgt_std <- target_geog_std[1]
 
-  result$steps <- tibble::tibble(
-    step_number = c(1L, 2L),
-    source_geography = c(src_geog, src_geog),
-    source_year = c(src_year, tgt_year),
-    target_geography = c(src_geog, tgt_geog),
-    target_year = c(tgt_year, tgt_year),
-    crosswalk_source = c(step1_source, "geocorr"),
-    description = c(
-      stringr::str_c(
-        src_year, " ", src_std, " -> ",
-        tgt_year, " ", src_std, " (inter-temporal via ", step1_source, ")"),
-      stringr::str_c(
-        tgt_year, " ", src_std, " -> ",
-        tgt_year, " ", tgt_std, " (inter-geography via Geocorr)")))
+  # Find temporal path at source geography from source_year to target_year
+  temporal_path <- find_temporal_path(
+    src_std, src_year, tgt_year, available_crosswalks)
+
+  if (is.null(temporal_path)) {
+    result$error <- stringr::str_c(
+      "Multi-step crosswalk not possible: no temporal crosswalk path found from ",
+      src_year, " to ", tgt_year, " for geography '", source_geography,
+      "'. NHGIS may not provide same-geography crosswalks for this ",
+      "geography or year combination.")
+    return(result)
+  }
+
+  n_temporal <- length(temporal_path)
+  n_total <- n_temporal + 1L  # temporal hops + 1 Geocorr geography step
+
+  # Build intermediate year vector (all bridge points between steps)
+  # For temporal hops: the target year of each hop except the last becomes a bridge
+
+  # The target year of the last temporal hop is also a bridge to the Geocorr step
+  intermediate_years <- purrr::map_chr(temporal_path, ~ .x$target_year)
+  # The last intermediate year (= tgt_year) is the bridge to the Geocorr step
+  result$intermediate_geography <- src_geog
+  result$intermediate_year <- intermediate_years
+
+  # Build temporal step rows
+  temporal_steps <- tibble::tibble(
+    step_number = seq_len(n_temporal),
+    source_geography = rep(src_geog, n_temporal),
+    source_year = purrr::map_chr(temporal_path, ~ .x$source_year),
+    target_geography = rep(src_geog, n_temporal),
+    target_year = purrr::map_chr(temporal_path, ~ .x$target_year),
+    crosswalk_source = rep("nhgis", n_temporal),
+    description = purrr::map_chr(seq_len(n_temporal), ~ stringr::str_c(
+      temporal_path[[.x]]$source_year, " ", src_std, " -> ",
+      temporal_path[[.x]]$target_year, " ", src_std,
+      " (inter-temporal via nhgis)")))
+
+  # Geocorr geography step (final step)
+  geocorr_step <- tibble::tibble(
+    step_number = n_total,
+    source_geography = src_geog,
+    source_year = tgt_year,
+    target_geography = tgt_geog,
+    target_year = tgt_year,
+    crosswalk_source = "geocorr",
+    description = stringr::str_c(
+      tgt_year, " ", src_std, " -> ",
+      tgt_year, " ", tgt_std, " (inter-geography via Geocorr)"))
+
+  result$steps <- dplyr::bind_rows(temporal_steps, geocorr_step)
 
   result$composition_note <- stringr::str_c(
     "Compose crosswalks by joining on intermediate geography (",
-    src_std, " ", tgt_year, ") and multiplying allocation factors: ",
-    "final_allocation = step1_allocation * step2_allocation")
+    src_std, " ",
+    paste(intermediate_years, collapse = ", "),
+    ") and multiplying allocation factors: final_allocation = ",
+    paste(
+      purrr::map_chr(seq_len(n_total), ~ stringr::str_c("step", .x, "_allocation")),
+      collapse = " * "))
 
   return(result)
 }
@@ -293,6 +390,83 @@ format_chain_plan_message <- function(plan) {
   stringr::str_c(
     "Multi-step crosswalk required:\n",
     paste(step_lines, collapse = "\n"), "\n",
-    "\nIntermediate: ", plan$intermediate_geography, " (", plan$intermediate_year, ")\n",
+    "\nIntermediate: ", plan$intermediate_geography,
+    " (", paste(plan$intermediate_year, collapse = ", "), ")\n",
     "\n", plan$composition_note)
+}
+
+
+#' Find Temporal Path Between Years via NHGIS Same-Geography Crosswalks
+#'
+#' Uses BFS to find the shortest sequence of same-geography NHGIS crosswalks
+#' bridging a temporal span. The graph is built from `list_nhgis_crosswalks()`
+#' so future NHGIS additions are picked up automatically.
+#'
+#' @param geography_std Character. Standardized geography name (e.g. "tract",
+#'   "block", "block_group") matching `list_nhgis_crosswalks()` output.
+#' @param source_year Character or numeric. Source year.
+#' @param target_year Character or numeric. Target year.
+#' @param available_crosswalks Tibble or NULL. Pre-fetched output of
+#'   `list_nhgis_crosswalks()` to avoid redundant calls.
+#'
+#' @return A list of `list(source_year, target_year)` hops representing the
+#'   shortest path, or `NULL` if no path exists.
+#' @keywords internal
+#' @noRd
+find_temporal_path <- function(geography_std,
+                               source_year,
+                               target_year,
+                               available_crosswalks = NULL) {
+  if (is.null(available_crosswalks)) {
+    available_crosswalks <- list_nhgis_crosswalks()
+  }
+
+  source_year_chr <- as.character(source_year)
+  target_year_chr <- as.character(target_year)
+
+  # Filter to same-geography temporal edges
+  same_geog <- available_crosswalks |>
+    dplyr::filter(
+      source_geography == geography_std,
+      target_geography == geography_std)
+
+  if (nrow(same_geog) == 0) return(NULL)
+
+  # Build adjacency list: year -> list of reachable years
+  adj <- list()
+  for (i in seq_len(nrow(same_geog))) {
+    from <- same_geog$source_year[i]
+    to <- same_geog$target_year[i]
+    adj[[from]] <- unique(c(adj[[from]], to))
+  }
+
+  # BFS from source_year to target_year
+  queue <- list(list(year = source_year_chr, path = list()))
+  visited <- character()
+
+  while (length(queue) > 0) {
+    current <- queue[[1]]
+    queue <- queue[-1]
+
+    if (current$year == target_year_chr) {
+      return(current$path)
+    }
+
+    if (current$year %in% visited) next
+    visited <- c(visited, current$year)
+
+    neighbors <- adj[[current$year]]
+    if (is.null(neighbors)) next
+
+    for (neighbor in neighbors) {
+      if (!neighbor %in% visited) {
+        new_path <- c(
+          current$path,
+          list(list(source_year = current$year, target_year = neighbor)))
+        queue <- c(queue, list(list(year = neighbor, path = new_path)))
+      }
+    }
+  }
+
+  return(NULL)
 }
