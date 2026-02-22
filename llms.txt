@@ -191,12 +191,14 @@ The list contains three elements:
 ### Multi-Step Crosswalks
 
 For some source year/geography -\> target year/geography combinations,
-there is not a single direct crosswalk. In such cases, we need two
-crosswalks. The package automatically plans and fetches the required
-crosswalks:
+there is not a single direct crosswalk. The package automatically plans
+and fetches the required chain of crosswalks, using a year-first
+strategy:
 
-1.  **Step 1 (NHGIS)**: Change year, keep geography constant
-2.  **Step 2 (Geocorr)**: Change geography at target year
+1.  **NHGIS step(s)**: Change year while keeping geography constant
+    (multiple hops if the temporal span requires it,
+    e.g. 1990→2010→2020)
+2.  **Geocorr step**: Change geography at the target year
 
 ``` r
 result <- get_crosswalk(
@@ -210,6 +212,12 @@ result <- get_crosswalk(
 # Two crosswalks are returned
 # Step 1: 2010 tracts -> 2020 tracts (NHGIS)
 # Step 2: 2020 tracts -> 2020 ZCTAs (Geocorr)
+
+# Longer chains are produced when needed, e.g.
+# 2000 tracts -> 2020 ZCTAs produces three steps:
+# Step 1: 2000 tracts -> 2010 tracts (NHGIS)
+# Step 2: 2010 tracts -> 2020 tracts (NHGIS)
+# Step 3: 2020 tracts -> 2020 ZCTAs (Geocorr)
 ```
 
 ### Crosswalk Structure

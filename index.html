@@ -254,12 +254,12 @@
 <div class="section level3">
 <h3 id="multi-step-crosswalks">Multi-Step Crosswalks<a class="anchor" aria-label="anchor" href="#multi-step-crosswalks"></a>
 </h3>
-<p>For some source year/geography -&gt; target year/geography combinations, there is not a single direct crosswalk. In such cases, we need two crosswalks. The package automatically plans and fetches the required crosswalks:</p>
+<p>For some source year/geography -&gt; target year/geography combinations, there is not a single direct crosswalk. The package automatically plans and fetches the required chain of crosswalks, using a year-first strategy:</p>
 <ol style="list-style-type: decimal">
 <li>
-<strong>Step 1 (NHGIS)</strong>: Change year, keep geography constant</li>
+<strong>NHGIS step(s)</strong>: Change year while keeping geography constant (multiple hops if the temporal span requires it, e.g. 1990→2010→2020)</li>
 <li>
-<strong>Step 2 (Geocorr)</strong>: Change geography at target year</li>
+<strong>Geocorr step</strong>: Change geography at the target year</li>
 </ol>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_crosswalk.html">get_crosswalk</a></span><span class="op">(</span></span>
@@ -272,7 +272,13 @@
 <span></span>
 <span><span class="co"># Two crosswalks are returned</span></span>
 <span><span class="co"># Step 1: 2010 tracts -&gt; 2020 tracts (NHGIS)</span></span>
-<span><span class="co"># Step 2: 2020 tracts -&gt; 2020 ZCTAs (Geocorr)</span></span></code></pre></div>
+<span><span class="co"># Step 2: 2020 tracts -&gt; 2020 ZCTAs (Geocorr)</span></span>
+<span></span>
+<span><span class="co"># Longer chains are produced when needed, e.g.</span></span>
+<span><span class="co"># 2000 tracts -&gt; 2020 ZCTAs produces three steps:</span></span>
+<span><span class="co"># Step 1: 2000 tracts -&gt; 2010 tracts (NHGIS)</span></span>
+<span><span class="co"># Step 2: 2010 tracts -&gt; 2020 tracts (NHGIS)</span></span>
+<span><span class="co"># Step 3: 2020 tracts -&gt; 2020 ZCTAs (Geocorr)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="crosswalk-structure">Crosswalk Structure<a class="anchor" aria-label="anchor" href="#crosswalk-structure"></a>
