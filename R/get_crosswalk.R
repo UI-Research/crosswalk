@@ -262,6 +262,21 @@ get_crosswalk_single <- function(
       geocorr_version = geocorr_version)
   }
 
+  # If the internal function returned an empty tibble (e.g., failed download),
+  # return early with a warning
+
+  if (ncol(result) == 0 || nrow(result) == 0) {
+    warning(
+      "No crosswalk data was returned for ",
+      source_geography, " ", source_year, " -> ",
+      target_geography, " ", target_year,
+      ". The download may have failed. Check your IPUMS_API_KEY and network connection.")
+    return(list(
+      crosswalks = list(step_1 = tibble::tibble()),
+      plan = NULL,
+      message = "Crosswalk retrieval failed. No data returned."))
+  }
+
   # Retrieve metadata from internal function (if present)
   internal_metadata <- attr(result, "crosswalk_metadata")
 

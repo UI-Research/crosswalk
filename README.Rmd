@@ -22,11 +22,12 @@ devtools::load_all()
 
 ## Overview
 
-This package provides a consistent API and standardized versions of crosswalks to enable consistent approaches 
-that work across different geography and year combinations. The package also facilitates
-interpolation--that is, adjusting source geography/year values by their crosswalk weights and translating
-these values to the desired target geography/year--including diagnostics of the joins between source data
-and crosswalks.
+This package provides a simple API and standardized versions of crosswalks to enable consistent, programmatic 
+approaches that work across different geography and year combinations. 
+
+The package also facilitates interpolation--that is, adjusting source geography/year values by their crosswalk 
+weights and translating these values to the desired target geography/year--including diagnostics of the joins 
+between source data and crosswalks.
 
 The package sources crosswalks from:
 
@@ -43,14 +44,14 @@ The package sources crosswalks from:
 
 ## Installation
 
-```{r, eval = FALSE}
+```
 # Install from GitHub
 renv::install("UI-Research/crosswalk")
 ```
 
 ## Quick Start
 
-First we obtain a crosswalk and apply it to our data:
+We obtain a crosswalk and apply it to our data:
 ```{r}
 library(crosswalk)
 library(dplyr)
@@ -177,8 +178,8 @@ The list contains three elements:
 | `plan`       | Details about what crosswalks are being fetched              |
 | `message`    | A description of the crosswalk chain          |
 
-### Multi-Step Crosswalks
 
+### Multi-Step Crosswalks
 For some source year/geography -> target year/geography combinations, there is not a single direct crosswalk.
 In such cases, we need two crosswalks. The package automatically plans and fetches the required crosswalks:
 
@@ -230,18 +231,6 @@ you can omit a call to `get_crosswalk()` and specify the needed crosswalk parame
 to `crosswalk_data()`, which will pass these to `get_crosswalk()` behind the scenes. Or you
 can call `get_crosswalk()` explicitly and then pass the result to `crosswalk_data()`.
 
-### Column Naming Convention
-
-The function auto-detects columns based on prefixes:
-
-| Prefix | Treatment |
-|-------------------------------|-----------------------------------------|
-| `count_` | Summed after weighting (for counts like population, housing units) |
-| `mean_`, `median_`, `percent_`, `ratio_` | Weighted mean (for rates, percentages, averages) |
-
-You can also specify columns explicitly via `count_columns` and `non_count_columns`. 
-All non-count variables are interpolated using weighted means, weighting by the allocation factor from the crosswalk.
-
 ## Supported Geography and Year Combinations
 
 `get_available_crosswalks()` returns a listing of all supported year-geography combinations.
@@ -274,7 +263,6 @@ result <- get_crosswalk(
 
 
 ## Citations
-
 Cite the organizations that produce the crosswalks returned by this package:
 
 **For NHGIS**, see requirements at: https://www.nhgis.org/citation-and-use-nhgis-data
@@ -283,8 +271,8 @@ Cite the organizations that produce the crosswalks returned by this package:
 
 > Missouri Census Data Center, University of Missouri. (2022/2018). Geocorr 2022/2018: Geographic Correspondence Engine. Retrieved from: https://mcdc.missouri.edu/applications/geocorr2022/2018.html
 
-**For CTData**, a suggested citation (adjust for alternate source geography):
+-   **For CT Data Collaborative**, a suggested citation (adjust for alternate source geography):
 
-> CT Data Collaborative. (2023). 2022 Census Tract Crosswalk. Retrieved from: https://github.com/CT-Data-Collaborative/2022-tract-crosswalk. 
+*CT Data Collaborative. (2023). 2022 Census Tract Crosswalk. Retrieved from: https://github.com/CT-Data-Collaborative/2022-tract-crosswalk.*
 
-**For this package**, refer here: https://ui-research.github.io/crosswalk/authors.html#citation
+-   **For this package:** https://ui-research.github.io/crosswalk/authors.html#citation
