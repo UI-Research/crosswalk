@@ -48,7 +48,11 @@
 #'    about join quality, including the number of data rows not matching the crosswalk
 #'    and vice versa. For state-nested geographies (tract, county, block group, etc.),
 #'    also reports state-level concentration of unmatched rows. Set to FALSE to
-#'    suppress these messages.
+#'    suppress these messages. Automatically suppressed when `silent = TRUE`.
+#' @param silent Logical. If `TRUE`, suppresses all informational messages and
+#'    warnings, including join quality diagnostics regardless of `show_join_quality`.
+#'    Defaults to `getOption("crosswalk.silent", FALSE)`. Set
+#'    `options(crosswalk.silent = TRUE)` to silence all calls by default.
 #'
 #' @return If `return_intermediate = FALSE` (default), a tibble with data summarized
 #'    to the final target geography.
@@ -162,7 +166,14 @@ crosswalk_data <- function(
     count_columns = NULL,
     non_count_columns = NULL,
     return_intermediate = FALSE,
-    show_join_quality = TRUE) {
+    show_join_quality = TRUE,
+    silent = getOption("crosswalk.silent", FALSE)) {
+
+  old_opts <- options(crosswalk.silent = silent)
+  on.exit(options(old_opts), add = TRUE)
+
+  # When silent, suppress join quality regardless of show_join_quality
+  if (silent) show_join_quality <- FALSE
 
   # Determine if we need to fetch the crosswalk
   crosswalk_provided <- !is.null(crosswalk)
@@ -175,14 +186,15 @@ crosswalk_data <- function(
   }
 
   if (crosswalk_provided && geography_provided) {
-    warning(
+    cw_warning(
       "Both 'crosswalk' and geography parameters provided. ",
-      "Using the provided 'crosswalk' and ignoring geography parameters.")
+      "Using the provided 'crosswalk' and ignoring geography parameters.",
+      call. = FALSE)
   }
 
   # Fetch crosswalk if not provided
   if (!crosswalk_provided) {
-    message("Fetching crosswalk from ", source_geography, " to ", target_geography, "...")
+    cw_message("Fetching crosswalk from ", source_geography, " to ", target_geography, "...")
     crosswalk <- get_crosswalk(
       source_geography = source_geography,
       target_geography = target_geography,
@@ -240,7 +252,7 @@ crosswalk_data <- function(
     step_name <- names(crosswalk_list)[i]
     step_crosswalk <- crosswalk_list[[i]]
 
-    message(stringr::str_c("Applying crosswalk step ", i, " of ", n_steps, "..."))
+    cw_message(stringr::str_c("Applying crosswalk step ", i, " of ", n_steps, "..."))
 
     # Apply single crosswalk step
     current_data <- apply_single_crosswalk(
@@ -364,9 +376,9 @@ is_state_nested_geography <- function(geography) {
     "block group", "blockgroup", "bg",
     "tract", "tracts", "tr",
     "county", "counties", "co",
-    "place", "places", "pl",
-    "puma", "pumas", "puma22",
-    "cd118", "cd119", "congressional district"
+    "place", "places", "pl", "placefp",
+    "puma", "pumas", "puma22", "puma12",
+    "cd115", "cd116", "cd118", "cd119", "congressional district"
   )
 
   geography_lower %in% state_nested
@@ -460,7 +472,7 @@ format_join_quality_message <- function(join_quality, step_number, total_steps) 
       format(join_quality$n_data_unmatched, big.mark = ","),
       " of ",
       format(join_quality$n_data_total, big.mark = ","),
-      " data rows (",
+      " unique data GEOIDs (",
       sprintf("%.1f%%", join_quality$pct_data_unmatched),
       ") did not match the crosswalk."
     )
@@ -614,7 +626,7 @@ report_join_quality <- function(data, crosswalk, geoid_column, step_number = 1,
   # Print messages if there are issues
   messages <- format_join_quality_message(join_quality, step_number, total_steps)
   if (length(messages) > 0) {
-    purrr::walk(messages, message)
+    purrr::walk(messages, cw_message)
   }
 
   return(join_quality)
@@ -648,9 +660,10 @@ apply_single_crosswalk <- function(
 
   # Check if crosswalk is empty
   if (nrow(crosswalk) == 0) {
-    warning(
+    cw_warning(
       "Crosswalk is empty. If source geography is nested within target geography, ",
-      "consider aggregating your data directly instead.")
+      "consider aggregating your data directly instead.",
+      call. = FALSE)
     return(tibble::tibble())
   }
 
@@ -696,7 +709,9 @@ apply_single_crosswalk <- function(
                       "source_geography_name", "target_geography_name",
                       "geography_name", "geoid",
                       "weighting_factor", "source_year", "target_year",
-                      "population_2020", "housing_2020", "land_area_sqmi")
+                      "population_2020", "housing_2020",
+                      "population_2010", "housing_2010",
+                      "land_area_sqmi")
   other_cols <- setdiff(
     names(data),
     c(geoid_column, current_count_cols, current_non_count_cols, crosswalk_cols)

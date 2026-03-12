@@ -428,10 +428,13 @@ is_nhgis_crosswalk_available <- function(
     source_geography,
     target_geography,
     source_year,
-    target_year) {
+    target_year,
+    available_crosswalks = NULL) {
 
-  # Get the list of available crosswalks
-  available_crosswalks <- list_nhgis_crosswalks()
+  # Get the list of available crosswalks if not provided
+  if (is.null(available_crosswalks)) {
+    available_crosswalks <- list_nhgis_crosswalks()
+  }
 
   # Standardize inputs for matching
   source_year_chr <- as.character(source_year)
@@ -474,10 +477,11 @@ standardize_geography_for_nhgis_check <- function(geography) {
     geography %in% c("tr", "tract", "tracts", "census tract") ~ "tract",
     geography %in% c("co", "county", "counties", "cnty") ~ "county",
     geography %in% c("pl", "place", "places") ~ "place",
-    geography %in% c("zcta", "zctas", "zip code", "zip code tabulation area") ~ "zcta",
-    geography %in% c("puma", "pumas", "puma22", "public use microdata area") ~ "puma",
+    geography %in% c("zcta", "zctas", "zcta5", "zip code", "zip code tabulation area") ~ "zcta",
+    geography %in% c("puma", "pumas", "puma22", "puma12", "public use microdata area") ~ "puma",
     geography %in% c("cbsa", "core based statistical area") ~ "core_based_statistical_area",
     geography %in% c("ua", "urban area", "urban areas") ~ "urban_area",
+    geography %in% c("placefp") ~ "place",
     TRUE ~ geography)
 }
 
@@ -549,10 +553,10 @@ get_nhgis_crosswalk <- function(
   if (file.exists(csv_path) & !is.null(cache)) {
     result = readr::read_csv(csv_path, show_col_types = FALSE)
 
-    message(
+    cw_message(
 "Use of NHGIS crosswalks is subject to the same conditions as for all NHGIS data.
 See https://www.nhgis.org/citation-and-use-nhgis-data.")
-    message("Reading file from cache.")
+    cw_message("Reading file from cache.")
 
     # Attach metadata to cached result
     attr(result, "crosswalk_metadata") <- list(
@@ -733,19 +737,19 @@ variable. Get your key at https://account.ipums.org/api_keys") }
     zip_contents = safe_unzip_list(zip_path)
 
     if (is.null(zip_contents) || nrow(zip_contents) == 0) {
-      warning(
+      cw_warning(
         "The downloaded zip file for crosswalk ", crosswalk_sub_path,
         " is empty or cannot be opened. This crosswalk may not be available from NHGIS. ",
-        "Returning an empty tibble.")
+        "Returning an empty tibble.", call. = FALSE)
       return(tibble::tibble())
     }
 
     # Extract the outer zip to temp directory
     extract_success = safe_unzip_extract(zip_path, temp_dir)
     if (!extract_success) {
-      warning(
+      cw_warning(
         "Failed to extract the downloaded zip file for crosswalk ", crosswalk_sub_path,
-        ". The file may be corrupted. Returning an empty tibble.")
+        ". The file may be corrupted. Returning an empty tibble.", call. = FALSE)
       return(tibble::tibble())
     }
 
@@ -761,9 +765,9 @@ variable. Get your key at https://account.ipums.org/api_keys") }
       nested_zips = all_files[stringr::str_detect(all_files, "\\.zip$")]
 
       if (length(nested_zips) == 0) {
-        warning(
+        cw_warning(
           "No CSV or nested zip file found in the downloaded archive for ",
-          crosswalk_sub_path, ". Returning an empty tibble.")
+          crosswalk_sub_path, ". Returning an empty tibble.", call. = FALSE)
         return(tibble::tibble())
       }
 
@@ -772,19 +776,19 @@ variable. Get your key at https://account.ipums.org/api_keys") }
       nested_contents = safe_unzip_list(nested_zip)
 
       if (is.null(nested_contents) || nrow(nested_contents) == 0) {
-        warning(
+        cw_warning(
           "The nested zip file for crosswalk ", crosswalk_sub_path,
           " is empty or cannot be opened. This crosswalk may not be available from NHGIS. ",
-          "Returning an empty tibble.")
+          "Returning an empty tibble.", call. = FALSE)
         return(tibble::tibble())
       }
 
       # Extract the nested zip
       nested_extract_success = safe_unzip_extract(nested_zip, temp_dir)
       if (!nested_extract_success) {
-        warning(
+        cw_warning(
           "Failed to extract the nested zip file for crosswalk ", crosswalk_sub_path,
-          ". The file may be corrupted. Returning an empty tibble.")
+          ". The file may be corrupted. Returning an empty tibble.", call. = FALSE)
         return(tibble::tibble())
       }
 
@@ -794,9 +798,9 @@ variable. Get your key at https://account.ipums.org/api_keys") }
     }
 
     if (length(csv_files) == 0) {
-      warning(
+      cw_warning(
         "No CSV file found after extracting zip archive(s) for ", crosswalk_sub_path,
-        ". Returning an empty tibble.")
+        ". Returning an empty tibble.", call. = FALSE)
       return(tibble::tibble())
     }
 
@@ -809,8 +813,8 @@ variable. Get your key at https://account.ipums.org/api_keys") }
     crosswalk_df
   },
     error = function(e) {
-      warning("Failed to retrieve crosswalk ", crosswalk_sub_path, ": ", e$message,
-              ". Returning an empty tibble.")
+      cw_warning("Failed to retrieve crosswalk ", crosswalk_sub_path, ": ", e$message,
+              ". Returning an empty tibble.", call. = FALSE)
       return(tibble::tibble())
     })
 
@@ -868,7 +872,7 @@ variable. Get your key at https://account.ipums.org/api_keys") }
       readr::write_csv(crosswalk_df, csv_path)
     }
 
-message(
+cw_message(
 "Use of NHGIS crosswalks is subject to the same conditions as for all NHGIS data.
 See https://www.nhgis.org/citation-and-use-nhgis-data.")
 

@@ -1,4 +1,6 @@
 url: https://ui-research.github.io/crosswalk/
 template:
   bootstrap: 5
-
+home:
+  sidebar:
+    structure: [toc, links, license, community, citation, authors, dev]
