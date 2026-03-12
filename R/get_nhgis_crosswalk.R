@@ -523,8 +523,7 @@ get_nhgis_crosswalk <- function(
     source_geography,
     target_year,
     target_geography,
-    cache = NULL,
-    api_key = NULL) {
+    cache = NULL) {
 
   if (is.null(cache)) { cache_path = tempdir() } else {cache_path = cache}
 
@@ -715,6 +714,20 @@ variable. Get your key at https://account.ipums.org/api_keys") }
       crosswalk_path,
       httr::add_headers(Authorization = api_key),
       httr::write_disk(zip_path, overwrite = TRUE), overwrite = TRUE)
+
+    # Check HTTP response status
+    status_code = httr::status_code(response)
+    if (status_code == 401 || status_code == 403) {
+      stop(
+        "NHGIS API returned HTTP ", status_code, " (authentication failed). ",
+        "Your IPUMS_API_KEY may be invalid or expired. ",
+        "Check your key at https://account.ipums.org/api_keys")
+    }
+    if (status_code != 200) {
+      stop(
+        "NHGIS API returned HTTP ", status_code, " for crosswalk ", crosswalk_sub_path, ". ",
+        "This crosswalk may not be available from NHGIS.")
+    }
 
     # Check what's in the zip before extracting
     zip_contents = safe_unzip_list(zip_path)

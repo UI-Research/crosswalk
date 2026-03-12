@@ -709,8 +709,7 @@ apply_single_crosswalk <- function(
       dplyr::across(dplyr::all_of(geoid_column), as.character)) |>
     dplyr::left_join(
       crosswalk,
-      by = stats::setNames("source_geoid", geoid_column),
-      relationship = "one-to-many") |>
+      by = stats::setNames("source_geoid", geoid_column)) |>
     tidytable::summarize(
       .by = dplyr::all_of(group_cols),
       ## count variables we take the sum of the weighted count variable
