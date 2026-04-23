@@ -57,7 +57,8 @@
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p>This package provides a consistent API and standardized versions of crosswalks to enable consistent approaches that work across different geography and year combinations. The package also facilitates interpolation–that is, adjusting source geography/year values by their crosswalk weights and translating these values to the desired target geography/year–including diagnostics of the joins between source data and crosswalks.</p>
+<p>This package provides a simple API and standardized versions of crosswalks to enable consistent, programmatic approaches that work across different geography and year combinations.</p>
+<p>The package also facilitates interpolation–that is, adjusting source geography/year values by their crosswalk weights and translating these values to the desired target geography/year–including diagnostics of the joins between source data and crosswalks.</p>
 <p>The package sources crosswalks from:</p>
 <ul>
 <li>
@@ -85,14 +86,13 @@
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Install from GitHub</span></span>
-<span><span class="fu">renv</span><span class="fu">::</span><span class="fu"><a href="https://rstudio.github.io/renv/reference/install.html" class="external-link">install</a></span><span class="op">(</span><span class="st">"UI-Research/crosswalk"</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co"># Install from GitHub</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>renv<span class="sc">::</span><span class="fu">install</span>(<span class="st">"UI-Research/crosswalk"</span>)</span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="quick-start">Quick Start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
 </h2>
-<p>First we obtain a crosswalk and apply it to our data:</p>
+<p>We obtain a crosswalk and apply it to our data:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ui-research.github.io/crosswalk/">crosswalk</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
@@ -199,7 +199,7 @@
 <span>      subtitle <span class="op">=</span> <span class="st">"Block group-level source data would produce more accurate crosswalked values"</span>,</span>
 <span>      y <span class="op">=</span> <span class="st">""</span>,</span>
 <span>      x <span class="op">=</span> <span class="st">"Percent difference between observed and crosswalked values"</span><span class="op">)</span></span></code></pre></div>
-<p><img src="reference/figures/README-unnamed-chunk-6-1.png" alt="" width="100%"></p>
+<p><img src="reference/figures/README-unnamed-chunk-5-1.png" alt="" width="100%"></p>
 </div>
 <div class="section level2">
 <h2 id="core-functions">Core Functions<a class="anchor" aria-label="anchor" href="#core-functions"></a>
@@ -254,12 +254,12 @@
 <div class="section level3">
 <h3 id="multi-step-crosswalks">Multi-Step Crosswalks<a class="anchor" aria-label="anchor" href="#multi-step-crosswalks"></a>
 </h3>
-<p>For some source year/geography -&gt; target year/geography combinations, there is not a single direct crosswalk. The package automatically plans and fetches the required chain of crosswalks, using a year-first strategy:</p>
+<p>For some source year/geography -&gt; target year/geography combinations, there is not a single direct crosswalk. In such cases, we need two crosswalks. The package automatically plans and fetches the required crosswalks:</p>
 <ol style="list-style-type: decimal">
 <li>
-<strong>NHGIS step(s)</strong>: Change year while keeping geography constant (multiple hops if the temporal span requires it, e.g. 1990→2010→2020)</li>
+<strong>Step 1 (NHGIS)</strong>: Change year, keep geography constant</li>
 <li>
-<strong>Geocorr step</strong>: Change geography at the target year</li>
+<strong>Step 2 (Geocorr)</strong>: Change geography at target year</li>
 </ol>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/get_crosswalk.html">get_crosswalk</a></span><span class="op">(</span></span>
@@ -272,13 +272,7 @@
 <span></span>
 <span><span class="co"># Two crosswalks are returned</span></span>
 <span><span class="co"># Step 1: 2010 tracts -&gt; 2020 tracts (NHGIS)</span></span>
-<span><span class="co"># Step 2: 2020 tracts -&gt; 2020 ZCTAs (Geocorr)</span></span>
-<span></span>
-<span><span class="co"># Longer chains are produced when needed, e.g.</span></span>
-<span><span class="co"># 2000 tracts -&gt; 2020 ZCTAs produces three steps:</span></span>
-<span><span class="co"># Step 1: 2000 tracts -&gt; 2010 tracts (NHGIS)</span></span>
-<span><span class="co"># Step 2: 2010 tracts -&gt; 2020 tracts (NHGIS)</span></span>
-<span><span class="co"># Step 3: 2020 tracts -&gt; 2020 ZCTAs (Geocorr)</span></span></code></pre></div>
+<span><span class="co"># Step 2: 2020 tracts -&gt; 2020 ZCTAs (Geocorr)</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="crosswalk-structure">Crosswalk Structure<a class="anchor" aria-label="anchor" href="#crosswalk-structure"></a>
@@ -327,34 +321,6 @@
 <h2 id="interpolation">Interpolation<a class="anchor" aria-label="anchor" href="#interpolation"></a>
 </h2>
 <p><code><a href="reference/crosswalk_data.html">crosswalk_data()</a></code> applies crosswalk weights to transform your data. If you’re in a hurry, you can omit a call to <code><a href="reference/get_crosswalk.html">get_crosswalk()</a></code> and specify the needed crosswalk parameters to <code><a href="reference/crosswalk_data.html">crosswalk_data()</a></code>, which will pass these to <code><a href="reference/get_crosswalk.html">get_crosswalk()</a></code> behind the scenes. Or you can call <code><a href="reference/get_crosswalk.html">get_crosswalk()</a></code> explicitly and then pass the result to <code><a href="reference/crosswalk_data.html">crosswalk_data()</a></code>.</p>
-<div class="section level3">
-<h3 id="column-naming-convention">Column Naming Convention<a class="anchor" aria-label="anchor" href="#column-naming-convention"></a>
-</h3>
-<p>The function auto-detects columns based on prefixes:</p>
-<table class="table">
-<colgroup>
-<col width="50%">
-<col width="50%">
-</colgroup>
-<thead><tr class="header">
-<th>Prefix</th>
-<th>Treatment</th>
-</tr></thead>
-<tbody>
-<tr class="odd">
-<td><code>count_</code></td>
-<td>Summed after weighting (for counts like population, housing units)</td>
-</tr>
-<tr class="even">
-<td>
-<code>mean_</code>, <code>median_</code>, <code>percent_</code>, <code>ratio_</code>
-</td>
-<td>Weighted mean (for rates, percentages, averages)</td>
-</tr>
-</tbody>
-</table>
-<p>You can also specify columns explicitly via <code>count_columns</code> and <code>non_count_columns</code>. All non-count variables are interpolated using weighted means, weighting by the allocation factor from the crosswalk.</p>
-</div>
 </div>
 <div class="section level2">
 <h2 id="supported-geography-and-year-combinations">Supported Geography and Year Combinations<a class="anchor" aria-label="anchor" href="#supported-geography-and-year-combinations"></a>
@@ -366,12 +332,12 @@
 <span><span class="co">#&gt; # A tibble: 6 × 4</span></span>
 <span><span class="co">#&gt;   source_geography target_geography source_year target_year</span></span>
 <span><span class="co">#&gt;   &lt;chr&gt;            &lt;chr&gt;                  &lt;int&gt;       &lt;int&gt;</span></span>
-<span><span class="co">#&gt; 1 block            block                   1990        2010</span></span>
-<span><span class="co">#&gt; 2 block            block                   2000        2010</span></span>
-<span><span class="co">#&gt; 3 block            block                   2010        2020</span></span>
-<span><span class="co">#&gt; 4 block            block                   2020        2010</span></span>
-<span><span class="co">#&gt; 5 block            block                   2020        2022</span></span>
-<span><span class="co">#&gt; 6 block            block                   2022        2020</span></span></code></pre></div>
+<span><span class="co">#&gt; 1 block            aiannh                  2022        2022</span></span>
+<span><span class="co">#&gt; 2 block            block                   1990        2010</span></span>
+<span><span class="co">#&gt; 3 block            block                   2000        2010</span></span>
+<span><span class="co">#&gt; 4 block            block                   2010        2020</span></span>
+<span><span class="co">#&gt; 5 block            block                   2020        2010</span></span>
+<span><span class="co">#&gt; 6 block            block                   2020        2022</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="api-keys">API Keys<a class="anchor" aria-label="anchor" href="#api-keys"></a>
@@ -401,11 +367,21 @@
 <blockquote>
 <p>Missouri Census Data Center, University of Missouri. (2022/2018). Geocorr 2022/2018: Geographic Correspondence Engine. Retrieved from: <a href="https://mcdc.missouri.edu/applications/geocorr2022/2018.html" class="external-link uri">https://mcdc.missouri.edu/applications/geocorr2022/2018.html</a></p>
 </blockquote>
-<p><strong>For CTData</strong>, a suggested citation (adjust for alternate source geography):</p>
-<blockquote>
-<p>CT Data Collaborative. (2023). 2022 Census Tract Crosswalk. Retrieved from: <a href="https://github.com/CT-Data-Collaborative/2022-tract-crosswalk" class="external-link uri">https://github.com/CT-Data-Collaborative/2022-tract-crosswalk</a>.</p>
-</blockquote>
-<p><strong>For this package</strong>, refer here: <a href="https://ui-research.github.io/crosswalk/authors.html#citation" class="uri">https://ui-research.github.io/crosswalk/authors.html#citation</a></p>
+<ul>
+<li>
+<strong>For CT Data Collaborative</strong>, a suggested citation (adjust for alternate source geography):</li>
+</ul>
+<p><em>CT Data Collaborative. (2023). 2022 Census Tract Crosswalk. Retrieved from: <a href="https://github.com/CT-Data-Collaborative/2022-tract-crosswalk" class="external-link uri">https://github.com/CT-Data-Collaborative/2022-tract-crosswalk</a>.</em></p>
+<ul>
+<li>
+<strong>For this package:</strong> <a href="https://ui-research.github.io/crosswalk/authors.html#citation" class="uri">https://ui-research.github.io/crosswalk/authors.html#citation</a>
+</li>
+</ul>
+</div>
+<div class="section level2">
+<h2 id="ai-use">AI Use<a class="anchor" aria-label="anchor" href="#ai-use"></a>
+</h2>
+<p>This package was written in part with the use of agentic AI tools under the supervision of the author.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="table-of-contents">
