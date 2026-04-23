@@ -1,8 +1,8 @@
 Package: crosswalk
 Type: Package
-Title: streamlining inter-temporal and inter-geography crosswalking 
+Title: Translate data across space and time
 Version: 0.0.0.9001
-Description: An R package providing a simple interface to access and apply crosswalks.
+Description: A unified, reproducible interface to access crosswalks and interpolate data.
 License: MIT + file LICENSE
 Authors@R: 
     person(given = "Will", family = "Curran-Groome", email = "wcurrangroome@urban.org", role = c("aut", "cre"))
