@@ -22,6 +22,7 @@ crosswalk_data(
   geoid_column = "source_geoid",
   count_columns = NULL,
   non_count_columns = NULL,
+  custom_interpolations = NULL,
   return_intermediate = FALSE,
   show_join_quality = TRUE,
   silent = getOption("crosswalk.silent", FALSE)
@@ -107,6 +108,27 @@ crosswalk_data(
   weighted means using the allocation factor as weights. If NULL
   (default), automatically detects columns with prefixes "mean\_",
   "median\_", "percent\_", or "ratio\_".
+
+- custom_interpolations:
+
+  A list of lists, each specifying a group of columns and a custom
+  interpolation function. Each element must have:
+
+  columns
+
+  :   Character vector of column names
+
+  fn
+
+  :   A function or formula for interpolation. Receives two arguments:
+      `.x` (column values) and `.w` (allocation factors). Formulas using
+      `~` syntax (e.g., `~sum(.x * .w, na.rm = TRUE)`) are converted to
+      functions via
+      [`rlang::as_function()`](https://rlang.r-lib.org/reference/as_function.html).
+
+  Columns in `custom_interpolations` must not overlap with
+  `count_columns` or `non_count_columns`. Default is NULL (no custom
+  interpolations).
 
 - return_intermediate:
 
@@ -247,5 +269,20 @@ result <- crosswalk_data(
 # Access intermediate and final
 result$intermediate$step_1  # After first crosswalk
 result$final                # Final result
+
+# Custom interpolation functions
+result <- crosswalk_data(
+  data = my_data,
+  crosswalk = crosswalk,
+  custom_interpolations = list(
+    list(
+      columns = c("count_population", "count_housing"),
+      fn = ~sum(.x * .w, na.rm = TRUE)
+    ),
+    list(
+      columns = c("pct_poverty"),
+      fn = ~weighted.mean(.x, .w, na.rm = TRUE)
+    )
+  ))
 } # }
 ```

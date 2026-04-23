@@ -66,14 +66,17 @@ structure containing one or more crosswalk tibbles.</p>
 <dd><p>Character. Source geography name. One of c("block",
 "block group", "tract", "place", "county", "urban_area", "zcta", "puma",
 "puma12", "puma22", "cd115", "cd116", "cd118", "cd119", "urban_area",
-"core_based_statistical_area").</p></dd>
+"core_based_statistical_area"). Note: "aiannh" (tribal areas) is currently
+supported as a <strong>target</strong> geography only, not as a source.</p></dd>
 
 
 <dt id="arg-target-geography">target_geography<a class="anchor" aria-label="anchor" href="#arg-target-geography"></a></dt>
 <dd><p>Character. Target geography name. One of c("block",
 "block group", "tract", "place", "county", "urban_area", "zcta", "puma",
 "puma12", "puma22", "cd115", "cd116", "cd118", "cd119", "urban_area",
-"core_based_statistical_area").</p></dd>
+"core_based_statistical_area", "aiannh"). Tribal areas ("aiannh", American
+Indian / Alaska Native / Native Hawaiian areas) are available via
+GeoCorr 2022 only (target_year &gt;= 2020).</p></dd>
 
 
 <dt id="arg-source-year">source_year<a class="anchor" aria-label="anchor" href="#arg-source-year"></a></dt>

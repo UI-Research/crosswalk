@@ -26,14 +26,17 @@ get_crosswalk(
   Character. Source geography name. One of c("block", "block group",
   "tract", "place", "county", "urban_area", "zcta", "puma", "puma12",
   "puma22", "cd115", "cd116", "cd118", "cd119", "urban_area",
-  "core_based_statistical_area").
+  "core_based_statistical_area"). Note: "aiannh" (tribal areas) is
+  currently supported as a **target** geography only, not as a source.
 
 - target_geography:
 
   Character. Target geography name. One of c("block", "block group",
   "tract", "place", "county", "urban_area", "zcta", "puma", "puma12",
   "puma22", "cd115", "cd116", "cd118", "cd119", "urban_area",
-  "core_based_statistical_area").
+  "core_based_statistical_area", "aiannh"). Tribal areas ("aiannh",
+  American Indian / Alaska Native / Native Hawaiian areas) are available
+  via GeoCorr 2022 only (target_year \>= 2020).
 
 - source_year:
 
