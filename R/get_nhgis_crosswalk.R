@@ -864,6 +864,20 @@ variable. Get your key at https://account.ipums.org/api_keys") }
       names_to = "weighting_factor",
       values_to = "allocation_factor_source_to_target")
 
+  # Pad 1990 tract GEOIDs to standard 11 chars. The 1990 Census used 4-digit
+  # tract codes (without the ".00" decimal suffix), producing 9-char GEOIDs in
+  # NHGIS data (state=2 + county=3 + tract=4). Standard Census format uses
+  # 6-digit tract codes (tract=4 + suffix=2), so we right-pad with "0" to
+  # restore the implicit ".00" suffix.
+  if (source_geography_standardized == "tr") {
+    crosswalk_df <- crosswalk_df |>
+      dplyr::mutate(source_geoid = stringr::str_pad(source_geoid, 11, "right", "0"))
+  }
+  if (target_geography_standardized == "tr") {
+    crosswalk_df <- crosswalk_df |>
+      dplyr::mutate(target_geoid = stringr::str_pad(target_geoid, 11, "right", "0"))
+  }
+
     ## if the file does not already exist and cache is not NULL
     if (!file.exists(csv_path) & !is.null(cache)) {
       if (!dir.exists(cache)) {

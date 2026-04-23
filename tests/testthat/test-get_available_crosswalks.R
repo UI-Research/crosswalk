@@ -109,3 +109,49 @@ test_that("get_available_crosswalks contains CTData rows", {
 
   expect_equal(nrow(ctdata_match), 1)
 })
+
+# ==============================================================================
+# Content tests - aiannh (tribal area) rows
+# ==============================================================================
+
+test_that("get_available_crosswalks contains aiannh as target from GeoCorr 2022 sources", {
+  result <- get_available_crosswalks()
+
+  # tract -> aiannh (2022)
+  tract_aiannh <- result |>
+    dplyr::filter(
+      source_geography == "tract",
+      target_geography == "aiannh",
+      source_year == 2022L,
+      target_year == 2022L)
+  expect_equal(nrow(tract_aiannh), 1)
+
+  # county -> aiannh (2022)
+  county_aiannh <- result |>
+    dplyr::filter(
+      source_geography == "county",
+      target_geography == "aiannh",
+      source_year == 2022L,
+      target_year == 2022L)
+  expect_equal(nrow(county_aiannh), 1)
+})
+
+test_that("get_available_crosswalks does NOT list aiannh as a source geography", {
+  result <- get_available_crosswalks()
+
+  aiannh_sources <- result |>
+    dplyr::filter(source_geography == "aiannh")
+
+  expect_equal(nrow(aiannh_sources), 0)
+})
+
+test_that("get_available_crosswalks does NOT list aiannh under GeoCorr 2018", {
+  result <- get_available_crosswalks()
+
+  aiannh_2018 <- result |>
+    dplyr::filter(
+      target_geography == "aiannh",
+      target_year == 2018L)
+
+  expect_equal(nrow(aiannh_2018), 0)
+})

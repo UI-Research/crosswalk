@@ -56,6 +56,28 @@ plan_crosswalk_chain <- function(
   source_geog_std <- standardize_geography_for_chain(source_geography)
   target_geog_std <- standardize_geography_for_chain(target_geography)
 
+  # Tribal areas (aiannh) are target-only in the current implementation.
+  if (isTRUE(source_geog_std == "aiannh")) {
+    result$error <- stringr::str_c(
+      "Tribal areas ('aiannh') are currently supported as a target geography ",
+      "only, not as a source. Please specify 'aiannh' via `target_geography`.")
+    return(result)
+  }
+
+  # Tribal areas are only available via GeoCorr 2022 (2020 Census geography).
+  # Reject requests that would route to GeoCorr 2018 (target_year 2010-2019).
+  if (isTRUE(target_geog_std == "aiannh") && !is.null(target_year)) {
+    target_year_num <- suppressWarnings(as.numeric(target_year))
+    if (!is.na(target_year_num) && target_year_num < 2020) {
+      result$error <- stringr::str_c(
+        "Tribal area ('aiannh') crosswalks are only available via GeoCorr 2022 ",
+        "(2020 Census geography). The requested target_year ", target_year,
+        " would route to GeoCorr 2018, which does not support aiannh. ",
+        "Use target_year >= 2020.")
+      return(result)
+    }
+  }
+
 
   # Convert years to character for consistent handling
   # Use NA_character_ instead of NULL for tibble compatibility
@@ -326,6 +348,8 @@ standardize_geography_for_chain <- function(geography) {
     geography %in% c("cbsa", "core based statistical area") ~ "cbsa",
     geography %in% c("ua", "urban area", "urban areas") ~ "urban_area",
     geography %in% c("cd115", "cd116", "cd118", "cd119", "congressional district") ~ geography,
+    geography %in% c("aiannh", "tribal", "tribal area", "american indian area",
+                     "reservation", "aian") ~ "aiannh",
     TRUE ~ geography)
 }
 
