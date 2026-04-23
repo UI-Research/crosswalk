@@ -276,3 +276,7 @@ Cite the organizations that produce the crosswalks returned by this package:
 *CT Data Collaborative. (2023). 2022 Census Tract Crosswalk. Retrieved from: https://github.com/CT-Data-Collaborative/2022-tract-crosswalk.*
 
 -   **For this package:** https://ui-research.github.io/crosswalk/authors.html#citation
+
+## AI Use
+
+This package was written in part with the use of agentic AI tools under the supervision of the author.

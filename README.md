@@ -5,13 +5,14 @@ An R package for translating data across space and time.
 
 ## Overview
 
-This package provides a consistent API and standardized versions of
-crosswalks to enable consistent approaches that work across different
-geography and year combinations. The package also facilitates
-interpolation–that is, adjusting source geography/year values by their
-crosswalk weights and translating these values to the desired target
-geography/year–including diagnostics of the joins between source data
-and crosswalks.
+This package provides a simple API and standardized versions of
+crosswalks to enable consistent, programmatic approaches that work
+across different geography and year combinations.
+
+The package also facilitates interpolation–that is, adjusting source
+geography/year values by their crosswalk weights and translating these
+values to the desired target geography/year–including diagnostics of the
+joins between source data and crosswalks.
 
 The package sources crosswalks from:
 
@@ -34,14 +35,12 @@ The package sources crosswalks from:
 
 ## Installation
 
-``` r
-# Install from GitHub
-renv::install("UI-Research/crosswalk")
-```
+    # Install from GitHub
+    renv::install("UI-Research/crosswalk")
 
 ## Quick Start
 
-First we obtain a crosswalk and apply it to our data:
+We obtain a crosswalk and apply it to our data:
 
 ``` r
 library(crosswalk)
@@ -160,7 +159,7 @@ combined_data %>%
       x = "Percent difference between observed and crosswalked values")
 ```
 
-<img src="man/figures/README-unnamed-chunk-6-1.png" alt="" width="100%" />
+<img src="man/figures/README-unnamed-chunk-5-1.png" alt="" width="100%" />
 
 ## Core Functions
 
@@ -188,13 +187,12 @@ The list contains three elements:
 ### Multi-Step Crosswalks
 
 For some source year/geography -\> target year/geography combinations,
-there is not a single direct crosswalk. The package automatically plans
-and fetches the required chain of crosswalks, using a year-first
-strategy:
+there is not a single direct crosswalk. In such cases, we need two
+crosswalks. The package automatically plans and fetches the required
+crosswalks:
 
-1.  **NHGIS step(s)**: Change year while keeping geography constant
-    (multiple hops if the temporal span requires it, e.g. 1990→2010→2020)
-2.  **Geocorr step**: Change geography at the target year
+1.  **Step 1 (NHGIS)**: Change year, keep geography constant
+2.  **Step 2 (Geocorr)**: Change geography at target year
 
 ``` r
 result <- get_crosswalk(
@@ -208,12 +206,6 @@ result <- get_crosswalk(
 # Two crosswalks are returned
 # Step 1: 2010 tracts -> 2020 tracts (NHGIS)
 # Step 2: 2020 tracts -> 2020 ZCTAs (Geocorr)
-
-# Longer chains are produced when needed, e.g.
-# 2000 tracts -> 2020 ZCTAs produces three steps:
-# Step 1: 2000 tracts -> 2010 tracts (NHGIS)
-# Step 2: 2010 tracts -> 2020 tracts (NHGIS)
-# Step 3: 2020 tracts -> 2020 ZCTAs (Geocorr)
 ```
 
 ### Crosswalk Structure
@@ -250,19 +242,6 @@ these to `get_crosswalk()` behind the scenes. Or you can call
 `get_crosswalk()` explicitly and then pass the result to
 `crosswalk_data()`.
 
-### Column Naming Convention
-
-The function auto-detects columns based on prefixes:
-
-| Prefix | Treatment |
-|----|----|
-| `count_` | Summed after weighting (for counts like population, housing units) |
-| `mean_`, `median_`, `percent_`, `ratio_` | Weighted mean (for rates, percentages, averages) |
-
-You can also specify columns explicitly via `count_columns` and
-`non_count_columns`. All non-count variables are interpolated using
-weighted means, weighting by the allocation factor from the crosswalk.
-
 ## Supported Geography and Year Combinations
 
 `get_available_crosswalks()` returns a listing of all supported
@@ -274,12 +253,12 @@ get_available_crosswalks() %>%
 #> # A tibble: 6 × 4
 #>   source_geography target_geography source_year target_year
 #>   <chr>            <chr>                  <int>       <int>
-#> 1 block            block                   1990        2010
-#> 2 block            block                   2000        2010
-#> 3 block            block                   2010        2020
-#> 4 block            block                   2020        2010
-#> 5 block            block                   2020        2022
-#> 6 block            block                   2022        2020
+#> 1 block            aiannh                  2022        2022
+#> 2 block            block                   1990        2010
+#> 3 block            block                   2000        2010
+#> 4 block            block                   2010        2020
+#> 5 block            block                   2020        2010
+#> 6 block            block                   2020        2022
 ```
 
 ## API Keys
@@ -318,11 +297,16 @@ package:
 > Geocorr 2022/2018: Geographic Correspondence Engine. Retrieved from:
 > <https://mcdc.missouri.edu/applications/geocorr2022/2018.html>
 
-**For CTData**, a suggested citation (adjust for alternate source
-geography):
+- **For CT Data Collaborative**, a suggested citation (adjust for
+  alternate source geography):
 
-> CT Data Collaborative. (2023). 2022 Census Tract Crosswalk. Retrieved
-> from: <https://github.com/CT-Data-Collaborative/2022-tract-crosswalk>.
+*CT Data Collaborative. (2023). 2022 Census Tract Crosswalk. Retrieved
+from: <https://github.com/CT-Data-Collaborative/2022-tract-crosswalk>.*
 
-**For this package**, refer here:
-<https://ui-research.github.io/crosswalk/authors.html#citation>
+- **For this package:**
+  <https://ui-research.github.io/crosswalk/authors.html#citation>
+
+## AI Use
+
+This package was written in part with the use of agentic AI tools under
+the supervision of the author.
