@@ -255,6 +255,61 @@ test_that("standardize_geography_for_chain handles 2010-era geography aliases", 
   expect_equal(crosswalk:::standardize_geography_for_chain("cd116"), "cd116")
 })
 
+test_that("standardize_geography_for_chain handles aiannh aliases", {
+  expect_equal(crosswalk:::standardize_geography_for_chain("aiannh"), "aiannh")
+  expect_equal(crosswalk:::standardize_geography_for_chain("tribal"), "aiannh")
+  expect_equal(crosswalk:::standardize_geography_for_chain("tribal area"), "aiannh")
+  expect_equal(crosswalk:::standardize_geography_for_chain("tribal_area"), "aiannh")
+  expect_equal(crosswalk:::standardize_geography_for_chain("american indian area"), "aiannh")
+  expect_equal(crosswalk:::standardize_geography_for_chain("reservation"), "aiannh")
+  expect_equal(crosswalk:::standardize_geography_for_chain("aian"), "aiannh")
+})
+
+test_that("plan_crosswalk_chain rejects aiannh as a source geography", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "aiannh",
+    target_geography = "tract",
+    source_year = 2020,
+    target_year = 2020)
+
+  expect_false(is.null(plan$error))
+  expect_true(stringr::str_detect(plan$error, "target geography only"))
+})
+
+test_that("plan_crosswalk_chain rejects aiannh target with pre-2020 target_year", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "aiannh",
+    source_year = 2015,
+    target_year = 2015)
+
+  expect_false(is.null(plan$error))
+  expect_true(stringr::str_detect(plan$error, "GeoCorr 2022"))
+})
+
+test_that("plan_crosswalk_chain accepts aiannh target with 2020+ target_year", {
+  # Same-year: direct GeoCorr 2022 step
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "aiannh",
+    source_year = 2020,
+    target_year = 2020)
+  expect_true(is.null(plan$error))
+  expect_false(plan$is_multi_step)
+  expect_equal(plan$steps$crosswalk_source[1], "geocorr")
+
+  # Multi-step: NHGIS temporal + GeoCorr 2022 geography
+  plan_multi <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "aiannh",
+    source_year = 2010,
+    target_year = 2020)
+  expect_true(is.null(plan_multi$error))
+  expect_true(plan_multi$is_multi_step)
+  expect_equal(plan_multi$steps$crosswalk_source[nrow(plan_multi$steps)], "geocorr")
+  expect_equal(plan_multi$steps$target_geography[nrow(plan_multi$steps)], "aiannh")
+})
+
 test_that("determine_temporal_source returns correct source", {
   expect_equal(crosswalk:::determine_temporal_source("2010", "2020"), "nhgis")
   expect_equal(crosswalk:::determine_temporal_source("2020", "2022"), "ctdata_2020_2022")

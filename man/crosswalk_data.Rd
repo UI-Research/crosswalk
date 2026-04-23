@@ -16,6 +16,7 @@ crosswalk_data(
   geoid_column = "source_geoid",
   count_columns = NULL,
   non_count_columns = NULL,
+  custom_interpolations = NULL,
   return_intermediate = FALSE,
   show_join_quality = TRUE,
   silent = getOption("crosswalk.silent", FALSE)
@@ -65,6 +66,18 @@ If NULL (default), automatically detects columns with the prefix "count_".}
 mean, median, percentage, and ratio variables. These will be calculated as weighted
 means using the allocation factor as weights. If NULL (default), automatically
 detects columns with prefixes "mean_", "median_", "percent_", or "ratio_".}
+
+\item{custom_interpolations}{A list of lists, each specifying a group of columns
+and a custom interpolation function. Each element must have:
+\describe{
+\item{columns}{Character vector of column names}
+\item{fn}{A function or formula for interpolation. Receives two arguments:
+\code{.x} (column values) and \code{.w} (allocation factors). Formulas using \code{~}
+syntax (e.g., \code{~sum(.x * .w, na.rm = TRUE)}) are converted to functions
+via \code{rlang::as_function()}.}
+}
+Columns in \code{custom_interpolations} must not overlap with \code{count_columns} or
+\code{non_count_columns}. Default is NULL (no custom interpolations).}
 
 \item{return_intermediate}{Logical. If TRUE and crosswalk has multiple steps,
 returns a list containing both the final result and intermediate results
@@ -186,5 +199,20 @@ result <- crosswalk_data(
 # Access intermediate and final
 result$intermediate$step_1  # After first crosswalk
 result$final                # Final result
+
+# Custom interpolation functions
+result <- crosswalk_data(
+  data = my_data,
+  crosswalk = crosswalk,
+  custom_interpolations = list(
+    list(
+      columns = c("count_population", "count_housing"),
+      fn = ~sum(.x * .w, na.rm = TRUE)
+    ),
+    list(
+      columns = c("pct_poverty"),
+      fn = ~weighted.mean(.x, .w, na.rm = TRUE)
+    )
+  ))
 }
 }

@@ -45,7 +45,8 @@
 #' @param source_geography Character. Source geography name. One of c("block",
 #'    "block group", "tract", "place", "county", "urban_area", "zcta", "puma",
 #'    "puma12", "puma22", "cd115", "cd116", "cd118", "cd119", "urban_area",
-#'    "core_based_statistical_area").
+#'    "core_based_statistical_area"). Note: "aiannh" (tribal areas) is currently
+#'    supported as a **target** geography only, not as a source.
 #' @param target_year Character or numeric. Year of the target geography, one of
 #'    c(1990, 2000, 2010, 2020) for decennial crosswalks, or c(2011, 2012, 2014,
 #'    2015, 2022) for non-census year crosswalks (limited to block groups, tracts,
@@ -53,7 +54,9 @@
 #' @param target_geography Character. Target geography name. One of c("block",
 #'    "block group", "tract", "place", "county", "urban_area", "zcta", "puma",
 #'    "puma12", "puma22", "cd115", "cd116", "cd118", "cd119", "urban_area",
-#'    "core_based_statistical_area").
+#'    "core_based_statistical_area", "aiannh"). Tribal areas ("aiannh", American
+#'    Indian / Alaska Native / Native Hawaiian areas) are available via
+#'    GeoCorr 2022 only (target_year >= 2020).
 #' @param weight Character. Weighting variable for Geocorr crosswalks. One of
 #'    c("population", "housing", "land").
 #' @param cache Directory path. Where to download the crosswalk to. If NULL (default),
@@ -469,6 +472,15 @@ get_available_crosswalks <- function() {
     dplyr::mutate(
       source_year = 2022L,
       target_year = 2022L)
+
+  # aiannh (tribal areas) is supported as a target geography only, via GeoCorr 2022
+  geocorr_2022_aiannh <- tibble::tibble(
+    source_geography = geocorr_2022_geographies,
+    target_geography = "aiannh",
+    source_year = 2022L,
+    target_year = 2022L)
+
+  geocorr_2022 <- dplyr::bind_rows(geocorr_2022, geocorr_2022_aiannh)
 
   # 3. Geocorr 2018: all pairwise combinations of 9 canonical geographies
   geocorr_2018_geographies <- c(

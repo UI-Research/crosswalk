@@ -325,3 +325,119 @@ test_that("get_crosswalk routes to Geocorr when no years specified", {
   metadata <- attr(result$crosswalks$step_1, "crosswalk_metadata")
   expect_equal(metadata$data_source, "geocorr")
 })
+
+# ==============================================================================
+# Tribal area (aiannh) tests
+# ==============================================================================
+
+test_that("get_geocorr_crosswalk handles tract to aiannh target", {
+  skip_if_offline()
+
+  result <- crosswalk:::get_geocorr_crosswalk(
+    source_geography = "tract",
+    target_geography = "aiannh",
+    weight = "population")
+
+  expect_s3_class(result, "tbl_df")
+  expect_equal(unique(result$source_geography), "tract")
+  expect_equal(unique(result$target_geography), "aiannh")
+
+  # NA target rows (tracts outside any tribal area) are filtered out
+  expect_false(any(is.na(result$target_geoid)))
+
+  # aiannh GEOIDs are 4-character federal codes
+  expect_true(all(stringr::str_length(result$target_geoid) == 4))
+
+  # Tract GEOIDs are still 11 characters
+  expect_true(all(stringr::str_length(result$source_geoid) == 11))
+
+  # Standard columns present
+  expected_cols <- c(
+    "source_geoid", "target_geoid",
+    "source_geography_name", "target_geography_name",
+    "allocation_factor_source_to_target",
+    "weighting_factor")
+  expect_true(all(expected_cols %in% colnames(result)))
+
+  # Allocation factors in valid range
+  expect_true(all(result$allocation_factor_source_to_target >= 0))
+  expect_true(all(result$allocation_factor_source_to_target <= 1))
+
+  # Allocation factors per source sum to <= 1 (not exactly 1), because tribal
+  # areas do not cover all land — any fraction of a source tract that falls
+  # outside tribal areas is intentionally dropped.
+  source_sums <- result |>
+    dplyr::summarize(
+      total = sum(allocation_factor_source_to_target, na.rm = TRUE),
+      .by = "source_geoid")
+  expect_true(all(source_sums$total <= 1 + 0.01))
+})
+
+test_that("get_geocorr_crosswalk handles county to aiannh target", {
+  skip_if_offline()
+
+  result <- crosswalk:::get_geocorr_crosswalk(
+    source_geography = "county",
+    target_geography = "aiannh",
+    weight = "population")
+
+  expect_s3_class(result, "tbl_df")
+  expect_equal(unique(result$target_geography), "aiannh")
+  expect_true(all(stringr::str_length(result$target_geoid) == 4))
+})
+
+test_that("get_geocorr_crosswalk rejects aiannh as source geography", {
+  expect_error(
+    crosswalk:::get_geocorr_crosswalk(
+      source_geography = "aiannh",
+      target_geography = "tract",
+      weight = "population"),
+    regexp = "target geography only")
+})
+
+test_that("get_geocorr_crosswalk rejects aiannh on GeoCorr 2018", {
+  # GeoCorr 2018 does not support aiannh; should error from resolve_geocorr_geography
+  expect_error(
+    crosswalk:::get_geocorr_crosswalk(
+      source_geography = "tract",
+      target_geography = "aiannh",
+      weight = "population",
+      geocorr_version = "2018"),
+    regexp = "not supported by GeoCorr 2018")
+})
+
+test_that("get_crosswalk handles tract to aiannh via top-level entry point", {
+  skip_if_offline()
+
+  result <- get_crosswalk(
+    source_geography = "tract",
+    target_geography = "aiannh",
+    weight = "population")
+
+  expect_type(result, "list")
+  expect_true("step_1" %in% names(result$crosswalks))
+
+  metadata <- attr(result$crosswalks$step_1, "crosswalk_metadata")
+  expect_equal(metadata$data_source, "geocorr")
+  expect_equal(metadata$target_geography, "aiannh")
+})
+
+test_that("get_crosswalk rejects pre-2020 target_year for aiannh target", {
+  expect_error(
+    get_crosswalk(
+      source_geography = "tract",
+      target_geography = "aiannh",
+      source_year = 2015,
+      target_year = 2015,
+      weight = "population"),
+    regexp = "GeoCorr 2022")
+})
+
+test_that("get_crosswalk rejects aiannh as source via top-level entry point", {
+  expect_error(
+    get_crosswalk(
+      source_geography = "aiannh",
+      target_geography = "tract",
+      weight = "population"),
+    regexp = "target geography only")
+})
