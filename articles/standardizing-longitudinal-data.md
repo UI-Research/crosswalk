@@ -18,6 +18,7 @@ tract definitions.
 ## Setup
 
 ``` r
+
 library(crosswalk)
 library(dplyr)
 library(purrr)
@@ -34,6 +35,7 @@ The Urban Institute publishes annual HMDA tract-level summary files.
 Let’s download all six years (2018-2023):
 
 ``` r
+
 ## metadata object describing data year/vintage/url
 metadata = tribble(
   ~ year, ~ vintage, ~ url,
@@ -57,6 +59,7 @@ names(hmda_data) = metadata$year %>% as.character()
 Let’s inspect the structure of the data:
 
 ``` r
+
 ## just view the first ten columns
 glimpse(hmda_data[["2018"]] %>% select(1:10))
 #> Rows: 74,652
@@ -85,6 +88,7 @@ and “median”, respectively), and
 will crosswalk each appropriately by default.
 
 ``` r
+
 prepare_hmda <- function(data) {
   data |>
     rename_with(.cols = matches("^geo20"), .fn = ~ "source_geoid") |>
@@ -108,6 +112,7 @@ of HMDA data), which contains allocation factors that specify how to
 distribute values from 2010 tracts definitions to those for 2020 tracts.
 
 ``` r
+
 tract_crosswalk <- get_crosswalk(
   source_geography = "tract",
   target_geography = "tract",
@@ -129,6 +134,7 @@ When this occurs, source data is effectively lost because it has no
 associated target geography nor allocation factor assigned to it.
 
 ``` r
+
 # Years that need crosswalking (2010 vintage)
 years_to_crosswalk <- c("2018", "2019", "2020", "2021")
 
@@ -150,6 +156,7 @@ to our crosswalk? Ideally, every record in our source data maps to a
 record in our crosswalk.
 
 ``` r
+
 ## we see that some observations that don't match have "XXXXXX" in lieu of
 ## a real tract code--which, from reading the data documentation, we know is
 ## done to to retain valid observations that, in the source data, do not have 
@@ -180,6 +187,7 @@ hmda_crosswalked |>
 ```
 
 ``` r
+
 ## how many source records are we unable to crosswalk each year, excluding
 ## those with "X" in their GEOIDs? under 30 each year.
 hmda_crosswalked |>
@@ -219,6 +227,7 @@ Now, we have apples-to-apples measurements for tracts from 2018 through
 2023.
 
 ``` r
+
 ## there's a little bit of variation year-to-year in terms of which tracts have
 ## reported HMDA data, but for the majority, we have observations in each of the
 ## six years:

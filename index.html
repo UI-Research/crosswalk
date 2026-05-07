@@ -210,16 +210,16 @@
 <col width="50%">
 <col width="50%">
 </colgroup>
-<thead><tr class="header">
+<thead><tr>
 <th>Function</th>
 <th>Purpose</th>
 </tr></thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code><a href="reference/get_crosswalk.html">get_crosswalk()</a></code></td>
 <td>Fetch crosswalk(s)</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code><a href="reference/crosswalk_data.html">crosswalk_data()</a></code></td>
 <td>Apply crosswalk(s) to interpolate data to the target geography-year</td>
 </tr>
@@ -232,20 +232,20 @@
 <p><code><a href="reference/get_crosswalk.html">get_crosswalk()</a></code> <strong>always returns a list</strong> structured as follows:</p>
 <p>The list contains three elements:</p>
 <table class="table">
-<thead><tr class="header">
+<thead><tr>
 <th>Element</th>
 <th>Description</th>
 </tr></thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>crosswalks</code></td>
 <td>A named list of crosswalks (<code>step_1</code>, <code>step_2</code>, etc.)</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>plan</code></td>
 <td>Details about what crosswalks are being fetched</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>message</code></td>
 <td>A description of the crosswalk chain</td>
 </tr>
@@ -283,24 +283,24 @@
 <col width="50%">
 <col width="50%">
 </colgroup>
-<thead><tr class="header">
+<thead><tr>
 <th>Column</th>
 <th>Description</th>
 </tr></thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>source_geoid</code></td>
 <td>Identifier for source geography</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>target_geoid</code></td>
 <td>Identifier for target geography</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>allocation_factor_source_to_target</code></td>
 <td>Weight for interpolating values</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>weighting_factor</code></td>
 <td>What attribute was used (population, housing, land)</td>
 </tr>

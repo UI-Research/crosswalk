@@ -44,6 +44,7 @@ renv::install("UI-Research/crosswalk")
 We obtain a crosswalk and apply it to our data:
 
 ``` r
+
 library(crosswalk)
 library(dplyr)
 library(ggplot2)
@@ -84,6 +85,7 @@ crosswalked_data = crosswalk_data(
 What does the crosswalk(s) reflect and how was it sourced?
 
 ``` r
+
 ## and there's more (not shown)
 names(attr(crosswalked_data, "crosswalk_metadata")) %>% head()
 #> [1] "call_parameters"       "data_source"           "data_source_full_name"
@@ -93,6 +95,7 @@ names(attr(crosswalked_data, "crosswalk_metadata")) %>% head()
 How well did the crosswalk join to our source data?
 
 ``` r
+
 ## look at all the characteristics of the join(s) between the source data
 ## and the crosswalks
 join_quality = attr(crosswalked_data, "join_quality")
@@ -130,6 +133,7 @@ zctas_sf %>%
 And how accurate was the crosswalking process?
 
 ``` r
+
 comparison_data = get_acs(
     year = 2023,
     geography = "puma",
@@ -171,9 +175,9 @@ and omit the intermediate
 [`get_crosswalk()`](https://ui-research.github.io/crosswalk/reference/get_crosswalk.md)
 call.
 
-| Function                                                                                  | Purpose                                                             |
-|-------------------------------------------------------------------------------------------|---------------------------------------------------------------------|
-| [`get_crosswalk()`](https://ui-research.github.io/crosswalk/reference/get_crosswalk.md)   | Fetch crosswalk(s)                                                  |
+| Function | Purpose |
+|----|----|
+| [`get_crosswalk()`](https://ui-research.github.io/crosswalk/reference/get_crosswalk.md) | Fetch crosswalk(s) |
 | [`crosswalk_data()`](https://ui-research.github.io/crosswalk/reference/crosswalk_data.md) | Apply crosswalk(s) to interpolate data to the target geography-year |
 
 ## Output Structure
@@ -200,6 +204,7 @@ crosswalks:
 2.  **Step 2 (Geocorr)**: Change geography at target year
 
 ``` r
+
 result <- get_crosswalk(
   source_geography = "tract",
   target_geography = "zcta",
@@ -217,12 +222,12 @@ result <- get_crosswalk(
 
 Each crosswalk contains standardized columns:
 
-| Column                               | Description                                         |
-|--------------------------------------|-----------------------------------------------------|
-| `source_geoid`                       | Identifier for source geography                     |
-| `target_geoid`                       | Identifier for target geography                     |
-| `allocation_factor_source_to_target` | Weight for interpolating values                     |
-| `weighting_factor`                   | What attribute was used (population, housing, land) |
+| Column | Description |
+|----|----|
+| `source_geoid` | Identifier for source geography |
+| `target_geoid` | Identifier for target geography |
+| `allocation_factor_source_to_target` | Weight for interpolating values |
+| `weighting_factor` | What attribute was used (population, housing, land) |
 
 Additional columns may include `source_year`, `target_year`,
 `population_2020`, `housing_2020`, and `land_area_sqmi` depending on the
@@ -234,6 +239,7 @@ Each crosswalk tibble has a `crosswalk_metadata` attribute that
 documents what the crosswalk represents and how it was created:
 
 ``` r
+
 metadata <- attr(result$crosswalks$step_1, "crosswalk_metadata")
 names(metadata)
 ```
@@ -259,6 +265,7 @@ explicitly and then pass the result to
 returns a listing of all supported year-geography combinations.
 
 ``` r
+
 get_available_crosswalks() %>%
   head()
 #> # A tibble: 6 × 4
@@ -278,6 +285,7 @@ NHGIS crosswalks require an IPUMS API key. Get one at
 <https://account.ipums.org/api_keys> and add to your `.Renviron`:
 
 ``` r
+
 usethis::edit_r_environ()
 # Add: IPUMS_API_KEY=your_key_here
 ```
@@ -287,6 +295,7 @@ usethis::edit_r_environ()
 Use the `cache` parameter to save crosswalks locally for ease:
 
 ``` r
+
 result <- get_crosswalk(
   source_geography = "tract",
   target_geography = "zcta",
