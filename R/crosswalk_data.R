@@ -31,7 +31,9 @@
 #' @param weight Character. Weighting variable for Geocorr crosswalks when fetching.
 #'    One of c("population", "housing", "land"). Default is "population".
 #' @param cache Directory path or NULL. Where to cache fetched crosswalks. If NULL
-#'    (default), crosswalk is fetched but not saved to disk.
+#'    (default), crosswalk is fetched but not saved to disk. The directory must
+#'    already exist; a non-existent path raises an error rather than being
+#'    created silently.
 #' @param geoid_column Character. The name of the column in `data` containing
 #'    the source geography identifiers (GEOIDs). Default is "source_geoid".
 #' @param count_columns Character vector or NULL. Column names in `data` that represent
@@ -198,6 +200,8 @@ crosswalk_data <- function(
 
   old_opts <- options(crosswalk.silent = silent)
   on.exit(options(old_opts), add = TRUE)
+
+  validate_cache_dir(cache)
 
   # When silent, suppress join quality regardless of show_join_quality
   if (silent) show_join_quality <- FALSE

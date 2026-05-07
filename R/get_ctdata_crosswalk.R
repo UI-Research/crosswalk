@@ -359,9 +359,6 @@ Only block, block_group, and tract geographies support the 2022 -> 2020 directio
   # ===========================================================================
 
   if (!is.null(cache)) {
-    if (!dir.exists(cache_path)) {
-      dir.create(cache_path, recursive = TRUE)
-    }
     readr::write_csv(result, csv_path)
     cw_message(stringr::str_c("Cached to: ", csv_path))
   }

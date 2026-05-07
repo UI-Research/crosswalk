@@ -878,11 +878,7 @@ variable. Get your key at https://account.ipums.org/api_keys") }
       dplyr::mutate(target_geoid = stringr::str_pad(target_geoid, 11, "right", "0"))
   }
 
-    ## if the file does not already exist and cache is not NULL
-    if (!file.exists(csv_path) & !is.null(cache)) {
-      if (!dir.exists(cache)) {
-        dir.create(cache, recursive = TRUE)
-      }
+    if (!is.null(cache) && !file.exists(csv_path)) {
       readr::write_csv(crosswalk_df, csv_path)
     }
 

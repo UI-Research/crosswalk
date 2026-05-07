@@ -61,7 +61,8 @@
 #'    c("population", "housing", "land").
 #' @param cache Directory path. Where to download the crosswalk to. If NULL (default),
 #'    crosswalk is returned but not saved to disk. Individual component crosswalks
-#'    are cached separately when provided.
+#'    are cached separately when provided. The directory must already exist;
+#'    a non-existent path raises an error rather than being created silently.
 #' @param silent Logical. If `TRUE`, suppresses all informational messages and
 #'    warnings. Defaults to `getOption("crosswalk.silent", FALSE)`. Set
 #'    `options(crosswalk.silent = TRUE)` to silence all calls by default.
@@ -148,6 +149,8 @@ get_crosswalk <- function(
 
   old_opts <- options(crosswalk.silent = silent)
   on.exit(options(old_opts), add = TRUE)
+
+  validate_cache_dir(cache)
 
   # Check for nested geographies (no crosswalk needed)
   # Determine if years match (both NULL, or both non-NULL and equal)

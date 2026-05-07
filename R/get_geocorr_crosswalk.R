@@ -267,8 +267,15 @@ get_geocorr_crosswalk <- function(
     list(abbr = "Wv", fips = "54"),
     list(abbr = "Wi", fips = "55"),
     list(abbr = "Wy", fips = "56"),
-    list(abbr = "Pr", fips = "72")) |>
-    purrr::map_chr(~ paste0(.x$abbr, .x$fips))
+    list(abbr = "Pr", fips = "72"))
+
+  ## stab (uppercase 2-letter abbreviation) → 2-char state FIPS lookup; used as
+  ## a fallback when GeoCorr returns `stab` but neither `state` nor `county`
+  state_fips_lookup <- tibble::tibble(
+    stab = purrr::map_chr(states_data, ~ toupper(.x$abbr)),
+    state = purrr::map_chr(states_data, ~ .x$fips))
+
+  states_data <- purrr::map_chr(states_data, ~ paste0(.x$abbr, .x$fips))
 
   # GeoCorr 2018 does not support Puerto Rico
   if (!config$include_pr) {
@@ -358,11 +365,22 @@ get_geocorr_crosswalk <- function(
       .cols = dplyr::matches(weight_rename_pattern),
       .fn = ~ stringr::str_replace_all(.x, config$weight_rename))
 
+  ## Ensure a 2-char `state` FIPS column exists. GeoCorr's response varies by
+  ## query: sometimes `state` is returned directly; sometimes it's only
+  ## available as the leading 2 chars of a 5-char `county` (SSCCC) field;
+  ## sometimes (e.g., place/zcta/puma sources targeting aiannh) neither is
+  ## present and we must derive it from `stab` (state abbreviation).
   if (!"state" %in% colnames(df2)) {
-    df2 = df2 |>
-      dplyr::mutate(
-       state = stringr::str_sub(county, 1, 2),
-       county = stringr::str_sub(county, 3, 5)) }
+    if ("county" %in% colnames(df2)) {
+      df2 = df2 |>
+        dplyr::mutate(
+          state = stringr::str_sub(county, 1, 2),
+          county = stringr::str_sub(county, 3, 5))
+    } else if ("stab" %in% colnames(df2)) {
+      df2 = df2 |>
+        dplyr::left_join(state_fips_lookup, by = "stab")
+    }
+  }
 
   # Build the blockgroup column name used by the API for this version
   bg_api_col <- config$geography_api_codes[["blockgroup"]]
@@ -512,13 +530,8 @@ get_geocorr_crosswalk <- function(
     df2 <- df2 |> dplyr::filter(!is.na(target_geoid))
   }
 
-  if (!is.null(cache)) {
-    ## if the file does not already exist and cache is TRUE
-    if (!file.exists(outpath) & !is.null(cache)) {
-      ## if the specified cache directory doesn't yet exist, create it
-      if (!dir.exists(cache)) { dir.create(cache) }
-      readr::write_csv(df2, outpath)
-    }
+  if (!is.null(cache) && !file.exists(outpath)) {
+    readr::write_csv(df2, outpath)
   }
 
   # Attach metadata to result
