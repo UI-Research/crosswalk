@@ -34,10 +34,10 @@ Alternatively, a single crosswalk tibble can be provided for backwards
 compatibility. If NULL, the crosswalk will be fetched using \code{source_geography}
 and \code{target_geography} parameters.}
 
-\item{source_geography}{Character or NULL. Source geography name. Required if
-\code{crosswalk} is NULL. One of c("block", "block group", "tract", "place",
-"county", "urban_area", "zcta", "puma", "cd118", "cd119",
-"core_based_statistical_area").}
+\item{source_geography}{Character or NULL. Source geography name (e.g.,
+"tract", "zcta"). Required if \code{crosswalk} is NULL; passed to
+\code{get_crosswalk()}. See \code{get_crosswalk()} for accepted names and
+\code{get_available_crosswalks()} for all supported combinations.}
 
 \item{target_geography}{Character or NULL. Target geography name. Required if
 \code{crosswalk} is NULL. Same options as \code{source_geography}.}
@@ -74,16 +74,23 @@ from each step. Default is FALSE, which returns only the final result.}
 about join quality, including the number of data rows not matching the crosswalk
 and vice versa. For state-nested geographies (tract, county, block group, etc.),
 also reports state-level concentration of unmatched rows. Set to FALSE to
-suppress these messages. Automatically suppressed when \code{silent = TRUE}.}
+suppress these messages; the \code{join_quality} attribute (see the "Join
+quality diagnostics" section) is computed and attached to the result
+either way. Messages are automatically suppressed when \code{silent = TRUE}.}
 
 \item{silent}{Logical. If \code{TRUE}, suppresses all informational messages and
-warnings, including join quality diagnostics regardless of \code{show_join_quality}.
+warnings, including join quality diagnostics regardless of \code{show_join_quality}
+(the \code{join_quality} attribute is still attached to the result).
 Defaults to \code{getOption("crosswalk.silent", FALSE)}. Set
 \code{options(crosswalk.silent = TRUE)} to silence all calls by default.}
 }
 \value{
 If \code{return_intermediate = FALSE} (default), a tibble with data summarized
-to the final target geography.
+to the final target geography. The target identifier column is named
+\code{geoid} (and, when present in the crosswalk, the geography type is in
+\code{geography_name}). Data rows whose GEOIDs do not match the crosswalk
+cannot be allocated to a target geography and are dropped; use the
+\code{join_quality} attribute to inspect them.
 
 If \code{return_intermediate = TRUE} and there are multiple crosswalk steps, a list with:
 \describe{
@@ -91,8 +98,18 @@ If \code{return_intermediate = TRUE} and there are multiple crosswalk steps, a l
 \item{intermediate}{A named list of intermediate results (step_1, step_2, etc.)}
 }
 
-The returned tibble(s) include an attribute \code{crosswalk_metadata} from the
-underlying crosswalk (access via \code{attr(result, "crosswalk_metadata")}).
+The returned tibble(s) carry two attributes:
+\describe{
+\item{crosswalk_metadata}{Provenance of the crosswalk that produced the
+result (access via \code{attr(result, "crosswalk_metadata")}); see the
+"Crosswalk metadata" section of \code{\link[=get_crosswalk]{get_crosswalk()}}.}
+\item{join_quality}{Statistics describing how well the data joined to
+the crosswalk (access via \code{attr(result, "join_quality")}); see the
+"Join quality diagnostics" section below. For multi-step crosswalks,
+both attributes describe the \emph{final} step; set
+\code{return_intermediate = TRUE} to obtain each step's result with its
+own attributes.}
+}
 }
 \description{
 Applies geographic crosswalk weights to transform data from a source geography
@@ -115,7 +132,15 @@ the product of the value and the allocation factor across all source geographies
 that overlap with each target geography.
 
 \strong{Non-count variables} (specified in \code{non_count_columns}) are interpolated using
-a weighted mean, with the allocation factor serving as the weight.
+a weighted mean, with the allocation factor serving as the weight. Note this
+is an approximation: the allocation factor reflects each source geography's
+share allocated to the target, not the relative size of the source
+geographies, so weighted means are most accurate when source units are of
+broadly similar size.
+
+\strong{One row per GEOID}: \code{data} must contain at most one row per GEOID. For
+panel data with multiple time periods, split the data by period (e.g., with
+\code{purrr::map()}) and crosswalk each subset separately.
 
 \strong{Automatic column detection}: If \code{count_columns} and \code{non_count_columns} are
 both NULL, the function will automatically detect columns based on naming prefixes:
@@ -132,8 +157,46 @@ are missing, NA is returned.
 
 \strong{Multi-step crosswalks}: When \code{get_crosswalk()} returns multiple crosswalks
 (for transformations that change both geography and year), this function
-automatically applies them in sequence.
+automatically applies them in sequence. The attributes on the final result
+describe only the final step; to inspect join quality for earlier steps, set
+\code{return_intermediate = TRUE} and examine the attributes of each intermediate
+tibble.
 }
+\section{Join quality diagnostics}{
+
+The \code{join_quality} attribute is a list with the following elements:
+\describe{
+\item{n_data_total}{Number of unique GEOIDs in the input data.}
+\item{n_data_unmatched}{Number of data GEOIDs with no match in the
+crosswalk. These rows cannot be allocated to a target geography and are
+dropped from the result.}
+\item{pct_data_unmatched}{\code{n_data_unmatched} as a percentage (0-100) of
+\code{n_data_total}.}
+\item{data_geoids_unmatched}{Character vector of the unmatched data GEOIDs.}
+\item{state_analysis_data}{For state-nested geographies with unmatched data
+rows, a list describing state-level concentration of the unmatched
+GEOIDs: \code{state_counts} (a tibble of unmatched counts and percentages by
+state FIPS), \code{top_states} (the three most-affected states), and
+\code{is_concentrated} (logical; TRUE when any single state accounts for more
+than 15\% of unmatched GEOIDs). NULL when there are no unmatched rows or
+state analysis is not applicable.}
+\item{n_crosswalk_total}{Number of unique source GEOIDs in the crosswalk.}
+\item{n_crosswalk_unmatched}{Number of crosswalk source GEOIDs absent from
+the data (e.g., geographies with no observations).}
+\item{pct_crosswalk_unmatched}{\code{n_crosswalk_unmatched} as a percentage
+(0-100) of \code{n_crosswalk_total}.}
+\item{crosswalk_geoids_unmatched}{Character vector of the crosswalk source
+GEOIDs absent from the data.}
+\item{state_analysis_crosswalk}{As \code{state_analysis_data}, but for crosswalk
+GEOIDs absent from the data; otherwise NULL.}
+\item{source_geography}{The source geography of the crosswalk step, when
+known from its metadata.}
+\item{state_analysis_applicable}{Logical; whether state-level analysis is
+meaningful for this geography (FALSE for geographies that cross state
+lines, such as ZCTAs).}
+}
+}
+
 \examples{
 \dontrun{
 # Option 1: Pre-fetched crosswalk
@@ -187,4 +250,8 @@ result <- crosswalk_data(
 result$intermediate$step_1  # After first crosswalk
 result$final                # Final result
 }
+}
+\seealso{
+\code{\link[=get_crosswalk]{get_crosswalk()}} to fetch and inspect crosswalks before applying
+them; \code{\link[=get_available_crosswalks]{get_available_crosswalks()}} for all supported combinations.
 }

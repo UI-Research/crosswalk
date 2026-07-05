@@ -135,7 +135,8 @@ resolve_geocorr_geography <- function(geography, geocorr_version = "2022") {
 #'    Census geography.
 #'
 #' @return A dataframe representing the requested GeoCorr crosswalk for all 51
-#'    states and Puerto Rico.
+#'    states and Puerto Rico (GeoCorr 2018 excludes Puerto Rico).
+#' @importFrom rlang :=
 #' @keywords internal
 #' @noRd
 get_geocorr_crosswalk <- function(
@@ -160,9 +161,20 @@ get_geocorr_crosswalk <- function(
                      config$reference_year, "_", source_geography, "_to_",
                      target_geography, "_weightedby_", weight, ".csv")) }
 
+  geocorr_numeric_columns <- c(
+    "allocation_factor_source_to_target", "allocation_factor_target_to_source",
+    "population_2020", "housing_2020", "population_2010", "housing_2010",
+    "land_area_sqmi")
+
   ## if the file exists and the user does not wish to overwrite it
   if (file.exists(outpath) & !is.null(cache)) {
-    result = readr::read_csv(outpath, show_col_types = FALSE)
+    ## read GEOIDs as character (type-guessing can strip leading zeros)
+    result = readr::read_csv(
+      outpath,
+      col_types = readr::cols(.default = readr::col_character()),
+      show_col_types = FALSE) |>
+      dplyr::mutate(
+        dplyr::across(dplyr::any_of(geocorr_numeric_columns), as.numeric))
 
     cw_message("Reading file from cache.")
 
@@ -304,15 +316,17 @@ get_geocorr_crosswalk <- function(
     if (is.na(csv_path)) { stop("Unable to acquire the specified crosswalk; please file an issue.") }
 
     readr::read_csv(file.path("https://mcdc.missouri.edu", "temp", csv_path), show_col_types = FALSE) |>
-      janitor::clean_names()
+      janitor::clean_names() |>
+      ## the first row of every GeoCorr CSV is a human-readable label row;
+      ## drop it here so chunked (multi-request) queries don't retain the
+      ## label rows of chunks after the first
+      dplyr::slice(-1)
   }
 
   ## for block-level crosswalks, the maximum number of states per query is 13
   if ("block" %in% c(source_api_code, target_api_code)) {
 
-    n = length(states_data) / 13
-    groups = cut(seq_along(states_data), n, labels = FALSE)
-    states_chunked = split(states_data, groups)
+    states_chunked = split(states_data, ceiling(seq_along(states_data) / 13))
 
     df1 = purrr::map_dfr(
       states_chunked,
@@ -324,7 +338,6 @@ get_geocorr_crosswalk <- function(
   weight_rename_pattern <- paste(names(config$weight_rename), collapse = "|")
 
   df2 = df1 |>
-    dplyr::slice(2:nrow(df1)) |>
     ## naming conventions for some geographies are inconsistent; we standardize
     dplyr::rename_with(
       .cols = dplyr::matches("zip_name"),
@@ -480,7 +493,7 @@ get_geocorr_crosswalk <- function(
         target_api_code == "tract" & nchar(target_geoid) == 13 ~ stringr::str_sub(target_geoid, 3, 13),
         TRUE ~ target_geoid),
       weighting_factor = weight,
-      dplyr::across(.cols = dplyr::matches("allocation"), .fns = as.numeric))
+      dplyr::across(.cols = dplyr::any_of(geocorr_numeric_columns), .fns = as.numeric))
 
   if (!is.null(cache)) {
     ## if the file does not already exist and cache is TRUE
@@ -509,4 +522,4 @@ get_geocorr_crosswalk <- function(
   return(df2)
 }
 
-utils::globalVariables(c("afact", "afact2", "county", "stab", "state"))
+utils::globalVariables(c("afact", "afact2", "block", "county", "stab", "state", "tract"))

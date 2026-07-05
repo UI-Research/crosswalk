@@ -4,3 +4,23 @@ template:
 home:
   sidebar:
     structure: [toc, links, license, community, citation, authors, dev]
+reference:
+- title: Fetch crosswalks
+  desc: Retrieve standardized crosswalks, chaining sources when needed
+  contents:
+  - get_crosswalk
+- title: Apply crosswalks to data
+  desc: Interpolate count and non-count variables to the target geography
+  contents:
+  - crosswalk_data
+- title: Discover supported combinations
+  contents:
+  - get_available_crosswalks
+  - list_nhgis_crosswalks
+articles:
+- title: Guides
+  navbar: ~
+  contents:
+  - how-interpolation-works
+  - county-crosswalks
+  - standardizing-longitudinal-data

@@ -10,3 +10,13 @@
 ^\.github$
 ^doc$
 ^Meta$
+^\.Rprofile$
+^\.gitattributes$
+^scripts$
+^AGENTS\.md$
+^CLAUDE\.md$
+^\.claude$
+^README\.Rmd$
+^data-raw$
+^vignettes/.*\.Rmd\.orig$
+^vignettes/precompile\.R$

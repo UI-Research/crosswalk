@@ -38,8 +38,11 @@
 #'     \item{target_geography_name}{The geography type}
 #'     \item{source_year}{The source year (2020 or 2022)}
 #'     \item{target_year}{The target year (2020 or 2022)}
-#'     \item{allocation_factor_source_to_target}{1 for all records (identity or CT FIPS change)}
-#'     \item{weighting_factor}{"identity" for non-CT, varies for CT county}
+#'     \item{allocation_factor_source_to_target}{1 for identity records (all
+#'        geographies outside Connecticut and sub-county geographies within it);
+#'        population-weighted shares for Connecticut county records}
+#'     \item{weighting_factor}{"identity" for identity records, "population"
+#'        for Connecticut county records}
 #'     \item{state_fips}{Two-digit state FIPS code}
 #'   }
 #' @keywords internal
@@ -90,6 +93,21 @@ Connecticut's county boundaries changed (9 planning regions -> 8 counties),
 requiring population-weighted disaggregation which is not implemented.
 Only block, block_group, and tract geographies support the 2022 -> 2020 direction.")}
 
+  # County crosswalks require tidycensus (in Suggests) for county GEOIDs and
+  # tract populations
+  if (geography_standardized == "county" && !requireNamespace("tidycensus", quietly = TRUE)) {
+    stop(
+"The 'tidycensus' package is required for county 2020 <-> 2022 crosswalks.
+Install it with install.packages('tidycensus').")}
+
+  # Weighting note for metadata: county crosswalks use population weights for
+  # Connecticut; all other geographies/states are identity mappings
+  weighting_note <- if (geography_standardized == "county") {
+    "Connecticut county records use population-weighted allocation factors; all other records are identity mappings with allocation_factor = 1."
+  } else {
+    "All records have allocation_factor = 1 (identity mapping or CT FIPS code change)."
+  }
+
   if (is.null(cache)) {
     cache_path <- tempdir()
   } else {
@@ -119,9 +137,6 @@ Only block, block_group, and tract geographies support the 2022 -> 2020 directio
       col_types = readr::cols(.default = readr::col_character(),
                               allocation_factor_source_to_target = readr::col_double()),
       show_col_types = FALSE)
-
-    # Weighting note for metadata
-    weighting_note <- "All records have allocation_factor = 1 (identity mapping or CT FIPS code change)."
 
     attr(result, "crosswalk_metadata") <- list(
       data_source = "ctdata_nhgis_combined",
@@ -372,8 +387,6 @@ Only block, block_group, and tract geographies support the 2022 -> 2020 directio
 - Other states: Identity mapping derived from NHGIS 2010-2020 crosswalk"))
 
   # Attach metadata to result
-  weighting_note <- "All records have allocation_factor = 1 (identity mapping or CT FIPS code change)."
-
   attr(result, "crosswalk_metadata") <- list(
     data_source = "ctdata_nhgis_combined",
     data_source_full_name = "CT Data Collaborative (CT) + NHGIS-derived identity mapping (other states)",

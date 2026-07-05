@@ -18,10 +18,10 @@
 #'    Alternatively, a single crosswalk tibble can be provided for backwards
 #'    compatibility. If NULL, the crosswalk will be fetched using `source_geography`
 #'    and `target_geography` parameters.
-#' @param source_geography Character or NULL. Source geography name. Required if
-#'    `crosswalk` is NULL. One of c("block", "block group", "tract", "place",
-#'    "county", "urban_area", "zcta", "puma", "cd118", "cd119",
-#'    "core_based_statistical_area").
+#' @param source_geography Character or NULL. Source geography name (e.g.,
+#'    "tract", "zcta"). Required if `crosswalk` is NULL; passed to
+#'    `get_crosswalk()`. See `get_crosswalk()` for accepted names and
+#'    `get_available_crosswalks()` for all supported combinations.
 #' @param target_geography Character or NULL. Target geography name. Required if
 #'    `crosswalk` is NULL. Same options as `source_geography`.
 #' @param source_year Numeric or NULL. Year of the source geography. If NULL and
@@ -48,14 +48,21 @@
 #'    about join quality, including the number of data rows not matching the crosswalk
 #'    and vice versa. For state-nested geographies (tract, county, block group, etc.),
 #'    also reports state-level concentration of unmatched rows. Set to FALSE to
-#'    suppress these messages. Automatically suppressed when `silent = TRUE`.
+#'    suppress these messages; the `join_quality` attribute (see the "Join
+#'    quality diagnostics" section) is computed and attached to the result
+#'    either way. Messages are automatically suppressed when `silent = TRUE`.
 #' @param silent Logical. If `TRUE`, suppresses all informational messages and
-#'    warnings, including join quality diagnostics regardless of `show_join_quality`.
+#'    warnings, including join quality diagnostics regardless of `show_join_quality`
+#'    (the `join_quality` attribute is still attached to the result).
 #'    Defaults to `getOption("crosswalk.silent", FALSE)`. Set
 #'    `options(crosswalk.silent = TRUE)` to silence all calls by default.
 #'
 #' @return If `return_intermediate = FALSE` (default), a tibble with data summarized
-#'    to the final target geography.
+#'    to the final target geography. The target identifier column is named
+#'    `geoid` (and, when present in the crosswalk, the geography type is in
+#'    `geography_name`). Data rows whose GEOIDs do not match the crosswalk
+#'    cannot be allocated to a target geography and are dropped; use the
+#'    `join_quality` attribute to inspect them.
 #'
 #'    If `return_intermediate = TRUE` and there are multiple crosswalk steps, a list with:
 #'    \describe{
@@ -63,8 +70,51 @@
 #'      \item{intermediate}{A named list of intermediate results (step_1, step_2, etc.)}
 #'    }
 #'
-#'    The returned tibble(s) include an attribute `crosswalk_metadata` from the
-#'    underlying crosswalk (access via `attr(result, "crosswalk_metadata")`).
+#'    The returned tibble(s) carry two attributes:
+#'    \describe{
+#'      \item{crosswalk_metadata}{Provenance of the crosswalk that produced the
+#'         result (access via `attr(result, "crosswalk_metadata")`); see the
+#'         "Crosswalk metadata" section of [get_crosswalk()].}
+#'      \item{join_quality}{Statistics describing how well the data joined to
+#'         the crosswalk (access via `attr(result, "join_quality")`); see the
+#'         "Join quality diagnostics" section below. For multi-step crosswalks,
+#'         both attributes describe the *final* step; set
+#'         `return_intermediate = TRUE` to obtain each step's result with its
+#'         own attributes.}
+#'    }
+#'
+#' @section Join quality diagnostics:
+#' The `join_quality` attribute is a list with the following elements:
+#' \describe{
+#'   \item{n_data_total}{Number of unique GEOIDs in the input data.}
+#'   \item{n_data_unmatched}{Number of data GEOIDs with no match in the
+#'      crosswalk. These rows cannot be allocated to a target geography and are
+#'      dropped from the result.}
+#'   \item{pct_data_unmatched}{`n_data_unmatched` as a percentage (0-100) of
+#'      `n_data_total`.}
+#'   \item{data_geoids_unmatched}{Character vector of the unmatched data GEOIDs.}
+#'   \item{state_analysis_data}{For state-nested geographies with unmatched data
+#'      rows, a list describing state-level concentration of the unmatched
+#'      GEOIDs: `state_counts` (a tibble of unmatched counts and percentages by
+#'      state FIPS), `top_states` (the three most-affected states), and
+#'      `is_concentrated` (logical; TRUE when any single state accounts for more
+#'      than 15% of unmatched GEOIDs). NULL when there are no unmatched rows or
+#'      state analysis is not applicable.}
+#'   \item{n_crosswalk_total}{Number of unique source GEOIDs in the crosswalk.}
+#'   \item{n_crosswalk_unmatched}{Number of crosswalk source GEOIDs absent from
+#'      the data (e.g., geographies with no observations).}
+#'   \item{pct_crosswalk_unmatched}{`n_crosswalk_unmatched` as a percentage
+#'      (0-100) of `n_crosswalk_total`.}
+#'   \item{crosswalk_geoids_unmatched}{Character vector of the crosswalk source
+#'      GEOIDs absent from the data.}
+#'   \item{state_analysis_crosswalk}{As `state_analysis_data`, but for crosswalk
+#'      GEOIDs absent from the data; otherwise NULL.}
+#'   \item{source_geography}{The source geography of the crosswalk step, when
+#'      known from its metadata.}
+#'   \item{state_analysis_applicable}{Logical; whether state-level analysis is
+#'      meaningful for this geography (FALSE for geographies that cross state
+#'      lines, such as ZCTAs).}
+#' }
 #'
 #' @details
 #' **Two usage patterns**:
@@ -81,7 +131,15 @@
 #' that overlap with each target geography.
 #'
 #' **Non-count variables** (specified in `non_count_columns`) are interpolated using
-#' a weighted mean, with the allocation factor serving as the weight.
+#' a weighted mean, with the allocation factor serving as the weight. Note this
+#' is an approximation: the allocation factor reflects each source geography's
+#' share allocated to the target, not the relative size of the source
+#' geographies, so weighted means are most accurate when source units are of
+#' broadly similar size.
+#'
+#' **One row per GEOID**: `data` must contain at most one row per GEOID. For
+#' panel data with multiple time periods, split the data by period (e.g., with
+#' `purrr::map()`) and crosswalk each subset separately.
 #'
 #' **Automatic column detection**: If `count_columns` and `non_count_columns` are
 #' both NULL, the function will automatically detect columns based on naming prefixes:
@@ -96,8 +154,13 @@
 #'
 #' **Multi-step crosswalks**: When `get_crosswalk()` returns multiple crosswalks
 #' (for transformations that change both geography and year), this function
-#' automatically applies them in sequence.
+#' automatically applies them in sequence. The attributes on the final result
+#' describe only the final step; to inspect join quality for earlier steps, set
+#' `return_intermediate = TRUE` and examine the attributes of each intermediate
+#' tibble.
 #'
+#' @seealso [get_crosswalk()] to fetch and inspect crosswalks before applying
+#'   them; [get_available_crosswalks()] for all supported combinations.
 #' @export
 #' @examples
 #' \dontrun{
@@ -240,6 +303,17 @@ crosswalk_data <- function(
   # Validate geoid_column exists in original data
   if (!geoid_column %in% names(data)) {
     stop("Column '", geoid_column, "' not found in data.")
+  }
+
+  # Data must have one row per GEOID; duplicated GEOIDs (e.g., long/panel data
+  # with multiple time periods) would be collapsed incorrectly during aggregation
+  duplicated_geoids <- unique(data[[geoid_column]][duplicated(data[[geoid_column]])])
+  if (length(duplicated_geoids) > 0) {
+    stop(
+      "Column '", geoid_column, "' contains duplicated GEOIDs (e.g., '",
+      duplicated_geoids[1], "'). crosswalk_data() expects one row per GEOID. ",
+      "For panel data with multiple time periods, split the data by period ",
+      "and crosswalk each subset separately.")
   }
 
   # Apply crosswalks sequentially
@@ -553,11 +627,14 @@ format_join_quality_message <- function(join_quality, step_number, total_steps) 
 #' @param total_steps Integer. Total number of steps.
 #' @param source_geography Character or NULL. The source geography type, used to
 #'    determine if state-level analysis is applicable.
-#' @return A list with join quality statistics (also prints messages if issues found).
+#' @param print_messages Logical. Whether to print diagnostic messages when
+#'    issues are found. Statistics are computed and returned regardless.
+#' @return A list with join quality statistics.
 #' @keywords internal
 #' @noRd
 report_join_quality <- function(data, crosswalk, geoid_column, step_number = 1,
-                                total_steps = 1, source_geography = NULL) {
+                                total_steps = 1, source_geography = NULL,
+                                print_messages = TRUE) {
 
   # Ensure geoid columns are character for consistent comparison
   data_geoids <- data |>
@@ -624,9 +701,11 @@ report_join_quality <- function(data, crosswalk, geoid_column, step_number = 1,
   )
 
   # Print messages if there are issues
-  messages <- format_join_quality_message(join_quality, step_number, total_steps)
-  if (length(messages) > 0) {
-    purrr::walk(messages, cw_message)
+  if (print_messages) {
+    messages <- format_join_quality_message(join_quality, step_number, total_steps)
+    if (length(messages) > 0) {
+      purrr::walk(messages, cw_message)
+    }
   }
 
   return(join_quality)
@@ -644,7 +723,8 @@ report_join_quality <- function(data, crosswalk, geoid_column, step_number = 1,
 #' @param non_count_columns Non-count variable columns
 #' @param step_number Integer. Current step number for multi-step reporting.
 #' @param total_steps Integer. Total number of steps for multi-step reporting.
-#' @param show_join_quality Logical. Whether to report join quality diagnostics.
+#' @param show_join_quality Logical. Whether to print join quality diagnostic
+#'    messages. The `join_quality` attribute is computed and attached regardless.
 #' @return Crosswalked data
 #' @keywords internal
 #' @noRd
@@ -667,6 +747,23 @@ apply_single_crosswalk <- function(
     return(tibble::tibble())
   }
 
+  # A valid crosswalk has exactly one row per source-target pair; duplicated
+  # pairs (e.g., a long-format crosswalk with one row per weighting factor)
+  # would multiply-count values during interpolation
+  if (anyDuplicated(crosswalk[c("source_geoid", "target_geoid")]) > 0) {
+    duplicate_pair_msg <- stringr::str_c(
+      "Crosswalk contains multiple rows per source-target GEOID pair, which ",
+      "would multiply-count values during interpolation.")
+    if ("weighting_factor" %in% names(crosswalk)) {
+      duplicate_pair_msg <- stringr::str_c(
+        duplicate_pair_msg,
+        " Filter the crosswalk to a single weighting_factor (found: ",
+        paste(unique(crosswalk$weighting_factor), collapse = ", "),
+        ") before calling crosswalk_data().")
+    }
+    stop(duplicate_pair_msg)
+  }
+
   # Store metadata for later attachment
   crosswalk_metadata <- attr(crosswalk, "crosswalk_metadata")
 
@@ -677,18 +774,16 @@ apply_single_crosswalk <- function(
     NULL
   }
 
-  # Report join quality (if enabled)
-  join_quality <- if (show_join_quality) {
-    report_join_quality(
-      data = data,
-      crosswalk = crosswalk,
-      geoid_column = geoid_column,
-      step_number = step_number,
-      total_steps = total_steps,
-      source_geography = source_geography)
-  } else {
-    NULL
-  }
+  # Compute join quality statistics; `show_join_quality` controls only whether
+  # diagnostic messages print, so the attribute is available even in silent runs
+  join_quality <- report_join_quality(
+    data = data,
+    crosswalk = crosswalk,
+    geoid_column = geoid_column,
+    step_number = step_number,
+    total_steps = total_steps,
+    source_geography = source_geography,
+    print_messages = show_join_quality)
 
   # Determine grouping columns (target_geography_name may not always be present)
   group_cols <- "target_geoid"
@@ -718,11 +813,13 @@ apply_single_crosswalk <- function(
   )
 
 
-  # Join crosswalk to data
+  # Join crosswalk to data. Inner join: data rows with no crosswalk match
+  # cannot be allocated to any target geography and are dropped (they are
+  # reported via the join-quality diagnostics above).
   result <- data |>
     dplyr::mutate(
       dplyr::across(dplyr::all_of(geoid_column), as.character)) |>
-    dplyr::left_join(
+    dplyr::inner_join(
       crosswalk,
       by = stats::setNames("source_geoid", geoid_column),
       relationship = "one-to-many") |>
@@ -750,9 +847,10 @@ apply_single_crosswalk <- function(
         .cols = tidytable::all_of(c(current_count_cols, current_non_count_cols)),
         .fns = ~ tidytable::if_else(get(stringr::str_c(tidytable::cur_column(), "_validx")) > 0, .x, NA))) |>
     dplyr::select(-dplyr::matches("_validx$")) |>
-    dplyr::rename_with(
-      .cols = dplyr::everything(),
-      .fn = ~ stringr::str_remove_all(.x, "target_")) |>
+    dplyr::rename(
+      dplyr::any_of(c(
+        geoid = "target_geoid",
+        geography_name = "target_geography_name"))) |>
     tibble::as_tibble()
 
   # Attach metadata

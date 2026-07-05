@@ -1,19 +1,28 @@
 Package: crosswalk
 Type: Package
-Title: streamlining inter-temporal and inter-geography crosswalking 
-Version: 0.0.0.9001
-Description: An R package providing a simple interface to access and apply crosswalks.
+Title: Streamlined Inter-Temporal and Inter-Geography Crosswalking of Census Data
+Version: 0.0.0.9002
+Description: Provides a standardized interface for accessing and applying
+    geographic crosswalks between United States Census geographies, both across
+    geographies (e.g., tracts to ZIP Code Tabulation Areas) and across time
+    (e.g., 2010 tracts to 2020 tracts). Crosswalks are sourced from the Missouri
+    Census Data Center's Geocorr applications, IPUMS NHGIS, the CT Data
+    Collaborative, and a curated registry of county boundary changes drawn from
+    Census Bureau documentation, and are returned with consistent column names
+    and rich metadata. Also interpolates count and non-count variables from
+    source to target geographies, with diagnostics describing join quality.
 License: MIT + file LICENSE
-Authors@R: 
+Authors@R:
     person(given = "Will", family = "Curran-Groome", email = "wcurrangroome@urban.org", role = c("aut", "cre"))
 Encoding: UTF-8
-LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
-Depends: 
+URL: https://ui-research.github.io/crosswalk/, https://github.com/UI-Research/crosswalk
+BugReports: https://github.com/UI-Research/crosswalk/issues
+Depends:
     R (>= 4.1.0)
 Imports:
-    dplyr,
+    dplyr (>= 1.1.0),
     httr,
     httr2,
     janitor,
@@ -21,6 +30,7 @@ Imports:
     readr,
     rlang,
     rvest,
+    stats,
     stringr,
     tibble,
     tidyr,
@@ -28,10 +38,10 @@ Imports:
     utils
 Suggests:
     ggplot2,
+    scales,
     testthat (>= 3.0.0),
     tidycensus,
     knitr,
     rmarkdown
 Config/testthat/edition: 3
 VignetteBuilder: knitr
-URL: https://ui-research.github.io/crosswalk/

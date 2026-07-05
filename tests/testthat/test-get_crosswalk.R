@@ -352,3 +352,139 @@ test_that("get_crosswalk routes no-year to GeoCorr 2022", {
   expect_equal(metadata$data_source, "geocorr")
   expect_equal(metadata$reference_year, "2022")
 })
+
+test_that("get_crosswalk uses source year for GeoCorr version when target year is NULL", {
+  skip_if_offline()
+
+  result <- get_crosswalk(
+    source_geography = "tract",
+    target_geography = "zcta",
+    source_year = 2015,
+    weight = "population")
+
+  metadata <- attr(result$crosswalks$step_1, "crosswalk_metadata")
+  expect_equal(metadata$data_source, "geocorr")
+  expect_equal(metadata$reference_year, "2018")
+})
+
+# ==============================================================================
+# NHGIS weight filtering and mass conservation tests
+# ==============================================================================
+
+test_that("get_crosswalk filters NHGIS crosswalks to the requested weight", {
+  skip_if_offline()
+  skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
+
+  result <- get_crosswalk(
+    source_geography = "tract",
+    target_geography = "tract",
+    source_year = 2010,
+    target_year = 2020,
+    weight = "population",
+    silent = TRUE)
+
+  crosswalk <- result$crosswalks$step_1
+
+  # Exactly one weighting factor, matching the request
+  expect_equal(unique(crosswalk$weighting_factor), "population")
+
+  # Exactly one row per source-target pair
+  expect_equal(
+    anyDuplicated(crosswalk[c("source_geoid", "target_geoid")]),
+    0L)
+
+  # Allocation factors for each source geography should sum to ~1
+  allocation_mass <- crosswalk |>
+    dplyr::summarize(
+      mass = sum(allocation_factor_source_to_target),
+      .by = source_geoid)
+  expect_equal(mean(allocation_mass$mass), 1, tolerance = 0.01)
+})
+
+test_that("crosswalk_data conserves total counts through an NHGIS crosswalk", {
+  skip_if_offline()
+  skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
+
+  result <- get_crosswalk(
+    source_geography = "tract",
+    target_geography = "tract",
+    source_year = 2010,
+    target_year = 2020,
+    weight = "population",
+    silent = TRUE)
+
+  # One unit of count per source tract: the crosswalked total must equal the
+  # number of source tracts (allocation factors sum to 1 per source)
+  mock_data <- tibble::tibble(
+    source_geoid = unique(result$crosswalks$step_1$source_geoid),
+    count_value = 1)
+
+  output <- crosswalk_data(
+    data = mock_data,
+    crosswalk = result,
+    geoid_column = "source_geoid",
+    count_columns = "count_value",
+    silent = TRUE)
+
+  expect_equal(
+    sum(output$count_value),
+    nrow(mock_data),
+    tolerance = 0.001)
+})
+
+test_that("get_crosswalk selects housing weight for NHGIS crosswalks", {
+  skip_if_offline()
+  skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
+
+  result <- get_crosswalk(
+    source_geography = "tract",
+    target_geography = "tract",
+    source_year = 2010,
+    target_year = 2020,
+    weight = "housing",
+    silent = TRUE)
+
+  crosswalk <- result$crosswalks$step_1
+  expect_equal(unique(crosswalk$weighting_factor), "housing_all")
+})
+
+# ==============================================================================
+# County-events routing
+# ==============================================================================
+
+test_that("county temporal requests route to the county-events engine", {
+  result <- get_crosswalk(
+    source_geography = "county",
+    target_geography = "county",
+    source_year = 2014,
+    target_year = 2019,
+    silent = TRUE)
+
+  expect_equal(length(result$crosswalks), 1)
+  crosswalk <- result$crosswalks$step_1
+  metadata <- attr(crosswalk, "crosswalk_metadata")
+
+  expect_equal(metadata$data_source, "county_events")
+  expect_equal(anyDuplicated(crosswalk[c("source_geoid", "target_geoid")]), 0L)
+  expect_equal(crosswalk$target_geoid[crosswalk$source_geoid == "46113"], "46102")
+})
+
+test_that("county 2014 -> 2023 spans the decennial in a single events step", {
+  result <- get_crosswalk(
+    source_geography = "county",
+    target_geography = "county",
+    source_year = 2014,
+    target_year = 2023,
+    silent = TRUE)
+
+  expect_equal(length(result$crosswalks), 1)
+  crosswalk <- result$crosswalks$step_1
+
+  # CT planning regions and the Valdez-Cordova successors are targets
+  expect_true(all(c("09110", "02063", "02066") %in% crosswalk$target_geoid))
+  # Factors sum to 1 per source
+  sums <- crosswalk |>
+    dplyr::summarize(
+      total = sum(allocation_factor_source_to_target), .by = source_geoid)
+  expect_true(all(abs(sums$total - 1) < 1e-9))
+})
