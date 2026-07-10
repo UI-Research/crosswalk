@@ -709,7 +709,8 @@ get_available_crosswalks <- function() {
     source_geography = geocorr_2022_geographies,
     target_geography = "aiannh",
     source_year = 2022L,
-    target_year = 2022L)
+    target_year = 2022L,
+    crosswalk_source = "geocorr")
 
   geocorr_2022 <- dplyr::bind_rows(geocorr_2022, geocorr_2022_aiannh)
 

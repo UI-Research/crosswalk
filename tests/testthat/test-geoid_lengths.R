@@ -163,7 +163,7 @@ test_that("GeoCorr 2018 congressional district crosswalks have correct-length GE
 test_that("CTData 2020-2022 crosswalks have correct-length GEOIDs", {
   skip_if_offline()
 
-  for (geog in c("tract", "block_group", "county")) {
+  for (geog in c("tract", "block_group")) {
     result <- get_crosswalk(
       source_geography = geog,
       target_geography = geog,
@@ -171,6 +171,19 @@ test_that("CTData 2020-2022 crosswalks have correct-length GEOIDs", {
       target_year = 2022)
     assert_geoid_lengths(result, label = paste0("ctdata ", geog))
   }
+})
+
+test_that("CTData 2020-2022 county crosswalk has correct-length GEOIDs", {
+  skip_if_offline()
+  # the county path fetches 2020 county GEOIDs via tidycensus::get_acs()
+  skip_if(Sys.getenv("CENSUS_API_KEY") == "", "CENSUS_API_KEY not set")
+
+  result <- get_crosswalk(
+    source_geography = "county",
+    target_geography = "county",
+    source_year = 2020,
+    target_year = 2022)
+  assert_geoid_lengths(result, label = "ctdata county")
 })
 
 # ==============================================================================
