@@ -63,6 +63,7 @@ crosswalk. With no years specified, `get_crosswalk()` uses GeoCorr 2022
 ## save fetched crosswalks to a directory so repeat requests read from disk;
 ## see the Caching section at the end of this vignette
 cache_dir <- file.path(tempdir(), "crosswalk-cache")
+dir.create(cache_dir, recursive = TRUE, showWarnings = FALSE)
 
 county_to_puma <- get_crosswalk(
   source_geography = "county",
