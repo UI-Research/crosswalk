@@ -6,14 +6,17 @@
 
 ## Citation
 
-Curran-Groome W (2026). *crosswalk: Translate data across space and
-time*. R package version 0.0.0.9001,
+Source:
+[`DESCRIPTION`](https://github.com/UI-Research/crosswalk/blob/main/DESCRIPTION)
+
+Curran-Groome W (2026). *crosswalk: Translate Data across Space and
+Time*. R package version 0.0.0.9002,
 <https://ui-research.github.io/crosswalk/>.
 
     @Manual{,
-      title = {crosswalk: Translate data across space and time},
+      title = {crosswalk: Translate Data across Space and Time},
       author = {Will Curran-Groome},
       year = {2026},
-      note = {R package version 0.0.0.9001},
+      note = {R package version 0.0.0.9002},
       url = {https://ui-research.github.io/crosswalk/},
     }

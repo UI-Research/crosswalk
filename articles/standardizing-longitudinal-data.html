@@ -7,8 +7,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Standardizing Longitudinal Data • crosswalk</title>
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Standardizing Longitudinal Data">
 </head>
@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">crosswalk</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9001</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9002</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -29,18 +29,23 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto">
+<li class="nav-item"><a class="nav-link" href="../articles/crosswalk.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
-<li><a class="dropdown-item" href="../articles/standardizing-longitudinal-data.html">Standardizing Longitudinal Data</a></li>
+<li><a class="dropdown-item" href="../articles/how-interpolation-works.html">How Interpolation Works</a></li>
+    <li><a class="dropdown-item" href="../articles/county-crosswalks.html">County Crosswalks Between Any Years</a></li>
+    <li><a class="dropdown-item" href="../articles/standardizing-longitudinal-data.html">Standardizing Longitudinal Data</a></li>
   </ul>
 </li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json">
 </form></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/UI-Research/crosswalk/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
       </ul>
 </div>
 
@@ -57,7 +62,7 @@
       <h1>Standardizing Longitudinal Data</h1>
             
       
-
+      <small class="dont-index">Source: <a href="https://github.com/UI-Research/crosswalk/blob/main/vignettes/standardizing-longitudinal-data.Rmd" class="external-link"><code>vignettes/standardizing-longitudinal-data.Rmd</code></a></small>
       <div class="d-none name"><code>standardizing-longitudinal-data.Rmd</code></div>
     </div>
 
@@ -76,6 +81,12 @@ efficiently handles this task using the Urban Institute’s <a href="https://dat
 Neighborhood Summary Files</a>, which provide tract-level mortgage
 lending data from 2018-2023. The 2018-2021 files use 2010 tract
 definitions, while 2022-2023 use 2020 tract definitions.</p>
+<p>Note: this vignette is precomputed because it downloads six years of
+HMDA data and an NHGIS crosswalk (which requires an
+<code>IPUMS_API_KEY</code>). The outputs shown were generated when the
+vignette was last knit from its source
+(<code>vignettes/standardizing-longitudinal-data.Rmd.orig</code>); see
+<code>vignettes/precompile.R</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="setup">Setup<a class="anchor" aria-label="anchor" href="#setup"></a>
@@ -85,10 +96,9 @@ definitions, while 2022-2023 use 2020 tract definitions.</p>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://purrr.tidyverse.org/" class="external-link">purrr</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://readr.tidyverse.org" class="external-link">readr</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tibble.tidyverse.org/" class="external-link">tibble</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://stringr.tidyverse.org" class="external-link">stringr</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://walker-data.com/tidycensus/" class="external-link">tidycensus</a></span><span class="op">)</span></span>
-<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://ggplot2.tidyverse.org" class="external-link">ggplot2</a></span><span class="op">)</span></span></code></pre></div>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tibble.tidyverse.org/" class="external-link">tibble</a></span><span class="op">)</span></span>
+<span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tidyr.tidyverse.org" class="external-link">tidyr</a></span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-1-download-the-data">Step 1: Download the Data<a class="anchor" aria-label="anchor" href="#step-1-download-the-data"></a>
@@ -97,7 +107,7 @@ definitions, while 2022-2023 use 2020 tract definitions.</p>
 Let’s download all six years (2018-2023):</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co">## metadata object describing data year/vintage/url</span></span>
-<span><span class="va">metadata</span> <span class="op">=</span> <span class="fu"><a href="https://tibble.tidyverse.org/reference/tribble.html" class="external-link">tribble</a></span><span class="op">(</span></span>
+<span><span class="va">metadata</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://tibble.tidyverse.org/reference/tribble.html" class="external-link">tribble</a></span><span class="op">(</span></span>
 <span>  <span class="op">~</span> <span class="va">year</span>, <span class="op">~</span> <span class="va">vintage</span>, <span class="op">~</span> <span class="va">url</span>,</span>
 <span>  <span class="fl">2018</span>, <span class="fl">2010</span>, <span class="st">"https://urban-data-catalog.s3.amazonaws.com/drupal-root-live/2023/12/20/hmda_tract_2018.csv"</span>,</span>
 <span>  <span class="fl">2019</span>, <span class="fl">2010</span>, <span class="st">"https://urban-data-catalog.s3.amazonaws.com/drupal-root-live/2023/12/20/hmda_tract_2019.csv"</span>,</span>
@@ -113,23 +123,23 @@ Let’s download all six years (2018-2023):</p>
 <span>      vintage <span class="op">=</span> <span class="va">vintage</span>,</span>
 <span>      data_year <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="va">year</span><span class="op">)</span><span class="op">)</span> <span class="op">}</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">hmda_data</span><span class="op">)</span> <span class="op">=</span> <span class="va">metadata</span><span class="op">$</span><span class="va">year</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">hmda_data</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">as.character</a></span><span class="op">(</span><span class="va">metadata</span><span class="op">$</span><span class="va">year</span><span class="op">)</span></span></code></pre></div>
 <p>Let’s inspect the structure of the data:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co">## just view the first ten columns</span></span>
-<span><span class="fu"><a href="https://pillar.r-lib.org/reference/glimpse.html" class="external-link">glimpse</a></span><span class="op">(</span><span class="va">hmda_data</span><span class="op">[[</span><span class="st">"2018"</span><span class="op">]</span><span class="op">]</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">10</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://pillar.r-lib.org/reference/glimpse.html" class="external-link">glimpse</a></span><span class="op">(</span><span class="va">hmda_data</span><span class="op">[[</span><span class="st">"2018"</span><span class="op">]</span><span class="op">]</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">10</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Rows: 74,652</span></span>
 <span><span class="co">#&gt; Columns: 10</span></span>
-<span><span class="co">#&gt; $ geo2010                            <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> "00XXXXXXXXX"<span style="color: #949494;">, </span>"01001020100"<span style="color: #949494;">, </span>"0100…</span></span>
-<span><span class="co">#&gt; $ owner_purchase_originations        <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 2<span style="color: #949494;">, </span>21<span style="color: #949494;">, </span>11<span style="color: #949494;">, </span>41<span style="color: #949494;">, </span>64<span style="color: #949494;">, </span>185<span style="color: #949494;">, </span>44<span style="color: #949494;">, </span>68<span style="color: #949494;">, </span>41<span style="color: #949494;">,</span>…</span></span>
-<span><span class="co">#&gt; $ occupancy_investment_origination   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 2<span style="color: #949494;">, </span>4<span style="color: #949494;">, </span>4<span style="color: #949494;">, </span>3<span style="color: #949494;">, </span>6<span style="color: #949494;">, </span>19<span style="color: #949494;">, </span>3<span style="color: #949494;">, </span>5<span style="color: #949494;">, </span>3<span style="color: #949494;">, </span>5<span style="color: #949494;">, </span>6<span style="color: #949494;">, </span>0…</span></span>
-<span><span class="co">#&gt; $ occupancy_investment_units_1_4     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 2<span style="color: #949494;">, </span>4<span style="color: #949494;">, </span>3<span style="color: #949494;">, </span>3<span style="color: #949494;">, </span>6<span style="color: #949494;">, </span>17<span style="color: #949494;">, </span>3<span style="color: #949494;">, </span>5<span style="color: #949494;">, </span>3<span style="color: #949494;">, </span>5<span style="color: #949494;">, </span>5<span style="color: #949494;">, </span>0…</span></span>
-<span><span class="co">#&gt; $ occupancy_investment_units_5ormore <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 0<span style="color: #949494;">, </span>0<span style="color: #949494;">, </span>1<span style="color: #949494;">, </span>0<span style="color: #949494;">, </span>0<span style="color: #949494;">, </span>2<span style="color: #949494;">, </span>0<span style="color: #949494;">, </span>0<span style="color: #949494;">, </span>0<span style="color: #949494;">, </span>0<span style="color: #949494;">, </span>1<span style="color: #949494;">, </span>0<span style="color: #949494;">,</span>…</span></span>
-<span><span class="co">#&gt; $ income_available                   <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 0<span style="color: #949494;">, </span>21<span style="color: #949494;">, </span>11<span style="color: #949494;">, </span>41<span style="color: #949494;">, </span>64<span style="color: #949494;">, </span>184<span style="color: #949494;">, </span>42<span style="color: #949494;">, </span>68<span style="color: #949494;">, </span>41<span style="color: #949494;">,</span>…</span></span>
-<span><span class="co">#&gt; $ race_available                     <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 2<span style="color: #949494;">, </span>21<span style="color: #949494;">, </span>10<span style="color: #949494;">, </span>39<span style="color: #949494;">, </span>61<span style="color: #949494;">, </span>171<span style="color: #949494;">, </span>41<span style="color: #949494;">, </span>66<span style="color: #949494;">, </span>38<span style="color: #949494;">,</span>…</span></span>
-<span><span class="co">#&gt; $ race_income_available              <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 0<span style="color: #949494;">, </span>21<span style="color: #949494;">, </span>10<span style="color: #949494;">, </span>39<span style="color: #949494;">, </span>61<span style="color: #949494;">, </span>170<span style="color: #949494;">, </span>39<span style="color: #949494;">, </span>66<span style="color: #949494;">, </span>38<span style="color: #949494;">,</span>…</span></span>
-<span><span class="co">#&gt; $ age_available                      <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 2<span style="color: #949494;">, </span>21<span style="color: #949494;">, </span>11<span style="color: #949494;">, </span>41<span style="color: #949494;">, </span>64<span style="color: #949494;">, </span>185<span style="color: #949494;">, </span>44<span style="color: #949494;">, </span>68<span style="color: #949494;">, </span>41<span style="color: #949494;">,</span>…</span></span>
-<span><span class="co">#&gt; $ race_white_purchase                <span style="color: #949494; font-style: italic;">&lt;dbl&gt;</span> 2<span style="color: #949494;">, </span>19<span style="color: #949494;">, </span>7<span style="color: #949494;">, </span>33<span style="color: #949494;">, </span>54<span style="color: #949494;">, </span>128<span style="color: #949494;">, </span>30<span style="color: #949494;">, </span>47<span style="color: #949494;">, </span>34<span style="color: #949494;">, </span>…</span></span></code></pre></div>
+<span><span class="co">#&gt; $ geo2010                            &lt;chr&gt; "00XXXXXXXXX", "01001020100", "0100…</span></span>
+<span><span class="co">#&gt; $ owner_purchase_originations        &lt;dbl&gt; 2, 21, 11, 41, 64, 185, 44, 68, 41,…</span></span>
+<span><span class="co">#&gt; $ occupancy_investment_origination   &lt;dbl&gt; 2, 4, 4, 3, 6, 19, 3, 5, 3, 5, 6, 0…</span></span>
+<span><span class="co">#&gt; $ occupancy_investment_units_1_4     &lt;dbl&gt; 2, 4, 3, 3, 6, 17, 3, 5, 3, 5, 5, 0…</span></span>
+<span><span class="co">#&gt; $ occupancy_investment_units_5ormore &lt;dbl&gt; 0, 0, 1, 0, 0, 2, 0, 0, 0, 0, 1, 0,…</span></span>
+<span><span class="co">#&gt; $ income_available                   &lt;dbl&gt; 0, 21, 11, 41, 64, 184, 42, 68, 41,…</span></span>
+<span><span class="co">#&gt; $ race_available                     &lt;dbl&gt; 2, 21, 10, 39, 61, 171, 41, 66, 38,…</span></span>
+<span><span class="co">#&gt; $ race_income_available              &lt;dbl&gt; 0, 21, 10, 39, 61, 170, 39, 66, 38,…</span></span>
+<span><span class="co">#&gt; $ age_available                      &lt;dbl&gt; 2, 21, 11, 41, 64, 185, 44, 68, 41,…</span></span>
+<span><span class="co">#&gt; $ race_white_purchase                &lt;dbl&gt; 2, 19, 7, 33, 54, 128, 30, 47, 34, …</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-2-prepare-data-for-crosswalking">Step 2: Prepare Data for Crosswalking<a class="anchor" aria-label="anchor" href="#step-2-prepare-data-for-crosswalking"></a>
@@ -142,6 +152,11 @@ parameter (<code>count_columns</code> or
 prefix these variables with their unit types (“count” and “median”,
 respectively), and <code><a href="../reference/crosswalk_data.html">crosswalk_data()</a></code> will crosswalk each
 appropriately by default.</p>
+<p>Note that non-count variables like
+<code>median_owner_loan_amount</code> are interpolated as weighted
+means, which is an approximation – see
+<code><a href="../articles/how-interpolation-works.html">vignette("how-interpolation-works")</a></code> for how to interpret
+crosswalked non-count values.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">prepare_hmda</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">data</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">data</span> <span class="op">|&gt;</span></span>
@@ -175,13 +190,14 @@ tracts.</p>
 <span></span>
 <span><span class="co"># View the crosswalk plan</span></span>
 <span><span class="va">tract_crosswalk</span><span class="op">$</span><span class="va">message</span></span>
-<span><span class="co">#&gt; [1] "Single-step crosswalk:\n  Step 1: 2010 tract -&gt; 2020 tract (inter-temporal)\n\nSingle crosswalk; use allocation_factor_source_to_target directly."</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "Single-step crosswalk:\n  Step 1: 2010 tract -&gt; 2020 tract (inter-temporal via nhgis)\n\nSingle crosswalk; use allocation_factor_source_to_target directly."</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-4-apply-the-crosswalk-to-2018-2021-data">Step 4: Apply the Crosswalk to 2018-2021 Data<a class="anchor" aria-label="anchor" href="#step-4-apply-the-crosswalk-to-2018-2021-data"></a>
 </h2>
 <p>Now we apply the crosswalk to the four years of data that use 2010
-tract definitions. We can see that relatively small, though not
+tract definitions. <code><a href="../reference/crosswalk_data.html">crosswalk_data()</a></code> prints join-quality
+diagnostics as it works (shown below); relatively small, though not
 insignificant, fractions of records in our source data do not join to
 our crosswalk. When this occurs, source data is effectively lost because
 it has no associated target geography nor allocation factor assigned to
@@ -192,29 +208,56 @@ it.</p>
 <span></span>
 <span><span class="co"># Apply crosswalk to each year</span></span>
 <span><span class="va">hmda_crosswalked</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://purrr.tidyverse.org/reference/map_if.html" class="external-link">map_if</a></span><span class="op">(</span></span>
-<span>  .x <span class="op">=</span> <span class="va">hmda_prepared</span>, </span>
+<span>  .x <span class="op">=</span> <span class="va">hmda_prepared</span>,</span>
 <span>  .p <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">hmda_prepared</span><span class="op">)</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">years_to_crosswalk</span>,</span>
 <span>  .f <span class="op">=</span> <span class="op">~</span> <span class="fu"><a href="../reference/crosswalk_data.html">crosswalk_data</a></span><span class="op">(</span></span>
 <span>      data <span class="op">=</span> <span class="va">.x</span>,</span>
 <span>      crosswalk <span class="op">=</span> <span class="va">tract_crosswalk</span>,</span>
 <span>      geoid_column <span class="op">=</span> <span class="st">"source_geoid"</span>,</span>
-<span>      show_join_quality <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> </span></code></pre></div>
+<span>      show_join_quality <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Applying crosswalk step 1 of 1...</span></span>
+<span><span class="co">#&gt; Join quality: 2,643 of 74,652 unique data GEOIDs (3.5%) did not match the crosswalk.</span></span>
+<span><span class="co">#&gt;   Top states with unmatched data rows: TX (9%, 233 rows), GA (6%, 154 rows), KY (4%, 114 rows)</span></span>
+<span><span class="co">#&gt; Join quality: 1,993 of 74,002 crosswalk source GEOIDs (2.7%) were not in input data.</span></span>
+<span><span class="co">#&gt;   Top states not in data: PR (47%, 943 rows), NY (7%, 147 rows), CA (5%,  93 rows)</span></span>
+<span><span class="co">#&gt;   (This is expected if your data covers a geographic subset.)</span></span>
+<span><span class="co">#&gt; Applying crosswalk step 1 of 1...</span></span>
+<span><span class="co">#&gt; Join quality: 2,447 of 74,485 unique data GEOIDs (3.3%) did not match the crosswalk.</span></span>
+<span><span class="co">#&gt;   Top states with unmatched data rows: TX (10%, 238 rows), GA (6%, 154 rows), KY (4%, 106 rows)</span></span>
+<span><span class="co">#&gt; Join quality: 1,964 of 74,002 crosswalk source GEOIDs (2.7%) were not in input data.</span></span>
+<span><span class="co">#&gt;   Top states not in data: PR (48%, 942 rows), NY (7%, 143 rows), CA (5%,  90 rows)</span></span>
+<span><span class="co">#&gt;   (This is expected if your data covers a geographic subset.)</span></span>
+<span><span class="co">#&gt; Applying crosswalk step 1 of 1...</span></span>
+<span><span class="co">#&gt; Join quality: 2,622 of 74,689 unique data GEOIDs (3.5%) did not match the crosswalk.</span></span>
+<span><span class="co">#&gt;   Top states with unmatched data rows: TX (9%, 239 rows), GA (6%, 154 rows), KY (4%, 115 rows)</span></span>
+<span><span class="co">#&gt; Join quality: 1,935 of 74,002 crosswalk source GEOIDs (2.6%) were not in input data.</span></span>
+<span><span class="co">#&gt;   Top states not in data: PR (49%, 944 rows), NY (7%, 135 rows), MI (5%,  92 rows)</span></span>
+<span><span class="co">#&gt;   (This is expected if your data covers a geographic subset.)</span></span>
+<span><span class="co">#&gt; Applying crosswalk step 1 of 1...</span></span>
+<span><span class="co">#&gt; Join quality: 2,700 of 74,811 unique data GEOIDs (3.6%) did not match the crosswalk.</span></span>
+<span><span class="co">#&gt;   Top states with unmatched data rows: TX (9%, 239 rows), GA (6%, 158 rows), KY (4%, 115 rows)</span></span>
+<span><span class="co">#&gt; Join quality: 1,891 of 74,002 crosswalk source GEOIDs (2.6%) were not in input data.</span></span>
+<span><span class="co">#&gt;   Top states not in data: PR (50%, 943 rows), NY (7%, 136 rows), CA (4%,  85 rows)</span></span>
+<span><span class="co">#&gt;   (This is expected if your data covers a geographic subset.)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="step-5-assess-crosswalking-quality">Step 5: Assess Crosswalking Quality<a class="anchor" aria-label="anchor" href="#step-5-assess-crosswalking-quality"></a>
 </h2>
-<p>Is there anything we can learn about our source data that doesn’t
-join to our crosswalk? Ideally, every record in our source data maps to
-a record in our crosswalk.</p>
+<p>The same diagnostics printed above are attached to each result as the
+<code>join_quality</code> attribute (see <code><a href="../reference/crosswalk_data.html">?crosswalk_data</a></code>
+for its full structure), so we can work with them programmatically. Is
+there anything we can learn about our source data that doesn’t join to
+our crosswalk? Ideally, every record in our source data maps to a record
+in our crosswalk.</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co">## we see that some observations that don't match have "XXXXXX" in lieu of</span></span>
 <span><span class="co">## a real tract code--which, from reading the data documentation, we know is</span></span>
-<span><span class="co">## done to to retain valid observations that, in the source data, do not have </span></span>
+<span><span class="co">## done to to retain valid observations that, in the source data, do not have</span></span>
 <span><span class="co">## a valid tract identifier but do have valid county and/or state identifies</span></span>
-<span><span class="va">hmda_crosswalked</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">map</a></span><span class="op">(</span><span class="op">~</span> </span>
-<span>    <span class="va">.x</span> <span class="op">|&gt;</span> </span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="st">"join_quality"</span><span class="op">)</span> <span class="op">|&gt;</span> </span>
+<span><span class="va">hmda_crosswalked</span><span class="op">[</span><span class="va">years_to_crosswalk</span><span class="op">]</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">map</a></span><span class="op">(</span><span class="op">~</span></span>
+<span>    <span class="va">.x</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="st">"join_quality"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu"><a href="https://purrr.tidyverse.org/reference/pluck.html" class="external-link">pluck</a></span><span class="op">(</span><span class="st">"data_geoids_unmatched"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fl">5</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; $`2018`</span></span>
@@ -227,22 +270,16 @@ a record in our crosswalk.</p>
 <span><span class="co">#&gt; [1] "01001XXXXXX" "01003XXXXXX" "01005XXXXXX" "01007XXXXXX" "01009XXXXXX"</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $`2021`</span></span>
-<span><span class="co">#&gt; [1] "01001XXXXXX" "01003XXXXXX" "01005XXXXXX" "01007XXXXXX" "01009XXXXXX"</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $`2022`</span></span>
-<span><span class="co">#&gt; NULL</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $`2023`</span></span>
-<span><span class="co">#&gt; NULL</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] "01001XXXXXX" "01003XXXXXX" "01005XXXXXX" "01007XXXXXX" "01009XXXXXX"</span></span></code></pre></div>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co">## how many source records are we unable to crosswalk each year, excluding</span></span>
 <span><span class="co">## those with "X" in their GEOIDs? under 30 each year.</span></span>
-<span><span class="va">hmda_crosswalked</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">map</a></span><span class="op">(</span><span class="op">~</span> </span>
-<span>    <span class="va">.x</span> <span class="op">|&gt;</span> </span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="st">"join_quality"</span><span class="op">)</span> <span class="op">|&gt;</span> </span>
-<span>    <span class="fu"><a href="https://purrr.tidyverse.org/reference/pluck.html" class="external-link">pluck</a></span><span class="op">(</span><span class="st">"data_geoids_unmatched"</span><span class="op">)</span> <span class="op"><a href="https://magrittr.tidyverse.org/reference/pipe.html" class="external-link">%&gt;%</a></span></span>
-<span>    <span class="va">.</span><span class="op">[</span><span class="op">!</span><span class="fu"><a href="https://stringr.tidyverse.org/reference/str_detect.html" class="external-link">str_detect</a></span><span class="op">(</span><span class="va">.</span>, <span class="st">"X"</span><span class="op">)</span><span class="op">]</span> <span class="op">|&gt;</span></span>
+<span><span class="va">hmda_crosswalked</span><span class="op">[</span><span class="va">years_to_crosswalk</span><span class="op">]</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://purrr.tidyverse.org/reference/map.html" class="external-link">map</a></span><span class="op">(</span><span class="op">~</span></span>
+<span>    <span class="va">.x</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="st">"join_quality"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://purrr.tidyverse.org/reference/pluck.html" class="external-link">pluck</a></span><span class="op">(</span><span class="st">"data_geoids_unmatched"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://purrr.tidyverse.org/reference/keep.html" class="external-link">discard</a></span><span class="op">(</span><span class="op">~</span> <span class="fu"><a href="https://stringr.tidyverse.org/reference/str_detect.html" class="external-link">str_detect</a></span><span class="op">(</span><span class="va">.x</span>, <span class="st">"X"</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; $`2018`</span></span>
 <span><span class="co">#&gt; [1] 25</span></span>
@@ -254,44 +291,88 @@ a record in our crosswalk.</p>
 <span><span class="co">#&gt; [1] 29</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; $`2021`</span></span>
-<span><span class="co">#&gt; [1] 24</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $`2022`</span></span>
-<span><span class="co">#&gt; [1] 0</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; $`2023`</span></span>
-<span><span class="co">#&gt; [1] 0</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 24</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="result-a-panel-dataset-in-2020-tract-definitions">Result: A Panel Dataset in 2020 Tract Definitions<a class="anchor" aria-label="anchor" href="#result-a-panel-dataset-in-2020-tract-definitions"></a>
 </h2>
-<p>We now have a single dataframe with all six years of HMDA data
-standardized to 2020 tract definitions. Due to changes in tract
-geographies between decades, we were previously unable to accurately
-compare neighborhood changes over time.</p>
-<p>Now, we have apples-to-apples measurements for tracts from 2018
-through 2023.</p>
+<p>We now have all six years of HMDA data standardized to 2020 tract
+definitions. Due to changes in tract geographies between decades, we
+were previously unable to accurately compare neighborhood changes over
+time.</p>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co">## there's a little bit of variation year-to-year in terms of which tracts have</span></span>
-<span><span class="co">## reported HMDA data, but for the majority, we have observations in each of the</span></span>
-<span><span class="co">## six years:</span></span>
-<span><span class="va">hmda_combined</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/bind_rows.html" class="external-link">bind_rows</a></span><span class="op">(</span><span class="va">hmda_crosswalked</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="co">## data for years that are crosswalked have slightly different/additional columns</span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span></span>
-<span>    geoid <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/if_else.html" class="external-link">if_else</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">geoid</span><span class="op">)</span>, <span class="va">source_geoid</span>, <span class="va">geoid</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/count.html" class="external-link">count</a></span><span class="op">(</span><span class="va">geoid</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/count.html" class="external-link">count</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">hmda_combined</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/bind_rows.html" class="external-link">bind_rows</a></span><span class="op">(</span><span class="va">hmda_crosswalked</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="co">## crosswalked years name their tract identifier `geoid`; the 2022-2023</span></span>
+<span>  <span class="co">## years (already in 2020 definitions) still use `source_geoid`</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>geoid <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/if_else.html" class="external-link">if_else</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">geoid</span><span class="op">)</span>, <span class="va">source_geoid</span>, <span class="va">geoid</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">hmda_combined</span><span class="op">)</span></span>
-<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 6 × 2</span></span></span>
-<span><span class="co">#&gt;       n    nn</span></span>
-<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;int&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span>     1   626</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span>     2  <span style="text-decoration: underline;">2</span>457</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">3</span>     3   107</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">4</span>     4   560</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">5</span>     5   414</span></span>
-<span><span class="co">#&gt; <span style="color: #BCBCBC;">6</span>     6 <span style="text-decoration: underline;">82</span>672</span></span></code></pre></div>
+<span><span class="co">## there's a little bit of variation year-to-year in terms of which tracts have</span></span>
+<span><span class="co">## reported HMDA data, but the large majority of tracts have observations in</span></span>
+<span><span class="co">## each of the six years:</span></span>
+<span><span class="va">hmda_combined</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/count.html" class="external-link">count</a></span><span class="op">(</span><span class="va">geoid</span>, name <span class="op">=</span> <span class="st">"n_years_observed"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/count.html" class="external-link">count</a></span><span class="op">(</span><span class="va">n_years_observed</span><span class="op">)</span></span>
+<span><span class="co">#&gt; # A tibble: 6 × 2</span></span>
+<span><span class="co">#&gt;   n_years_observed     n</span></span>
+<span><span class="co">#&gt;              &lt;int&gt; &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1                1   626</span></span>
+<span><span class="co">#&gt; 2                2  2457</span></span>
+<span><span class="co">#&gt; 3                3   107</span></span>
+<span><span class="co">#&gt; 4                4   559</span></span>
+<span><span class="co">#&gt; 5                5   414</span></span>
+<span><span class="co">#&gt; 6                6 82672</span></span></code></pre></div>
+<p>To see the payoff, consider a 2010 tract that was split into multiple
+2020 tracts. Before crosswalking, its 2018-2021 lending activity was
+reported under a tract identifier that no longer exists in the 2022-2023
+data; after crosswalking, each of its 2020 successor tracts has an
+apples-to-apples series covering all six years:</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co">## find the 2010 tract split across the most 2020 tracts</span></span>
+<span><span class="va">split_tract</span> <span class="op">&lt;-</span> <span class="va">tract_crosswalk</span><span class="op">$</span><span class="va">crosswalks</span><span class="op">$</span><span class="va">step_1</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarize</a></span><span class="op">(</span>.by <span class="op">=</span> <span class="va">source_geoid</span>, n_targets <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/n_distinct.html" class="external-link">n_distinct</a></span><span class="op">(</span><span class="va">target_geoid</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">n_targets</span> <span class="op">&gt;</span> <span class="fl">1</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/arrange.html" class="external-link">arrange</a></span><span class="op">(</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/desc.html" class="external-link">desc</a></span><span class="op">(</span><span class="va">n_targets</span><span class="op">)</span>, <span class="va">source_geoid</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/slice.html" class="external-link">slice</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/pull.html" class="external-link">pull</a></span><span class="op">(</span><span class="va">source_geoid</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">successor_tracts</span> <span class="op">&lt;-</span> <span class="va">tract_crosswalk</span><span class="op">$</span><span class="va">crosswalks</span><span class="op">$</span><span class="va">step_1</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">source_geoid</span> <span class="op">==</span> <span class="va">split_tract</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/pull.html" class="external-link">pull</a></span><span class="op">(</span><span class="va">target_geoid</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">split_tract</span></span>
+<span><span class="co">#&gt; [1] "51810990100"</span></span>
+<span></span>
+<span><span class="co">## owner-occupied purchase originations, by year, for the successor tracts</span></span>
+<span><span class="va">hmda_combined</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">geoid</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">successor_tracts</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">geoid</span>, <span class="va">data_year</span>, <span class="va">count_owner_purchase_originations</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://dplyr.tidyverse.org/reference/arrange.html" class="external-link">arrange</a></span><span class="op">(</span><span class="va">geoid</span>, <span class="va">data_year</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>  <span class="fu"><a href="https://tidyr.tidyverse.org/reference/pivot_wider.html" class="external-link">pivot_wider</a></span><span class="op">(</span></span>
+<span>    names_from <span class="op">=</span> <span class="va">data_year</span>,</span>
+<span>    values_from <span class="op">=</span> <span class="va">count_owner_purchase_originations</span><span class="op">)</span></span>
+<span><span class="co">#&gt; # A tibble: 17 × 7</span></span>
+<span><span class="co">#&gt;    geoid       `2018` `2019` `2020` `2021` `2022` `2023`</span></span>
+<span><span class="co">#&gt;    &lt;chr&gt;        &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;</span></span>
+<span><span class="co">#&gt;  1 51810040000   0      0      0      2        NA     NA</span></span>
+<span><span class="co">#&gt;  2 51810041801  51     71     52     61        46     44</span></span>
+<span><span class="co">#&gt;  3 51810041803  61.8   63.3   69.0   64.2      47     37</span></span>
+<span><span class="co">#&gt;  4 51810041804  68.2   69.7   76.0   70.8      41     37</span></span>
+<span><span class="co">#&gt;  5 51810043004  57     51     56     70        49     43</span></span>
+<span><span class="co">#&gt;  6 51810043005  40.6   47.3   53.1   56.2      36     24</span></span>
+<span><span class="co">#&gt;  7 51810043006  56.5   65.8   74.0   78.1      63     50</span></span>
+<span><span class="co">#&gt;  8 51810043200   1.42   2.39   1.42   1.88     NA      1</span></span>
+<span><span class="co">#&gt;  9 51810043400  32.0   34.1   38.0   43.0      41     17</span></span>
+<span><span class="co">#&gt; 10 51810043600  25.0   35.0   33.0   38.0      33     15</span></span>
+<span><span class="co">#&gt; 11 51810043800  69.3   53.3   66.3   64.7      34     31</span></span>
+<span><span class="co">#&gt; 12 51810044004  41.1   48.1   51.1   40.2      15     13</span></span>
+<span><span class="co">#&gt; 13 51810044008  35.4   38.9   42.7   46.9      19     23</span></span>
+<span><span class="co">#&gt; 14 51810045200  10.1   18.2   18.2   14.2      12     11</span></span>
+<span><span class="co">#&gt; 15 51810045412  17     19     36     26        21     18</span></span>
+<span><span class="co">#&gt; 16 51810046400  65.0   57.0   86.0   75.0      65     40</span></span>
+<span><span class="co">#&gt; 17 51810990100   0      0      0      0         0     NA</span></span></code></pre></div>
+<p>Each row is a 2020 tract with a complete 2018-2023 series: the
+2018-2021 values are allocated shares of the original (since-split) 2010
+tract, and the 2022-2023 values come directly from the source data.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
@@ -304,7 +385,7 @@ through 2023.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer>

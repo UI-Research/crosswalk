@@ -59,10 +59,14 @@ crosswalk_data(
 
 - source_geography:
 
-  Character or NULL. Source geography name. Required if `crosswalk` is
-  NULL. One of c("block", "block group", "tract", "place", "county",
-  "urban_area", "zcta", "puma", "cd118", "cd119",
-  "core_based_statistical_area").
+  Character or NULL. Source geography name (e.g., "tract", "zcta").
+  Required if `crosswalk` is NULL; passed to
+  [`get_crosswalk()`](https://ui-research.github.io/crosswalk/reference/get_crosswalk.md).
+  See
+  [`get_crosswalk()`](https://ui-research.github.io/crosswalk/reference/get_crosswalk.md)
+  for accepted names and
+  [`get_available_crosswalks()`](https://ui-research.github.io/crosswalk/reference/get_available_crosswalks.md)
+  for all supported combinations.
 
 - target_geography:
 
@@ -142,21 +146,27 @@ crosswalk_data(
   quality, including the number of data rows not matching the crosswalk
   and vice versa. For state-nested geographies (tract, county, block
   group, etc.), also reports state-level concentration of unmatched
-  rows. Set to FALSE to suppress these messages. Automatically
+  rows. Set to FALSE to suppress these messages; the `join_quality`
+  attribute (see the "Join quality diagnostics" section) is computed and
+  attached to the result either way. Messages are automatically
   suppressed when `silent = TRUE`.
 
 - silent:
 
   Logical. If `TRUE`, suppresses all informational messages and
   warnings, including join quality diagnostics regardless of
-  `show_join_quality`. Defaults to
-  `getOption("crosswalk.silent", FALSE)`. Set
+  `show_join_quality` (the `join_quality` attribute is still attached to
+  the result). Defaults to `getOption("crosswalk.silent", FALSE)`. Set
   `options(crosswalk.silent = TRUE)` to silence all calls by default.
 
 ## Value
 
 If `return_intermediate = FALSE` (default), a tibble with data
-summarized to the final target geography.
+summarized to the final target geography. The target identifier column
+is named `geoid` (and, when present in the crosswalk, the geography type
+is in `geography_name`). Data rows whose GEOIDs do not match the
+crosswalk cannot be allocated to a target geography and are dropped; use
+the `join_quality` attribute to inspect them.
 
 If `return_intermediate = TRUE` and there are multiple crosswalk steps,
 a list with:
@@ -169,9 +179,22 @@ a list with:
 
   A named list of intermediate results (step_1, step_2, etc.)
 
-The returned tibble(s) include an attribute `crosswalk_metadata` from
-the underlying crosswalk (access via
-`attr(result, "crosswalk_metadata")`).
+The returned tibble(s) carry two attributes:
+
+- crosswalk_metadata:
+
+  Provenance of the crosswalk that produced the result (access via
+  `attr(result, "crosswalk_metadata")`); see the "Crosswalk metadata"
+  section of
+  [`get_crosswalk()`](https://ui-research.github.io/crosswalk/reference/get_crosswalk.md).
+
+- join_quality:
+
+  Statistics describing how well the data joined to the crosswalk
+  (access via `attr(result, "join_quality")`); see the "Join quality
+  diagnostics" section below. For multi-step crosswalks, both attributes
+  describe the *final* step; set `return_intermediate = TRUE` to obtain
+  each step's result with its own attributes.
 
 ## Details
 
@@ -193,7 +216,16 @@ source geographies that overlap with each target geography.
 
 **Non-count variables** (specified in `non_count_columns`) are
 interpolated using a weighted mean, with the allocation factor serving
-as the weight.
+as the weight. Note this is an approximation: the allocation factor
+reflects each source geography's share allocated to the target, not the
+relative size of the source geographies, so weighted means are most
+accurate when source units are of broadly similar size.
+
+**One row per GEOID**: `data` must contain at most one row per GEOID.
+For panel data with multiple time periods, split the data by period
+(e.g., with
+[`purrr::map()`](https://purrr.tidyverse.org/reference/map.html)) and
+crosswalk each subset separately.
 
 **Automatic column detection**: If `count_columns` and
 `non_count_columns` are both NULL, the function will automatically
@@ -213,7 +245,82 @@ If all values are missing, NA is returned.
 [`get_crosswalk()`](https://ui-research.github.io/crosswalk/reference/get_crosswalk.md)
 returns multiple crosswalks (for transformations that change both
 geography and year), this function automatically applies them in
-sequence.
+sequence. The attributes on the final result describe only the final
+step; to inspect join quality for earlier steps, set
+`return_intermediate = TRUE` and examine the attributes of each
+intermediate tibble.
+
+## Join quality diagnostics
+
+The `join_quality` attribute is a list with the following elements:
+
+- n_data_total:
+
+  Number of unique GEOIDs in the input data.
+
+- n_data_unmatched:
+
+  Number of data GEOIDs with no match in the crosswalk. These rows
+  cannot be allocated to a target geography and are dropped from the
+  result.
+
+- pct_data_unmatched:
+
+  `n_data_unmatched` as a percentage (0-100) of `n_data_total`.
+
+- data_geoids_unmatched:
+
+  Character vector of the unmatched data GEOIDs.
+
+- state_analysis_data:
+
+  For state-nested geographies with unmatched data rows, a list
+  describing state-level concentration of the unmatched GEOIDs:
+  `state_counts` (a tibble of unmatched counts and percentages by state
+  FIPS), `top_states` (the three most-affected states), and
+  `is_concentrated` (logical; TRUE when any single state accounts for
+  more than 15% of unmatched GEOIDs). NULL when there are no unmatched
+  rows or state analysis is not applicable.
+
+- n_crosswalk_total:
+
+  Number of unique source GEOIDs in the crosswalk.
+
+- n_crosswalk_unmatched:
+
+  Number of crosswalk source GEOIDs absent from the data (e.g.,
+  geographies with no observations).
+
+- pct_crosswalk_unmatched:
+
+  `n_crosswalk_unmatched` as a percentage (0-100) of
+  `n_crosswalk_total`.
+
+- crosswalk_geoids_unmatched:
+
+  Character vector of the crosswalk source GEOIDs absent from the data.
+
+- state_analysis_crosswalk:
+
+  As `state_analysis_data`, but for crosswalk GEOIDs absent from the
+  data; otherwise NULL.
+
+- source_geography:
+
+  The source geography of the crosswalk step, when known from its
+  metadata.
+
+- state_analysis_applicable:
+
+  Logical; whether state-level analysis is meaningful for this geography
+  (FALSE for geographies that cross state lines, such as ZCTAs).
+
+## See also
+
+[`get_crosswalk()`](https://ui-research.github.io/crosswalk/reference/get_crosswalk.md)
+to fetch and inspect crosswalks before applying them;
+[`get_available_crosswalks()`](https://ui-research.github.io/crosswalk/reference/get_available_crosswalks.md)
+for all supported combinations.
 
 ## Examples
 
