@@ -804,9 +804,35 @@ test_that("crosswalk_data show_join_quality=FALSE suppresses messages", {
       show_join_quality = FALSE),
     message = "did not match")
 
-  # join_quality attribute should be NULL when disabled
+  # join_quality attribute is still computed and attached when messages are off
   join_quality <- attr(result, "join_quality")
-  expect_null(join_quality)
+  expect_type(join_quality, "list")
+  expect_equal(join_quality$n_data_unmatched, 1)
+  expect_true("C" %in% join_quality$data_geoids_unmatched)
+})
+
+test_that("crosswalk_data silent=TRUE still attaches join_quality attribute", {
+  mock_data <- tibble::tibble(
+    geoid = c("A", "B", "C"),  # C not in crosswalk
+    count_population = c(1000, 2000, 3000))
+
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("A", "B"),
+    target_geoid = c("X", "X"),
+    allocation_factor_source_to_target = c(0.5, 0.5))
+
+  expect_no_message(
+    result <- crosswalk_data(
+      data = mock_data,
+      crosswalk = mock_crosswalk,
+      geoid_column = "geoid",
+      count_columns = c("count_population"),
+      silent = TRUE))
+
+  join_quality <- attr(result, "join_quality")
+  expect_type(join_quality, "list")
+  expect_equal(join_quality$n_data_unmatched, 1)
+  expect_true("C" %in% join_quality$data_geoids_unmatched)
 })
 
 test_that("crosswalk_data silent when join is perfect", {
@@ -969,3 +995,138 @@ test_that("crosswalk_data other columns work correctly with one-to-many mapping"
   expect_true(all(result$data_year == 2020))
 })
 
+# ==============================================================================
+# Guard tests: duplicated crosswalk pairs and duplicated data GEOIDs
+# ==============================================================================
+
+test_that("crosswalk_data errors on crosswalks with multiple rows per source-target pair", {
+  mock_data <- tibble::tibble(
+    geoid = c("A"),
+    count_population = c(100))
+
+  # Long-format crosswalk: same pair repeated once per weighting factor.
+  # Summing across these rows would multiply-count values.
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("A", "A"),
+    target_geoid = c("X", "X"),
+    weighting_factor = c("population", "household"),
+    allocation_factor_source_to_target = c(1, 1))
+
+  expect_error(
+    crosswalk_data(
+      data = mock_data,
+      crosswalk = mock_crosswalk,
+      geoid_column = "geoid",
+      count_columns = c("count_population")),
+    regexp = "multiple rows per source-target")
+})
+
+test_that("crosswalk_data errors on duplicated data GEOIDs (panel data)", {
+  # Panel data: same GEOID appears once per year
+  mock_data <- tibble::tibble(
+    geoid = c("A", "A", "B"),
+    data_year = c(2018, 2019, 2018),
+    count_population = c(100, 110, 200))
+
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("A", "B"),
+    target_geoid = c("X", "X"),
+    target_geography_name = c("test", "test"),
+    allocation_factor_source_to_target = c(1, 1))
+
+  expect_error(
+    crosswalk_data(
+      data = mock_data,
+      crosswalk = mock_crosswalk,
+      geoid_column = "geoid",
+      count_columns = c("count_population")),
+    regexp = "duplicated GEOIDs")
+})
+
+test_that("crosswalk_data drops unmatched data rows without emitting an NA-geoid row", {
+  mock_data <- tibble::tibble(
+    geoid = c("A", "B", "C"),  # C not in crosswalk
+    count_population = c(1000, 2000, 3000))
+
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("A", "B"),
+    target_geoid = c("X", "X"),
+    target_geography_name = c("test", "test"),
+    allocation_factor_source_to_target = c(1, 1))
+
+  result <- crosswalk_data(
+    data = mock_data,
+    crosswalk = mock_crosswalk,
+    geoid_column = "geoid",
+    count_columns = c("count_population"),
+    silent = TRUE)
+
+  expect_false(any(is.na(result$geoid)))
+  expect_equal(result$count_population, 3000)
+})
+
+test_that("crosswalk_data preserves user columns containing 'target_'", {
+  mock_data <- tibble::tibble(
+    geoid = c("A"),
+    count_population = c(1000),
+    count_target_units = c(50))
+
+  mock_crosswalk <- tibble::tibble(
+    source_geoid = c("A"),
+    target_geoid = c("X"),
+    target_geography_name = c("test"),
+    allocation_factor_source_to_target = c(1))
+
+  result <- crosswalk_data(
+    data = mock_data,
+    crosswalk = mock_crosswalk,
+    geoid_column = "geoid",
+    count_columns = c("count_population", "count_target_units"))
+
+  expect_true("count_target_units" %in% colnames(result))
+  expect_equal(result$count_target_units, 50)
+})
+
+
+# ==============================================================================
+# County-events style chains (mock data)
+# ==============================================================================
+
+test_that("a mock events chain preserves counts and weights means", {
+  # Step 1: rename A -> B (identity factor), C unchanged
+  step_1 <- tibble::tibble(
+    source_geoid = c("A", "C"),
+    target_geoid = c("B", "C"),
+    target_geography_name = "test",
+    allocation_factor_source_to_target = c(1, 1))
+
+  # Step 2: B splits into X (0.7) and Y (0.3); C unchanged
+  step_2 <- tibble::tibble(
+    source_geoid = c("B", "B", "C"),
+    target_geoid = c("X", "Y", "C"),
+    target_geography_name = "test",
+    allocation_factor_source_to_target = c(0.7, 0.3, 1))
+
+  chain <- list(crosswalks = list(step_1 = step_1, step_2 = step_2))
+
+  data <- tibble::tibble(
+    source_geoid = c("A", "C"),
+    count_pop = c(1000, 500),
+    percent_owner = c(40, 60))
+
+  result <- crosswalk_data(
+    data = data,
+    crosswalk = chain,
+    geoid_column = "source_geoid",
+    show_join_quality = FALSE,
+    silent = TRUE)
+
+  expect_setequal(result$geoid, c("X", "Y", "C"))
+  # Counts split by allocation and preserved in total
+  expect_equal(result$count_pop[result$geoid == "X"], 700)
+  expect_equal(result$count_pop[result$geoid == "Y"], 300)
+  expect_equal(sum(result$count_pop), sum(data$count_pop))
+  # Non-count variables carry through the relabel/split unchanged
+  expect_equal(result$percent_owner[result$geoid == "X"], 40)
+  expect_equal(result$percent_owner[result$geoid == "C"], 60)
+})

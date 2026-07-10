@@ -8,9 +8,62 @@ get_available_crosswalks()
 }
 \value{
 A tibble with columns: \code{source_geography}, \code{target_geography},
-\code{source_year}, \code{target_year}.
+\code{source_year}, \code{target_year}, \code{crosswalk_source}.
 }
 \description{
 Returns a tibble of all source/target geography and year combinations
-supported by \code{get_crosswalk()}.
+supported by \code{get_crosswalk()}, along with the crosswalk source that serves
+each combination.
+}
+\details{
+\strong{How to read the year columns.} Years identify the geography \emph{vintages} a
+crosswalk translates between, not the only request years \code{get_crosswalk()}
+accepts:
+\itemize{
+\item \strong{GeoCorr} (same-year geography changes) rows are listed under their
+reference years: 2022 for 2020-Census geography and 2018 for 2010-Census
+geography. Requests with other year contexts resolve to the matching
+version -- years 2020 and later (or no years at all) use GeoCorr 2022,
+and years 2010-2019 use GeoCorr 2018. For example, a request for 2021
+tracts -> 2021 ZCTAs is served by the tract -> zcta 2022 row.
+\item \strong{County-events} rows enumerate every supported year pair explicitly
+(county -> county: any forward pair from 2000 on; tract, block group, and
+block: same-decade pairs from 2010 on, including exactly reversible
+relabels).
+}
+
+\strong{Nested geographies.} Same-year pairs in which the source geography nests
+within the target (e.g., tract -> county) are listed because GeoCorr serves
+them, but \code{get_crosswalk()} returns an empty crosswalk with a warning for
+these: no crosswalk is needed -- aggregate your data directly instead (e.g.,
+tracts nest within counties, so tract values can be summed by the first five
+GEOID characters).
+
+\strong{API keys by source.} The \code{crosswalk_source} column indicates which source
+\code{get_crosswalk()} uses for a direct request of that combination (multi-step
+chains may combine several):
+\itemize{
+\item \code{geocorr}: no API key required
+\item \code{nhgis}: requires \code{IPUMS_API_KEY} (see \code{\link[=get_crosswalk]{get_crosswalk()}})
+\item \code{ctdata_2020_2022}: county requests require a Census API key
+(\code{CENSUS_API_KEY}) and the \code{tidycensus} package; sub-county requests
+require neither
+\item \code{county_events}: no API key; the data ships with the package and works
+offline
+}
+}
+\examples{
+available <- get_available_crosswalks()
+
+# All combinations that translate data into 2020 tracts
+available |>
+  dplyr::filter(target_geography == "tract", target_year == 2020)
+
+# County -> county crosswalks support arbitrary year pairs from 2000 on
+available |>
+  dplyr::filter(source_geography == "county", target_geography == "county")
+}
+\seealso{
+\code{\link[=get_crosswalk]{get_crosswalk()}} to fetch a crosswalk; \code{\link[=list_nhgis_crosswalks]{list_nhgis_crosswalks()}}
+for the underlying NHGIS listing.
 }

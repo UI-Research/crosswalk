@@ -7,15 +7,27 @@
 list_nhgis_crosswalks()
 }
 \value{
-A tibble with columns:
-\itemize{
-\item source_year: Year of the source geography
-\item source_geography: Source geography name
-\item target_year: Year of the target geography
-\item target_geography: Target geography name
+A tibble with one row per NHGIS crosswalk and columns:
+\describe{
+\item{source_geography}{Source geography name (e.g., "block", "tract")}
+\item{source_year}{Year of the source geography (character)}
+\item{target_geography}{Target geography name}
+\item{target_year}{Year of the target geography (character)}
+\item{crosswalk_path}{URL of the underlying NHGIS crosswalk file}
 }
 }
 \description{
-Returns a tibble of all available NHGIS geographic crosswalks with their
-corresponding parameters that can be used with get_nhgis_crosswalk().
+Returns a tibble of all IPUMS NHGIS crosswalks available through
+\code{get_crosswalk()}. NHGIS provides the package's inter-temporal
+(cross-decade) crosswalks; fetching them requires an \code{IPUMS_API_KEY}
+(see \code{\link[=get_crosswalk]{get_crosswalk()}}). This listing itself is static and works offline.
+}
+\examples{
+# All NHGIS crosswalks from 2010 tracts
+list_nhgis_crosswalks() |>
+  dplyr::filter(source_geography == "tract", source_year == "2010")
+}
+\seealso{
+\code{\link[=get_available_crosswalks]{get_available_crosswalks()}} for supported combinations across all
+sources; \code{\link[=get_crosswalk]{get_crosswalk()}} to fetch a crosswalk.
 }

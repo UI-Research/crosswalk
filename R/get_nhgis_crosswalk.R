@@ -111,18 +111,27 @@ available crosswalks.")
 
 #' List supported NHGIS crosswalks
 #'
-#' Returns a tibble of all available NHGIS geographic crosswalks with their
-#' corresponding parameters that can be used with get_nhgis_crosswalk().
+#' Returns a tibble of all IPUMS NHGIS crosswalks available through
+#' `get_crosswalk()`. NHGIS provides the package's inter-temporal
+#' (cross-decade) crosswalks; fetching them requires an `IPUMS_API_KEY`
+#' (see [get_crosswalk()]). This listing itself is static and works offline.
 #'
-#' @return A tibble with columns:
-#'   \itemize{
-#'     \item source_year: Year of the source geography
-#'     \item source_geography: Source geography name
-#'     \item target_year: Year of the target geography
-#'     \item target_geography: Target geography name
+#' @return A tibble with one row per NHGIS crosswalk and columns:
+#'   \describe{
+#'     \item{source_geography}{Source geography name (e.g., "block", "tract")}
+#'     \item{source_year}{Year of the source geography (character)}
+#'     \item{target_geography}{Target geography name}
+#'     \item{target_year}{Year of the target geography (character)}
+#'     \item{crosswalk_path}{URL of the underlying NHGIS crosswalk file}
 #'   }
 #'
+#' @seealso [get_available_crosswalks()] for supported combinations across all
+#'   sources; [get_crosswalk()] to fetch a crosswalk.
 #' @export
+#' @examples
+#' # All NHGIS crosswalks from 2010 tracts
+#' list_nhgis_crosswalks() |>
+#'   dplyr::filter(source_geography == "tract", source_year == "2010")
 list_nhgis_crosswalks <- function() {
   nhgis_crosswalks_vector = c(
     ## =========================================================================
@@ -506,8 +515,9 @@ standardize_geography_for_nhgis_check <- function(geography) {
 #' @param cache Directory path. Where to download the crosswalk to. If NULL (default),
 #'    crosswalk is returned but not saved to disk.
 #'
-#' @return A dataframe representing the requested Geocorr22 crosswalk for all
-#'      51 states and Puerto Rico. Depending on the desired geographies, some
+#' @return A dataframe representing the requested NHGIS crosswalk in long
+#'      format, with one row per source-target GEOID pair per interpolation
+#'      weight (`weighting_factor`). Depending on the desired geographies, some
 #'      fields may not be included.
 #'   \describe{
 #'     \item{source_geoid}{A unique identifier for the source geography}
@@ -551,7 +561,24 @@ get_nhgis_crosswalk <- function(
 
   ## if the file exists and cache == TRUE
   if (file.exists(csv_path) & !is.null(cache)) {
-    result = readr::read_csv(csv_path, show_col_types = FALSE)
+    ## read GEOIDs as character (type-guessing can strip leading zeros) and
+    ## normalize values written by earlier package versions
+    result = readr::read_csv(
+      csv_path,
+      col_types = readr::cols(.default = readr::col_character()),
+      show_col_types = FALSE) |>
+      dplyr::mutate(
+        allocation_factor_source_to_target = as.numeric(allocation_factor_source_to_target),
+        weighting_factor = stringr::str_remove(weighting_factor, "^weight_"))
+
+    if (source_year == "1990" && source_geography_standardized == "tr") {
+      result = result |>
+        dplyr::mutate(
+          source_geoid = dplyr::if_else(
+            nchar(source_geoid) == 9,
+            stringr::str_c(source_geoid, "00"),
+            source_geoid))
+    }
 
     cw_message(
 "Use of NHGIS crosswalks is subject to the same conditions as for all NHGIS data.
@@ -585,8 +612,6 @@ See https://www.nhgis.org/citation-and-use-nhgis-data.")
   valid_decennial_years <- c("1990", "2000", "2010", "2020")
   valid_noncensus_years <- c("2011", "2012", "2014", "2015", "2022")
   valid_years <- c(valid_decennial_years, valid_noncensus_years)
-  valid_source_geogs <- c("blk", "bg", "tr")
-  valid_target_geogs <- c("blk", "bg", "tr", "co", "ua", "zcta", "puma", "cbsa")
   noncensus_geogs <- c("bg", "tr", "co")
 
   # Helper to determine decade for a year
@@ -665,21 +690,13 @@ County targets are only available from source years: 1990, 2000, 2010, 2014,
 years 2010, 2014, and 2015 (not ", target_year, ").")
   }
 
-  if (is.null(source_geography_standardized)) {
-    stop(
-"source_geography '", source_geography, "' is not valid. Must be one of: blocks,
-block group parts, or tracts (various spellings accepted).")}
-
-  if (is.null(target_geography_standardized)) {
-    stop(
-"target_geography '", target_geography, "' is not valid. Must be one of: blocks,
-block groups, tracts, or counties (various spellings accepted)")}
-
   if (!(crosswalk_path %in% list_nhgis_crosswalks()$crosswalk_path)) {
     stop(stringr::str_c(
 "There is no available crosswalk between the specified geographies and years.")) }
 
-  api_key = Sys.getenv("IPUMS_API_KEY")
+  if (is.null(api_key) || api_key == "") {
+    api_key = Sys.getenv("IPUMS_API_KEY")
+  }
   if (api_key == "") {
     stop(
 "API key required. Save your API key to the IPUMS_API_KEY environment
@@ -704,20 +721,27 @@ variable. Get your key at https://account.ipums.org/api_keys") }
     )
   }
 
+  # Use a unique temporary directory for downloading and extracting
+  temp_dir = file.path(tempdir(), stringr::str_c("nhgis_", crosswalk_sub_path, "_", format(Sys.time(), "%Y%m%d%H%M%S")))
+  dir.create(temp_dir, recursive = TRUE)
+  on.exit(unlink(temp_dir, recursive = TRUE), add = TRUE)
+
+  zip_path = file.path(temp_dir, stringr::str_c(crosswalk_sub_path, ".zip"))
+
+  # Download the crosswalk file
+  response = httr::GET(
+    crosswalk_path,
+    httr::add_headers(Authorization = api_key),
+    httr::write_disk(zip_path, overwrite = TRUE))
+
+  if (httr::http_error(response)) {
+    stop(
+      "Failed to download NHGIS crosswalk ", crosswalk_sub_path, " (HTTP ",
+      httr::status_code(response), "). If the status is 401 or 403, check that ",
+      "your IPUMS API key is valid; see https://account.ipums.org/api_keys.")
+  }
+
   crosswalk_df1 = tryCatch({
-
-    # Use a unique temporary directory for downloading and extracting
-    temp_dir = file.path(tempdir(), stringr::str_c("nhgis_", crosswalk_sub_path, "_", format(Sys.time(), "%Y%m%d%H%M%S")))
-    dir.create(temp_dir, recursive = TRUE)
-    on.exit(unlink(temp_dir, recursive = TRUE), add = TRUE)
-
-    zip_path = file.path(temp_dir, stringr::str_c(crosswalk_sub_path, ".zip"))
-
-    # Download the crosswalk file
-    response = httr::GET(
-      crosswalk_path,
-      httr::add_headers(Authorization = api_key),
-      httr::write_disk(zip_path, overwrite = TRUE), overwrite = TRUE)
 
     # Check HTTP response status
     status_code = httr::status_code(response)
@@ -862,7 +886,21 @@ variable. Get your key at https://account.ipums.org/api_keys") }
     tidyr::pivot_longer(
       cols = dplyr::matches("weight_"),
       names_to = "weighting_factor",
-      values_to = "allocation_factor_source_to_target")
+      values_to = "allocation_factor_source_to_target") |>
+    dplyr::mutate(
+      weighting_factor = stringr::str_remove(weighting_factor, "^weight_"))
+
+  ## 1990 tract GEOIDs from NHGIS omit the implied "00" suffix for tracts
+  ## without a suffix, yielding 9-character GEOIDs; right-pad to the
+  ## standard 11 characters
+  if (source_year == "1990" && source_geography_standardized == "tr") {
+    crosswalk_df = crosswalk_df |>
+      dplyr::mutate(
+        source_geoid = dplyr::if_else(
+          nchar(source_geoid) == 9,
+          stringr::str_c(source_geoid, "00"),
+          source_geoid))
+  }
 
   # Pad 1990 tract GEOIDs to standard 11 chars. The 1990 Census used 4-digit
   # tract codes (without the ".00" decimal suffix), producing 9-char GEOIDs in

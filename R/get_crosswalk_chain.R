@@ -69,7 +69,8 @@ get_crosswalk_chain <- function(
       source_year = if (!is.na(step$source_year)) as.numeric(step$source_year) else NULL,
       target_year = if (!is.na(step$target_year)) as.numeric(step$target_year) else NULL,
       weight = weight,
-      cache = cache)
+      cache = cache,
+      crosswalk_source = step$crosswalk_source)
 
     result$crosswalks[[step_name]] <- crosswalk_i
   }

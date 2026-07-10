@@ -645,3 +645,149 @@ test_that("plan_crosswalk_chain composition note covers all steps in 3-step plan
   expect_true(stringr::str_detect(plan$composition_note, "step2_allocation"))
   expect_true(stringr::str_detect(plan$composition_note, "step3_allocation"))
 })
+
+# ==============================================================================
+# County-events temporal plan tests
+# ==============================================================================
+
+test_that("county temporal requests plan a single county-events step", {
+  for (years in list(c(2014, 2019), c(2014, 2023), c(2006, 2023))) {
+    plan <- plan_crosswalk_chain(
+      source_geography = "county",
+      target_geography = "county",
+      source_year = years[1],
+      target_year = years[2])
+
+    expect_null(plan$error)
+    expect_false(plan$is_multi_step)
+    expect_equal(nrow(plan$steps), 1)
+    expect_equal(plan$steps$crosswalk_source[1], "county_events")
+    expect_equal(plan$steps$source_year[1], as.character(years[1]))
+    expect_equal(plan$steps$target_year[1], as.character(years[2]))
+  }
+})
+
+test_that("county 2020 -> 2022 still routes to CTData (back-compat)", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "county",
+    target_geography = "county",
+    source_year = 2020,
+    target_year = 2022)
+
+  expect_equal(plan$steps$crosswalk_source[1], "ctdata_2020_2022")
+})
+
+test_that("reverse county temporal requests error with a targeted message", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "county",
+    target_geography = "county",
+    source_year = 2019,
+    target_year = 2014)
+
+  expect_match(plan$error, "forward-only")
+})
+
+test_that("out-of-range county temporal requests error with the range", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "county",
+    target_geography = "county",
+    source_year = 1990,
+    target_year = 2010)
+
+  expect_match(plan$error, "2000 through")
+})
+
+test_that("tract same-decade temporal requests plan a single county-events step", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "tract",
+    source_year = 2014,
+    target_year = 2019)
+
+  expect_null(plan$error)
+  expect_equal(nrow(plan$steps), 1)
+  expect_equal(plan$steps$crosswalk_source[1], "county_events")
+})
+
+test_that("tract 2014 -> 2020 prefers the direct NHGIS crosswalk on ties", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "tract",
+    source_year = 2014,
+    target_year = 2020)
+
+  expect_equal(nrow(plan$steps), 1)
+  expect_equal(plan$steps$crosswalk_source[1], "nhgis")
+})
+
+test_that("tract 2014 -> 2023 chains NHGIS with a county-events step", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "tract",
+    source_year = 2014,
+    target_year = 2023)
+
+  expect_null(plan$error)
+  expect_true(plan$is_multi_step)
+  expect_equal(plan$steps$crosswalk_source[1], "nhgis")
+  expect_equal(
+    plan$steps$crosswalk_source[nrow(plan$steps)], "county_events")
+  expect_equal(plan$steps$source_year[1], "2014")
+  expect_equal(plan$steps$target_year[nrow(plan$steps)], "2023")
+})
+
+test_that("tract 2017 -> 2023 uses a backward relabel to reach an NHGIS vintage", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "tract",
+    target_geography = "tract",
+    source_year = 2017,
+    target_year = 2023)
+
+  expect_null(plan$error)
+  expect_true(plan$is_multi_step)
+  # First hop is a county-events relabel backward to an NHGIS-served vintage
+  expect_equal(plan$steps$crosswalk_source[1], "county_events")
+  expect_true(
+    as.numeric(plan$steps$target_year[1]) < as.numeric(plan$steps$source_year[1]))
+  expect_true("nhgis" %in% plan$steps$crosswalk_source)
+  expect_equal(plan$steps$target_year[nrow(plan$steps)], "2023")
+})
+
+test_that("block group 2000s temporal requests error (no path)", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "block group",
+    target_geography = "block group",
+    source_year = 2004,
+    target_year = 2016)
+
+  expect_match(plan$error, "No temporal crosswalk path")
+})
+
+test_that("county source with geography change plans events + geocorr steps", {
+  plan <- plan_crosswalk_chain(
+    source_geography = "county",
+    target_geography = "puma",
+    source_year = 2014,
+    target_year = 2019)
+
+  expect_null(plan$error)
+  expect_true(plan$is_multi_step)
+  expect_equal(plan$steps$crosswalk_source, c("county_events", "geocorr"))
+  expect_equal(plan$steps$target_year[1], "2019")
+})
+
+test_that("find_temporal_path serves county via a tagged county-events hop", {
+  path <- crosswalk:::find_temporal_path("county", "2014", "2019")
+
+  expect_equal(length(path), 1)
+  expect_equal(path[[1]]$source_year, "2014")
+  expect_equal(path[[1]]$target_year, "2019")
+  expect_equal(path[[1]]$crosswalk_source, "county_events")
+})
+
+test_that("find_temporal_path tags NHGIS hops", {
+  path <- crosswalk:::find_temporal_path("tract", "2010", "2020")
+
+  expect_equal(length(path), 1)
+  expect_equal(path[[1]]$crosswalk_source, "nhgis")
+})

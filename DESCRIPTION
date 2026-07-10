@@ -1,19 +1,24 @@
 Package: crosswalk
 Type: Package
-Title: Translate data across space and time
-Version: 0.0.0.9001
-Description: A unified, reproducible interface to access crosswalks and interpolate data.
+Title: Translate Data across Space and Time
+Version: 0.0.0.9002
+Description: Provides a standardized interface for accessing and applying
+    geographic crosswalks between United States Census geographies, both across
+    geographies (e.g., tracts to ZIP Code Tabulation Areas) and across time
+    (e.g., 2010 tracts to 2020 tracts). Also supports interpolating crosswalked data, 
+    with built-in diagnostics describing join quality.
 License: MIT + file LICENSE
-Authors@R: 
+Authors@R:
     person(given = "Will", family = "Curran-Groome", email = "wcurrangroome@urban.org", role = c("aut", "cre"))
 Encoding: UTF-8
-LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
-Depends: 
+URL: https://ui-research.github.io/crosswalk/, https://github.com/UI-Research/crosswalk
+BugReports: https://github.com/UI-Research/crosswalk/issues
+Depends:
     R (>= 4.1.0)
 Imports:
-    dplyr,
+    dplyr (>= 1.1.0),
     httr,
     httr2,
     janitor,
@@ -21,6 +26,7 @@ Imports:
     readr,
     rlang,
     rvest,
+    stats,
     stringr,
     tibble,
     tidyr,
@@ -28,10 +34,10 @@ Imports:
     utils
 Suggests:
     ggplot2,
+    scales,
     testthat (>= 3.0.0),
     tidycensus,
     knitr,
     rmarkdown
 Config/testthat/edition: 3
 VignetteBuilder: knitr
-URL: https://ui-research.github.io/crosswalk/
