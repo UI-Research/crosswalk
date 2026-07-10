@@ -31,7 +31,9 @@
 #' @param weight Character. Weighting variable for Geocorr crosswalks when fetching.
 #'    One of c("population", "housing", "land"). Default is "population".
 #' @param cache Directory path or NULL. Where to cache fetched crosswalks. If NULL
-#'    (default), crosswalk is fetched but not saved to disk.
+#'    (default), crosswalk is fetched but not saved to disk. The directory must
+#'    already exist; a non-existent path raises an error rather than being
+#'    created silently.
 #' @param geoid_column Character. The name of the column in `data` containing
 #'    the source geography identifiers (GEOIDs). Default is "source_geoid".
 #' @param count_columns Character vector or NULL. Column names in `data` that represent
@@ -41,6 +43,17 @@
 #'    mean, median, percentage, and ratio variables. These will be calculated as weighted
 #'    means using the allocation factor as weights. If NULL (default), automatically
 #'    detects columns with prefixes "mean_", "median_", "percent_", or "ratio_".
+#' @param custom_interpolations A list of lists, each specifying a group of columns
+#'    and a custom interpolation function. Each element must have:
+#'    \describe{
+#'      \item{columns}{Character vector of column names}
+#'      \item{fn}{A function or formula for interpolation. Receives two arguments:
+#'        `.x` (column values) and `.w` (allocation factors). Formulas using `~`
+#'        syntax (e.g., `~sum(.x * .w, na.rm = TRUE)`) are converted to functions
+#'        via `rlang::as_function()`.}
+#'    }
+#'    Columns in `custom_interpolations` must not overlap with `count_columns` or
+#'    `non_count_columns`. Default is NULL (no custom interpolations).
 #' @param return_intermediate Logical. If TRUE and crosswalk has multiple steps,
 #'    returns a list containing both the final result and intermediate results
 #'    from each step. Default is FALSE, which returns only the final result.
@@ -214,6 +227,21 @@
 #' # Access intermediate and final
 #' result$intermediate$step_1  # After first crosswalk
 #' result$final                # Final result
+#'
+#' # Custom interpolation functions
+#' result <- crosswalk_data(
+#'   data = my_data,
+#'   crosswalk = crosswalk,
+#'   custom_interpolations = list(
+#'     list(
+#'       columns = c("count_population", "count_housing"),
+#'       fn = ~sum(.x * .w, na.rm = TRUE)
+#'     ),
+#'     list(
+#'       columns = c("pct_poverty"),
+#'       fn = ~weighted.mean(.x, .w, na.rm = TRUE)
+#'     )
+#'   ))
 #' }
 
 crosswalk_data <- function(
@@ -228,12 +256,15 @@ crosswalk_data <- function(
     geoid_column = "source_geoid",
     count_columns = NULL,
     non_count_columns = NULL,
+    custom_interpolations = NULL,
     return_intermediate = FALSE,
     show_join_quality = TRUE,
     silent = getOption("crosswalk.silent", FALSE)) {
 
   old_opts <- options(crosswalk.silent = silent)
   on.exit(options(old_opts), add = TRUE)
+
+  validate_cache_dir(cache)
 
   # When silent, suppress join quality regardless of show_join_quality
   if (silent) show_join_quality <- FALSE
@@ -285,14 +316,28 @@ crosswalk_data <- function(
       stringr::str_starts(data_columns, "ratio_")]
   }
 
-  if (length(count_columns) == 0 & length(non_count_columns) == 0) {
+  # Validate custom_interpolations if provided
+  if (!is.null(custom_interpolations)) {
+    custom_interpolations <- validate_custom_interpolations(
+      custom_interpolations, names(data), count_columns, non_count_columns)
+  }
+
+  has_custom <- !is.null(custom_interpolations) && length(custom_interpolations) > 0
+
+  if (length(count_columns) == 0 & length(non_count_columns) == 0 & !has_custom) {
     stop(
-      "No columns to crosswalk. Either specify `count_columns` or `non_count_columns`, ",
-      "or ensure your data has columns with prefixes: count_, mean_, median_, percent_, or ratio_.")
+      "No columns to crosswalk. Either specify `count_columns`, `non_count_columns`, ",
+      "or `custom_interpolations`, or ensure your data has columns with prefixes: ",
+      "count_, mean_, median_, percent_, or ratio_.")
   }
 
   # Check that specified columns exist in original data
-  all_value_columns <- c(count_columns, non_count_columns)
+  custom_cols <- if (has_custom) {
+    unlist(purrr::map(custom_interpolations, "columns"))
+  } else {
+    character(0)
+  }
+  all_value_columns <- c(count_columns, non_count_columns, custom_cols)
   missing_columns <- setdiff(all_value_columns, names(data))
   if (length(missing_columns) > 0) {
     stop(
@@ -335,6 +380,7 @@ crosswalk_data <- function(
       geoid_column = current_geoid_column,
       count_columns = count_columns,
       non_count_columns = non_count_columns,
+      custom_interpolations = custom_interpolations,
       step_number = i,
       total_steps = n_steps,
       show_join_quality = show_join_quality)
@@ -712,6 +758,79 @@ report_join_quality <- function(data, crosswalk, geoid_column, step_number = 1,
 }
 
 
+#' Validate Custom Interpolations Parameter
+#'
+#' Internal function that validates and normalizes the custom_interpolations parameter.
+#' Converts formula-style functions to proper functions with `.x` and `.w` parameters.
+#'
+#' @param custom_interpolations A list of lists with `columns` and `fn` elements.
+#' @param data_columns Character vector of column names in data.
+#' @param count_columns Character vector of count column names.
+#' @param non_count_columns Character vector of non-count column names.
+#' @return The validated and normalized custom_interpolations list.
+#' @keywords internal
+#' @noRd
+validate_custom_interpolations <- function(custom_interpolations, data_columns,
+                                           count_columns, non_count_columns) {
+  if (!is.list(custom_interpolations)) {
+    stop("`custom_interpolations` must be a list of lists, each with `columns` and `fn` elements.")
+  }
+
+  all_custom_cols <- character(0)
+
+  for (i in seq_along(custom_interpolations)) {
+    group <- custom_interpolations[[i]]
+
+    if (!is.list(group) || !all(c("columns", "fn") %in% names(group))) {
+      stop(
+        "`custom_interpolations[[", i, "]]` must be a list with `columns` and `fn` elements.")
+    }
+
+    if (!is.character(group$columns) || length(group$columns) == 0) {
+      stop(
+        "`custom_interpolations[[", i, "]]$columns` must be a non-empty character vector.")
+    }
+
+    # Convert formula to function with .x and .w parameters
+    if (rlang::is_formula(group$fn)) {
+      fn_body <- rlang::f_rhs(group$fn)
+      fn_env <- rlang::f_env(group$fn)
+      custom_interpolations[[i]]$fn <- rlang::new_function(
+        alist(.x = , .w = ), fn_body, fn_env)
+    } else if (!is.function(group$fn)) {
+      stop(
+        "`custom_interpolations[[", i, "]]$fn` must be a function or formula.")
+    }
+
+    # Check for overlap within custom groups
+    overlap_within <- intersect(group$columns, all_custom_cols)
+    if (length(overlap_within) > 0) {
+      stop(
+        "Column(s) appear in multiple `custom_interpolations` groups: ",
+        paste(overlap_within, collapse = ", "))
+    }
+    all_custom_cols <- c(all_custom_cols, group$columns)
+  }
+
+  # Check for overlap with count_columns and non_count_columns
+  overlap_count <- intersect(all_custom_cols, count_columns)
+  if (length(overlap_count) > 0) {
+    stop(
+      "Column(s) in `custom_interpolations` overlap with `count_columns`: ",
+      paste(overlap_count, collapse = ", "))
+  }
+
+  overlap_non_count <- intersect(all_custom_cols, non_count_columns)
+  if (length(overlap_non_count) > 0) {
+    stop(
+      "Column(s) in `custom_interpolations` overlap with `non_count_columns`: ",
+      paste(overlap_non_count, collapse = ", "))
+  }
+
+  return(custom_interpolations)
+}
+
+
 #' Apply a Single Crosswalk Step
 #'
 #' Internal function that applies one crosswalk tibble to data.
@@ -721,6 +840,7 @@ report_join_quality <- function(data, crosswalk, geoid_column, step_number = 1,
 #' @param geoid_column Column name for source geoid
 #' @param count_columns Count variable columns
 #' @param non_count_columns Non-count variable columns
+#' @param custom_interpolations Validated custom interpolation groups (or NULL)
 #' @param step_number Integer. Current step number for multi-step reporting.
 #' @param total_steps Integer. Total number of steps for multi-step reporting.
 #' @param show_join_quality Logical. Whether to print join quality diagnostic
@@ -734,6 +854,7 @@ apply_single_crosswalk <- function(
     geoid_column,
     count_columns,
     non_count_columns,
+    custom_interpolations = NULL,
     step_number = 1,
     total_steps = 1,
     show_join_quality = TRUE) {
@@ -795,7 +916,22 @@ apply_single_crosswalk <- function(
   current_count_cols <- intersect(count_columns, names(data))
   current_non_count_cols <- intersect(non_count_columns, names(data))
 
-  # Identify "other" columns (not geoid, count, or non-count columns)
+  # Filter custom interpolation columns to those in current data
+  current_custom_interpolations <- if (!is.null(custom_interpolations)) {
+    purrr::map(custom_interpolations, function(group) {
+      list(
+        columns = intersect(group$columns, names(data)),
+        fn = group$fn)
+    }) |>
+      purrr::keep(~ length(.x$columns) > 0)
+  } else {
+    list()
+  }
+
+  current_custom_cols <- unlist(purrr::map(current_custom_interpolations, "columns"))
+  if (is.null(current_custom_cols)) current_custom_cols <- character(0)
+
+  # Identify "other" columns (not geoid, count, non-count, or custom columns)
   # These will be aggregated by taking the first non-missing value
   # Include both original crosswalk column names AND their renamed versions
   # (e.g., "geography_name" which comes from "target_geography_name" after renaming)
@@ -809,8 +945,13 @@ apply_single_crosswalk <- function(
                       "land_area_sqmi")
   other_cols <- setdiff(
     names(data),
-    c(geoid_column, current_count_cols, current_non_count_cols, crosswalk_cols)
+    c(geoid_column, current_count_cols, current_non_count_cols,
+      current_custom_cols, crosswalk_cols)
   )
+
+  # All interpolated columns (for NA validity tracking)
+  all_interpolated_cols <- c(current_count_cols, current_non_count_cols,
+                             current_custom_cols)
 
 
   # Join crosswalk to data. Inner join: data rows with no crosswalk match

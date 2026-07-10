@@ -537,8 +537,7 @@ get_nhgis_crosswalk <- function(
     source_geography,
     target_year,
     target_geography,
-    cache = NULL,
-    api_key = NULL) {
+    cache = NULL) {
 
   if (is.null(cache)) { cache_path = tempdir() } else {cache_path = cache}
 
@@ -744,6 +743,20 @@ variable. Get your key at https://account.ipums.org/api_keys") }
 
   crosswalk_df1 = tryCatch({
 
+    # Check HTTP response status
+    status_code = httr::status_code(response)
+    if (status_code == 401 || status_code == 403) {
+      stop(
+        "NHGIS API returned HTTP ", status_code, " (authentication failed). ",
+        "Your IPUMS_API_KEY may be invalid or expired. ",
+        "Check your key at https://account.ipums.org/api_keys")
+    }
+    if (status_code != 200) {
+      stop(
+        "NHGIS API returned HTTP ", status_code, " for crosswalk ", crosswalk_sub_path, ". ",
+        "This crosswalk may not be available from NHGIS.")
+    }
+
     # Check what's in the zip before extracting
     zip_contents = safe_unzip_list(zip_path)
 
@@ -889,11 +902,21 @@ variable. Get your key at https://account.ipums.org/api_keys") }
           source_geoid))
   }
 
-    ## if the file does not already exist and cache is not NULL
-    if (!file.exists(csv_path) & !is.null(cache)) {
-      if (!dir.exists(cache)) {
-        dir.create(cache, recursive = TRUE)
-      }
+  # Pad 1990 tract GEOIDs to standard 11 chars. The 1990 Census used 4-digit
+  # tract codes (without the ".00" decimal suffix), producing 9-char GEOIDs in
+  # NHGIS data (state=2 + county=3 + tract=4). Standard Census format uses
+  # 6-digit tract codes (tract=4 + suffix=2), so we right-pad with "0" to
+  # restore the implicit ".00" suffix.
+  if (source_geography_standardized == "tr") {
+    crosswalk_df <- crosswalk_df |>
+      dplyr::mutate(source_geoid = stringr::str_pad(source_geoid, 11, "right", "0"))
+  }
+  if (target_geography_standardized == "tr") {
+    crosswalk_df <- crosswalk_df |>
+      dplyr::mutate(target_geoid = stringr::str_pad(target_geoid, 11, "right", "0"))
+  }
+
+    if (!is.null(cache) && !file.exists(csv_path)) {
       readr::write_csv(crosswalk_df, csv_path)
     }
 

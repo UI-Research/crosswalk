@@ -236,6 +236,8 @@ get_crosswalk <- function(
   old_opts <- options(crosswalk.silent = silent)
   on.exit(options(old_opts), add = TRUE)
 
+  validate_cache_dir(cache)
+
   # Check for nested geographies (no crosswalk needed)
   # Determine if years match (both NULL, or both non-NULL and equal)
   years_match <- (is.null(source_year) && is.null(target_year)) ||
@@ -436,6 +438,21 @@ get_crosswalk_single <- function(
       weight = weight,
       cache = cache,
       geocorr_version = geocorr_version)
+  }
+
+  # If the internal function returned an empty tibble (e.g., failed download),
+  # return early with a warning
+
+  if (ncol(result) == 0 || nrow(result) == 0) {
+    warning(
+      "No crosswalk data was returned for ",
+      source_geography, " ", source_year, " -> ",
+      target_geography, " ", target_year,
+      ". The download may have failed. Check your IPUMS_API_KEY and network connection.")
+    return(list(
+      crosswalks = list(step_1 = tibble::tibble()),
+      plan = NULL,
+      message = "Crosswalk retrieval failed. No data returned."))
   }
 
   # Retrieve metadata from internal function (if present)
@@ -686,6 +703,15 @@ get_available_crosswalks <- function() {
       source_year = 2022L,
       target_year = 2022L,
       crosswalk_source = "geocorr")
+
+  # aiannh (tribal areas) is supported as a target geography only, via GeoCorr 2022
+  geocorr_2022_aiannh <- tibble::tibble(
+    source_geography = geocorr_2022_geographies,
+    target_geography = "aiannh",
+    source_year = 2022L,
+    target_year = 2022L)
+
+  geocorr_2022 <- dplyr::bind_rows(geocorr_2022, geocorr_2022_aiannh)
 
   # 3. Geocorr 2018: all pairwise combinations of 9 canonical geographies
   geocorr_2018_geographies <- c(

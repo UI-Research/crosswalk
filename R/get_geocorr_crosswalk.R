@@ -32,7 +32,11 @@ get_geocorr_config <- function(version = "2022") {
         "puma" = "puma22",
         "puma22" = "puma22",
         "cd118" = "cd118",
-        "cd119" = "cd119"),
+        "cd119" = "cd119",
+        "aiannh" = "aiannh",
+        "tribal" = "aiannh",
+        "tribal_area" = "aiannh",
+        "american_indian_area" = "aiannh"),
       puma_col = "puma22",
       cd_pattern = "^cd11[89]",
       has_name_columns = TRUE,
@@ -117,10 +121,12 @@ resolve_geocorr_geography <- function(geography, geocorr_version = "2022") {
 #'    of the geographies supported by GeoCorr.
 #'
 #'    For GeoCorr 2022: c("place", "county", "tract", "blockgroup", "zcta",
-#'    "puma22", "cd119", "cd118").
+#'    "puma22", "cd119", "cd118", "aiannh"). Note that "aiannh" (tribal areas)
+#'    is supported as a **target** geography only, not as a source.
 #'
 #'    For GeoCorr 2018: c("placefp", "county", "tract", "bg", "zcta5",
-#'    "puma12", "cd115", "cd116").
+#'    "puma12", "cd115", "cd116"). Tribal areas (aiannh) are not available in
+#'    GeoCorr 2018.
 #'
 #'    User-facing names like "puma", "zcta", "place", "blockgroup" are
 #'    automatically resolved to the correct API code for the version.
@@ -151,6 +157,15 @@ get_geocorr_crosswalk <- function(
   # Resolve user-facing geography names to API codes
   source_api_code <- resolve_geocorr_geography(source_geography, geocorr_version)
   target_api_code <- resolve_geocorr_geography(target_geography, geocorr_version)
+
+  # Tribal areas (aiannh) are currently supported as a target geography only.
+  # Sourcing from aiannh would require re-normalizing allocation factors across
+  # per-state query chunks for tribal areas that span state boundaries.
+  if (source_api_code == "aiannh") {
+    stop(
+      "Tribal areas ('aiannh') are currently supported as a target geography ",
+      "only, not as a source. Please specify 'aiannh' via `target_geography`.")
+  }
 
   outpath = "no file exists here"
   ## identify the relevant file paths for potentially-cached crosswalks
@@ -264,8 +279,15 @@ get_geocorr_crosswalk <- function(
     list(abbr = "Wv", fips = "54"),
     list(abbr = "Wi", fips = "55"),
     list(abbr = "Wy", fips = "56"),
-    list(abbr = "Pr", fips = "72")) |>
-    purrr::map_chr(~ paste0(.x$abbr, .x$fips))
+    list(abbr = "Pr", fips = "72"))
+
+  ## stab (uppercase 2-letter abbreviation) → 2-char state FIPS lookup; used as
+  ## a fallback when GeoCorr returns `stab` but neither `state` nor `county`
+  state_fips_lookup <- tibble::tibble(
+    stab = purrr::map_chr(states_data, ~ toupper(.x$abbr)),
+    state = purrr::map_chr(states_data, ~ .x$fips))
+
+  states_data <- purrr::map_chr(states_data, ~ paste0(.x$abbr, .x$fips))
 
   # GeoCorr 2018 does not support Puerto Rico
   if (!config$include_pr) {
@@ -342,6 +364,11 @@ get_geocorr_crosswalk <- function(
     dplyr::rename_with(
       .cols = dplyr::matches("zip_name"),
       .fn = ~ .x |> stringr::str_replace("zip", "zcta")) |>
+    ## defensive: ensure aiannh name column is snake_cased regardless of how
+    ## janitor::clean_names handled the original aiannhName field
+    dplyr::rename_with(
+      .cols = dplyr::matches("^aiannhname$"),
+      .fn = ~ stringr::str_replace(.x, "aiannhname", "aiannh_name")) |>
     dplyr::rename_with(
       .cols = dplyr::matches(stringr::str_c(config$puma_col, "name")),
       .fn = ~ .x |> stringr::str_replace(
@@ -351,11 +378,22 @@ get_geocorr_crosswalk <- function(
       .cols = dplyr::matches(weight_rename_pattern),
       .fn = ~ stringr::str_replace_all(.x, config$weight_rename))
 
+  ## Ensure a 2-char `state` FIPS column exists. GeoCorr's response varies by
+  ## query: sometimes `state` is returned directly; sometimes it's only
+  ## available as the leading 2 chars of a 5-char `county` (SSCCC) field;
+  ## sometimes (e.g., place/zcta/puma sources targeting aiannh) neither is
+  ## present and we must derive it from `stab` (state abbreviation).
   if (!"state" %in% colnames(df2)) {
-    df2 = df2 |>
-      dplyr::mutate(
-       state = stringr::str_sub(county, 1, 2),
-       county = stringr::str_sub(county, 3, 5)) }
+    if ("county" %in% colnames(df2)) {
+      df2 = df2 |>
+        dplyr::mutate(
+          state = stringr::str_sub(county, 1, 2),
+          county = stringr::str_sub(county, 3, 5))
+    } else if ("stab" %in% colnames(df2)) {
+      df2 = df2 |>
+        dplyr::left_join(state_fips_lookup, by = "stab")
+    }
+  }
 
   # Build the blockgroup column name used by the API for this version
   bg_api_col <- config$geography_api_codes[["blockgroup"]]
@@ -495,13 +533,18 @@ get_geocorr_crosswalk <- function(
       weighting_factor = weight,
       dplyr::across(.cols = dplyr::any_of(geocorr_numeric_columns), .fns = as.numeric))
 
-  if (!is.null(cache)) {
-    ## if the file does not already exist and cache is TRUE
-    if (!file.exists(outpath) & !is.null(cache)) {
-      ## if the specified cache directory doesn't yet exist, create it
-      if (!dir.exists(cache)) { dir.create(cache) }
-      readr::write_csv(df2, outpath)
-    }
+  ## When target is aiannh, GeoCorr returns rows with NA target_geoid for the
+  ## portion of each source geography that falls outside any tribal area.
+  ## These rows carry no crosswalk information (there is no tribal area to
+  ## allocate to) so we drop them. After this filter, allocation factors per
+  ## source sum to <= 1 rather than exactly 1, which correctly reflects that
+  ## tribal areas do not cover all land.
+  if (target_api_code == "aiannh") {
+    df2 <- df2 |> dplyr::filter(!is.na(target_geoid))
+  }
+
+  if (!is.null(cache) && !file.exists(outpath)) {
+    readr::write_csv(df2, outpath)
   }
 
   # Attach metadata to result
