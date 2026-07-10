@@ -694,9 +694,7 @@ years 2010, 2014, and 2015 (not ", target_year, ").")
     stop(stringr::str_c(
 "There is no available crosswalk between the specified geographies and years.")) }
 
-  if (is.null(api_key) || api_key == "") {
-    api_key = Sys.getenv("IPUMS_API_KEY")
-  }
+  api_key = Sys.getenv("IPUMS_API_KEY")
   if (api_key == "") {
     stop(
 "API key required. Save your API key to the IPUMS_API_KEY environment
