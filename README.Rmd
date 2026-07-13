@@ -168,6 +168,10 @@ Cached files never expire -- delete a file to force a re-download.
     -- a worked example building a six-year tract panel from mixed-vintage
     data
 
+## Use of Generative AI
+
+This package was developed in part using agentic AI, under the supervision of the author.
+
 ## Citations
 
 Cite the organizations that produce the crosswalks returned by this package:

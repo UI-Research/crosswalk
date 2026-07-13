@@ -88,6 +88,11 @@
 
 ## Bug fixes
 
+* GeoCorr requests now retry transient failures (connection/SSL timeouts and
+  dropped connections from `mcdc.missouri.edu`) with backoff, and the CSV
+  download is retried alongside the query. A single flaky request no longer
+  fails the whole crosswalk fetch, or a vignette or package build that relies
+  on it.
 * NHGIS 1990 tract GEOIDs are now right-padded with the implied `"00"` tract
   suffix, so all 1990 tract GEOIDs have the standard 11 characters (previously
   ~66% of rows had 9-character GEOIDs).

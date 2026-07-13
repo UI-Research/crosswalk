@@ -325,10 +325,20 @@ get_geocorr_crosswalk <- function(
   fetch_geocorr_chunk <- function(states, config, source_api_code, target_api_code, weight_value, base_url) {
     params <- build_geocorr_params(states, config, source_api_code, target_api_code, weight_value)
 
-    request <- httr2::request(base_url) |>
-      httr2::req_url_query(!!!params, .multi = "explode")
+    ## GeoCorr's server (mcdc.missouri.edu) intermittently times out or drops
+    ## connections, which otherwise fails the whole fetch -- and any vignette or
+    ## package build that relies on it -- on a single flaky request. Retry
+    ## transient failures (including low-level connection/SSL timeouts) with
+    ## backoff. Used for both the query request and the CSV download below.
+    perform_with_retry <- function(request, path = NULL) {
+      request |>
+        httr2::req_retry(max_tries = 4, retry_on_failure = TRUE) |>
+        httr2::req_perform(path = path)
+    }
 
-    csv_path <- httr2::req_perform(request) |>
+    csv_path <- httr2::request(base_url) |>
+      httr2::req_url_query(!!!params, .multi = "explode") |>
+      perform_with_retry() |>
       httr2::resp_body_html() |>
       rvest::html_element("body") |>
       rvest::html_text2() |>
@@ -337,7 +347,13 @@ get_geocorr_crosswalk <- function(
 
     if (is.na(csv_path)) { stop("Unable to acquire the specified crosswalk; please file an issue.") }
 
-    readr::read_csv(file.path("https://mcdc.missouri.edu", "temp", csv_path), show_col_types = FALSE) |>
+    ## stream the CSV to a temp file (byte-identical to reading the URL directly)
+    ## so the download is retried on the same transient failures as the query
+    csv_file <- tempfile(fileext = ".csv")
+    httr2::request(file.path("https://mcdc.missouri.edu", "temp", csv_path)) |>
+      perform_with_retry(path = csv_file)
+
+    readr::read_csv(csv_file, show_col_types = FALSE) |>
       janitor::clean_names() |>
       ## the first row of every GeoCorr CSV is a human-readable label row;
       ## drop it here so chunked (multi-request) queries don't retain the
