@@ -74,7 +74,8 @@
 </ul></div>
 <div class="section level3">
 <h3 id="bug-fixes-0-0-0-9002">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-0-0-9002"></a></h3>
-<ul><li>NHGIS 1990 tract GEOIDs are now right-padded with the implied <code>"00"</code> tract suffix, so all 1990 tract GEOIDs have the standard 11 characters (previously ~66% of rows had 9-character GEOIDs).</li>
+<ul><li>GeoCorr requests now retry transient failures (connection/SSL timeouts and dropped connections from <code>mcdc.missouri.edu</code>) with backoff, and the CSV download is retried alongside the query. A single flaky request no longer fails the whole crosswalk fetch, or a vignette or package build that relies on it.</li>
+<li>NHGIS 1990 tract GEOIDs are now right-padded with the implied <code>"00"</code> tract suffix, so all 1990 tract GEOIDs have the standard 11 characters (previously ~66% of rows had 9-character GEOIDs).</li>
 <li>Cached NHGIS and GeoCorr crosswalks are now read back with explicit column types; previously, type-guessing could silently strip leading zeros from GEOIDs (e.g., ZCTA <code>"00601"</code> became <code>601</code>) on cache reads.</li>
 <li>GeoCorr 2018 block-level queries are now chunked into groups of at most 13 states; previously, chunks of 17 states exceeded the GeoCorr API limit.</li>
 <li>Block-level GeoCorr crosswalks assembled from multiple chunked requests no longer retain the human-readable label row of each chunk after the first.</li>
