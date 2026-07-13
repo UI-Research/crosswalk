@@ -7,6 +7,14 @@
 #' to a target geography. Can either accept a pre-fetched crosswalk from
 #' `get_crosswalk()` or fetch the crosswalk automatically using the provided
 #' geography and year parameters.
+#' 
+#' A dedicated interpolation function is available vie `urbnindicators::interpolate_acs()`
+#' for the special case where American Community Survey estimates are to be crosswalked; that
+#' function correctly adjusts margins of error per Census Bureau guidance. Install the
+#' package via `renv::install("UI-Research/urbnindicators")`. If you have error measurements
+#' associated with non-ACS data, use caution --- `crosswalk_data()` will treat MOEs akin to any
+#' other numeric column by default. Custom function(s) supplied to the `custom_interpolations`
+#' parameter may be appropriate for non-ACS error measurements. 
 #'
 #' @param data A data frame or tibble containing the data to crosswalk.
 #' @param crosswalk The output from `get_crosswalk()` - a list containing:

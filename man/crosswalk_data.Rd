@@ -53,7 +53,9 @@ crosswalk is being fetched, uses same-year crosswalk via Geocorr.}
 One of c("population", "housing", "land"). Default is "population".}
 
 \item{cache}{Directory path or NULL. Where to cache fetched crosswalks. If NULL
-(default), crosswalk is fetched but not saved to disk.}
+(default), crosswalk is fetched but not saved to disk. The directory must
+already exist; a non-existent path raises an error rather than being
+created silently.}
 
 \item{geoid_column}{Character. The name of the column in \code{data} containing
 the source geography identifiers (GEOIDs). Default is "source_geoid".}
@@ -131,6 +133,14 @@ to a target geography. Can either accept a pre-fetched crosswalk from
 geography and year parameters.
 }
 \details{
+A dedicated interpolation function is available vie \code{urbnindicators::interpolate_acs()}
+for the special case where American Community Survey estimates are to be crosswalked; that
+function correctly adjusts margins of error per Census Bureau guidance. Install the
+package via \code{renv::install("UI-Research/urbnindicators")}. If you have error measurements
+associated with non-ACS data, use caution --- \code{crosswalk_data()} will treat MOEs akin to any
+other numeric column by default. Custom function(s) supplied to the \code{custom_interpolations}
+parameter may be appropriate for non-ACS error measurements.
+
 \strong{Two usage patterns}:
 \enumerate{
 \item \strong{Pre-fetched crosswalk}: Pass the output of \code{get_crosswalk()} to the
