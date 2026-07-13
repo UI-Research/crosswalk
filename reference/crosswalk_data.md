@@ -91,7 +91,9 @@ crosswalk_data(
 - cache:
 
   Directory path or NULL. Where to cache fetched crosswalks. If NULL
-  (default), crosswalk is fetched but not saved to disk.
+  (default), crosswalk is fetched but not saved to disk. The directory
+  must already exist; a non-existent path raises an error rather than
+  being created silently.
 
 - geoid_column:
 
@@ -197,6 +199,16 @@ The returned tibble(s) carry two attributes:
   each step's result with its own attributes.
 
 ## Details
+
+A dedicated interpolation function is available vie
+`urbnindicators::interpolate_acs()` for the special case where American
+Community Survey estimates are to be crosswalked; that function
+correctly adjusts margins of error per Census Bureau guidance. Install
+the package via `renv::install("UI-Research/urbnindicators")`. If you
+have error measurements associated with non-ACS data, use caution —
+`crosswalk_data()` will treat MOEs akin to any other numeric column by
+default. Custom function(s) supplied to the `custom_interpolations`
+parameter may be appropriate for non-ACS error measurements.
 
 **Two usage patterns**:
 

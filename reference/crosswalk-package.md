@@ -1,15 +1,10 @@
-# crosswalk: Streamlined Inter-Temporal and Inter-Geography Crosswalking of Census Data
+# crosswalk: Translate Data across Space and Time
 
 Provides a standardized interface for accessing and applying geographic
 crosswalks between United States Census geographies, both across
 geographies (e.g., tracts to ZIP Code Tabulation Areas) and across time
-(e.g., 2010 tracts to 2020 tracts). Crosswalks are sourced from the
-Missouri Census Data Center's Geocorr applications, IPUMS NHGIS, the CT
-Data Collaborative, and a curated registry of county boundary changes
-drawn from Census Bureau documentation, and are returned with consistent
-column names and rich metadata. Also interpolates count and non-count
-variables from source to target geographies, with diagnostics describing
-join quality.
+(e.g., 2010 tracts to 2020 tracts). Also supports interpolating
+crosswalked data, with built-in diagnostics describing join quality.
 
 ## Details
 
