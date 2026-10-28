@@ -413,6 +413,12 @@
       "Maintainer": "Hadley Wickham <hadley@posit.co>",
       "Repository": "CRAN"
     },
+    "forcats": {
+      "Package": "forcats",
+      "Version": "1.0.1",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
     "generics": {
       "Package": "generics",
       "Version": "0.1.4",
@@ -484,6 +490,12 @@
       "NeedsCompilation": "yes",
       "Author": "Jim Hester [aut] (<https://orcid.org/0000-0002-2739-7082>), Jennifer Bryan [aut, cre] (<https://orcid.org/0000-0002-6983-2759>), Posit Software, PBC [cph, fnd]",
       "Maintainer": "Jennifer Bryan <jenny@posit.co>",
+      "Repository": "CRAN"
+    },
+    "haven": {
+      "Package": "haven",
+      "Version": "2.5.5",
+      "Source": "Repository",
       "Repository": "CRAN"
     },
     "hms": {

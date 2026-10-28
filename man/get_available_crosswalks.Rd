@@ -51,6 +51,10 @@ chains may combine several):
 require neither
 \item \code{county_events}: no API key; the data ships with the package and works
 offline
+\item \code{ltdb}: no API key; downloaded from the Longitudinal Tract Database
+(Brown University). Used only for tract 2010 -> 2000, which NHGIS does
+not publish. LTDB weights combine land area and block population and
+differ from NHGIS weights (see \code{\link[=get_crosswalk]{get_crosswalk()}})
 }
 
 \strong{Weights by source.} The \code{weight} argument of \code{\link[=get_crosswalk]{get_crosswalk()}} accepts
@@ -65,6 +69,8 @@ weight (used for "population" or "housing") and, for some files, "land"
 \item \code{ctdata_2020_2022} and \code{county_events}: no choice of weight; unchanged
 units have an allocation factor of 1 and changed units use
 population-based factors
+\item \code{ltdb}: a single weight that combines land area and block population;
+only "population" is accepted
 }
 }
 \examples{

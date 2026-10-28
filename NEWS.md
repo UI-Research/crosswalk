@@ -27,6 +27,26 @@
   for the 2000 1% sample; New England rows without an MSA/CMSA code are dropped
   with a warning (#22).
 
+* **Tracts back to 2000 boundaries (#21).** `get_crosswalk()` now supports
+  tract 2010 -> tract 2000 using the "Backwards LTDB" crosswalk from the
+  Longitudinal Tract Database (Brown University), which is downloaded
+  without registration and cached like other sources. NHGIS does not publish
+  any crosswalk that targets 2000. Later tract years are planned as chains
+  (e.g., tract 2020 -> 2000 uses NHGIS 2020 -> 2010, then LTDB
+  2010 -> 2000). LTDB has a single weight that combines land area and block
+  population, so it differs from NHGIS weights; requests that use LTDB
+  require `weight = "population"` and error for other weights. As with
+  NHGIS, each LTDB fetch prints how to cite the source (the US2010 Project
+  webpage and Logan, Xu, and Stults 2014) and records the citation page in
+  the `citation_url` metadata field. NHGIS is
+  still used for every pair it publishes, including tract 2020 -> 2010.
+  `get_available_crosswalks()` lists the new pair with
+  `crosswalk_source = "ltdb"`. Because GeoCorr 2000 covers 2000 geography
+  (#22), a request such as 2010 tracts -> 2000 PUMAs is planned as LTDB
+  2010 -> 2000 tracts, then GeoCorr 2000 tracts -> PUMAs. Combined plans
+  that would change geography in a year before 2000 now stop with a clear
+  error before downloading, because GeoCorr does not cover those years.
+
 * **Arbitrary-year county crosswalks.** `get_crosswalk()` now supports
   county -> county crosswalks between any pair of years from 2000 through 2025
   (e.g., `2014 -> 2019` or `2014 -> 2023`), accounting for counties redefined

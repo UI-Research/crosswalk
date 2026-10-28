@@ -5,7 +5,8 @@
 #' structure containing one or more crosswalk tibbles.
 #'
 #' @details This function sources crosswalks from Geocorr 2022, Geocorr 2018,
-#'    Geocorr 2000, IPUMS NHGIS, CT Data Collaborative, and a curated registry of county
+#'    Geocorr 2000, IPUMS NHGIS, CT Data Collaborative, the Longitudinal Tract
+#'    Database (LTDB, Brown University), and a curated registry of county
 #'    change events. Crosswalk weights are from the original sources and have
 #'    not been modified; this function merely standardizes the format of the
 #'    returned crosswalks and enables easy programmatic access and caching.
@@ -70,6 +71,25 @@
 #'    decennial census are planned automatically as chains through NHGIS
 #'    crosswalks (e.g., tract 2014 -> 2023).
 #'
+#'    **Tracts back to 2000 boundaries (LTDB)**: NHGIS does not publish any
+#'    crosswalk that targets 2000 geography. For tract 2010 -> tract 2000,
+#'    the function uses the "Backwards LTDB" crosswalk from the Longitudinal
+#'    Tract Database at Brown University, downloaded without registration from
+#'    <https://s4.ad.brown.edu/Projects/Diversity/Researcher/LTBDDload/DataList.aspx>.
+#'    Later tract years are planned as chains that end with this step (e.g.,
+#'    tract 2020 -> 2000 plans NHGIS 2020 -> 2010, then LTDB 2010 -> 2000).
+#'    LTDB weights differ from NHGIS weights: LTDB provides one weight per
+#'    tract pair, built from a combination of land area and census block
+#'    population, while NHGIS builds its weights from census blocks with a
+#'    choice of population, household, or housing unit counts. Because LTDB
+#'    has only that one weight, requests that use LTDB must use
+#'    `weight = "population"` (the default); other weights produce an error.
+#'    Changing geography in 2000 (e.g., tract 2010 -> ZCTA 2000) is not
+#'    supported, because GeoCorr covers only 2010 and later geography. Use of
+#'    LTDB crosswalks requires citing the US2010 Project webpage as the source
+#'    of data and Logan, Xu, and Stults (2014) as the technical reference; see
+#'    <https://s4.ad.brown.edu/Projects/Diversity/Researcher/LTBDDload/DataList.aspx>.
+#'
 #'    **Nested geographies**: When the source geography nests exactly within
 #'    the target geography and the years match (e.g., tract -> county, block
 #'    group -> tract), no crosswalk is needed: every source unit belongs to
@@ -107,7 +127,8 @@
 #'    2015, 2022) for non-census year crosswalks (limited to block groups, tracts,
 #'    and counties). For county -> county crosswalks, any year from 2000 onward
 #'    is supported; for same-decade tract/block group/block crosswalks, any year
-#'    from 2010 onward (see Details).
+#'    from 2010 onward (see Details). Tracts can also target 2000 from 2010 or
+#'    later tract years, using the LTDB crosswalk (see Details).
 #' @param target_geography Character. Target geography name. For same-year
 #'    (GeoCorr) crosswalks, one of c("block", "block group", "tract", "county",
 #'    "place", "zcta", "puma", "puma12", "puma22", "cd115", "cd116", "cd118",
@@ -120,8 +141,9 @@
 #'    on the source that serves each step (see "Available weights" below):
 #'    GeoCorr accepts c("population", "housing", "land"); NHGIS additionally
 #'    accepts c("household", "housing_owned", "housing_rented") for block group
-#'    and tract based crosswalks. A weight that a step cannot provide raises
-#'    an error, except as described under "Available weights".
+#'    and tract based crosswalks; LTDB (tracts to 2000) accepts only
+#'    "population". A weight that a step cannot provide raises an error,
+#'    except as described under "Available weights".
 #' @param cache Directory path. Where to save the crosswalk. If NULL (default),
 #'    the crosswalk is returned but not saved to disk. When provided, individual
 #'    component crosswalks are cached separately, and subsequent calls with the
@@ -195,6 +217,9 @@
 #'      allocation factors. Any accepted `weight` is allowed for these steps;
 #'      a message notes when population-based factors are used instead of
 #'      the requested weight.}
+#'   \item{LTDB (tract 2010 -> 2000)}{A single weight that combines land area
+#'      and census block population. Only "population" is accepted; any other
+#'      weight raises an error before anything is downloaded.}
 #' }
 #' In a multi-step chain, every step must be able to use the requested
 #' weight. For example, `weight = "household"` cannot be used for 2010 tracts
@@ -374,8 +399,8 @@ simply aggregate your data to the desired geography.", call. = FALSE)
 #'
 #' @inheritParams get_crosswalk
 #' @param crosswalk_source Character or NULL. The crosswalk source determined
-#'   by the chain planner ("geocorr", "nhgis", "ctdata_2020_2022", or
-#'   "county_events"). When NULL, the source is derived from the other
+#'   by the chain planner ("geocorr", "nhgis", "ctdata_2020_2022",
+#'   "county_events", or "ltdb"). When NULL, the source is derived from the other
 #'   parameters.
 #' @return A tibble containing the crosswalk.
 #' @keywords internal
@@ -425,7 +450,27 @@ get_crosswalk_single <- function(
         max(as.numeric(source_year), as.numeric(target_year)) <=
           county_events_meta$known_through_year
 
-      crosswalk_source <- if (use_county_events) "county_events" else "nhgis"
+      # Tract year pairs that NHGIS does not publish but the Longitudinal
+      # Tract Database (LTDB) does (2010 -> 2000)
+      ltdb_source_geography <- standardize_geography_for_chain(source_geography)
+      ltdb_target_geography <- standardize_geography_for_chain(target_geography)
+      use_ltdb <- !use_county_events &&
+        !is_nhgis_crosswalk_available(
+          source_geography, target_geography, source_year, target_year) &&
+        nrow(dplyr::filter(
+          list_ltdb_crosswalks(),
+          source_geography == ltdb_source_geography,
+          target_geography == ltdb_target_geography,
+          source_year == source_year_chr,
+          target_year == target_year_chr)) > 0
+
+      crosswalk_source <- if (use_county_events) {
+        "county_events"
+      } else if (use_ltdb) {
+        "ltdb"
+      } else {
+        "nhgis"
+      }
     }
   }
 
@@ -471,6 +516,25 @@ get_crosswalk_single <- function(
           "does not apply to this step."))
       }
     }
+
+  } else if (crosswalk_source == "ltdb") {
+    # LTDB has a single combined weight. The planner already rejects other
+    # weights; check again here for direct internal calls.
+    if (!identical(weight, "population")) {
+      stop(
+        "The Longitudinal Tract Database (LTDB) crosswalk provides only one ",
+        "weight, which combines land area and census block population. The ",
+        "requested weight '", weight, "' is not available. Use ",
+        "weight = \"population\" to accept the LTDB weight.",
+        call. = FALSE)
+    }
+
+    result <- get_ltdb_crosswalk(
+      source_geography = source_geography,
+      target_geography = target_geography,
+      source_year = source_year,
+      target_year = target_year,
+      cache = cache)
 
   } else if (crosswalk_source == "nhgis") {
     nhgis_crosswalk <- get_nhgis_crosswalk(
@@ -590,6 +654,7 @@ get_crosswalk_single <- function(
         },
         "ctdata_2020_2022" = "CT Data Collaborative",
         "county_events" = "U.S. Census Bureau county boundary change records (curated in the crosswalk package)",
+        "ltdb" = "Longitudinal Tract Database (LTDB), Brown University",
         crosswalk_source)
     },
 
@@ -776,6 +841,10 @@ and counties. The provided geography '", geography, "' is not supported.")}
 #'   require neither
 #' - `county_events`: no API key; the data ships with the package and works
 #'   offline
+#' - `ltdb`: no API key; downloaded from the Longitudinal Tract Database
+#'   (Brown University). Used only for tract 2010 -> 2000, which NHGIS does
+#'   not publish. LTDB weights combine land area and block population and
+#'   differ from NHGIS weights (see [get_crosswalk()])
 #'
 #' **Weights by source.** The `weight` argument of [get_crosswalk()] accepts
 #' different values depending on `crosswalk_source` (see the "Available
@@ -788,6 +857,8 @@ and counties. The provided geography '", geography, "' is not supported.")}
 #' - `ctdata_2020_2022` and `county_events`: no choice of weight; unchanged
 #'   units have an allocation factor of 1 and changed units use
 #'   population-based factors
+#' - `ltdb`: a single weight that combines land area and block population;
+#'   only "population" is accepted
 #'
 #' @return A tibble with columns: `source_geography`, `target_geography`,
 #'   `source_year`, `target_year`, `crosswalk_source`.
@@ -893,14 +964,26 @@ get_available_crosswalks <- function() {
       dplyr::select(source_geography, target_geography, source_year,
                     target_year, crosswalk_source))
 
-  # 6. Combine, deduplicate, and sort. The 2020 <-> 2022 pairs can be served by
+  # 6. Longitudinal Tract Database (LTDB): tract year pairs NHGIS does not
+  # publish (2010 -> 2000). Shares list_ltdb_crosswalks() with the planner.
+  ltdb <- list_ltdb_crosswalks() |>
+    dplyr::transmute(
+      source_geography,
+      target_geography,
+      source_year = as.integer(source_year),
+      target_year = as.integer(target_year),
+      crosswalk_source = "ltdb")
+
+  # 7. Combine, deduplicate, and sort. The 2020 <-> 2022 pairs can be served by
   # both CTData and the county-events engine; keep the source the planner
   # routes direct requests to (CTData), mirroring get_crosswalk()'s behavior
   source_preference <- c(
-    "geocorr" = 1L, "nhgis" = 2L, "ctdata_2020_2022" = 3L, "county_events" = 4L)
+    "geocorr" = 1L, "nhgis" = 2L, "ctdata_2020_2022" = 3L, "county_events" = 4L,
+    "ltdb" = 5L)
 
   dplyr::bind_rows(
-    nhgis, geocorr_2022, geocorr_2018, geocorr_2000, ctdata, county_events_combos) |>
+    nhgis, geocorr_2022, geocorr_2018, geocorr_2000, ctdata,
+    county_events_combos, ltdb) |>
     dplyr::distinct() |>
     dplyr::slice_min(
       source_preference[crosswalk_source],

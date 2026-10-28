@@ -30,6 +30,8 @@ Crosswalks are sourced from:
 - **IPUMS NHGIS** – inter-temporal (cross-decade) crosswalks
 - **CT Data Collaborative** – Connecticut’s 2020-2022 change from
   counties to planning regions
+- **Longitudinal Tract Database (LTDB)** (Brown University) – 2010
+  tracts to 2000 tracts, which NHGIS does not publish
 - **A curated registry of county change events** (ships with the
   package) – county -\> county crosswalks between any pair of years from
   2000 onward
@@ -152,7 +154,7 @@ get_available_crosswalks() |>
   Get one at <https://api.census.gov/data/key_signup.html>.
 
 Store keys in your `.Renviron` (e.g., via `usethis::edit_r_environ()`).
-Geocorr and county-events crosswalks require no keys.
+Geocorr, LTDB, and county-events crosswalks require no keys.
 
 ## Caching
 
@@ -187,6 +189,18 @@ package:
 
 **For NHGIS**, see requirements at:
 <https://www.nhgis.org/citation-and-use-nhgis-data>
+
+**For LTDB**, see requirements at:
+<https://s4.ad.brown.edu/Projects/Diversity/Researcher/LTBDDload/DataList.aspx>.
+LTDB asks you to cite the US2010 Project webpage as the source of data
+(currently
+<https://s4.ad.brown.edu/Projects/Diversity/Researcher/Bridging.htm>)
+and this technical reference:
+
+> Logan, John R., Zengwang Xu, and Brian J. Stults. 2014. “Interpolating
+> US Decennial Census Tract Data from as Early as 1970 to 2010: A
+> Longitudinal Tract Database.” The Professional Geographer 66(3):
+> 412-420.
 
 **For Geocorr**, a suggested citation (update the year):
 
