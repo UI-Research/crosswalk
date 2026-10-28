@@ -103,8 +103,11 @@ source-target pair.
 The `weight` argument ("population", "housing", or "land") determines *how*
 split units are apportioned -- population-weighted, housing-unit-weighted, or
 area-weighted. Match it to what you're crosswalking: population-based weights
-for people-denominated variables, housing for housing-unit variables. See
-`vignette("how-interpolation-works")` for details.
+for people-denominated variables, housing for housing-unit variables. For
+crosswalks between census decades, tract- and block-group-level NHGIS
+crosswalks also offer `"household"`, `"housing_owned"`, and
+`"housing_rented"` weights. See `vignette("how-interpolation-works")` for
+details.
 
 ### Where did this crosswalk come from?
 

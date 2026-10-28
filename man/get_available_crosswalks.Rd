@@ -51,6 +51,20 @@ require neither
 \item \code{county_events}: no API key; the data ships with the package and works
 offline
 }
+
+\strong{Weights by source.} The \code{weight} argument of \code{\link[=get_crosswalk]{get_crosswalk()}} accepts
+different values depending on \code{crosswalk_source} (see the "Available
+weights" section of \code{\link[=get_crosswalk]{get_crosswalk()}} for details):
+\itemize{
+\item \code{geocorr}: "population", "housing", "land"
+\item \code{nhgis}: block group and tract based crosswalks offer "population",
+"housing", "household", "housing_owned", and "housing_rented";
+block-based crosswalks offer a single combined population and housing
+weight (used for "population" or "housing") and, for some files, "land"
+\item \code{ctdata_2020_2022} and \code{county_events}: no choice of weight; unchanged
+units have an allocation factor of 1 and changed units use
+population-based factors
+}
 }
 \examples{
 available <- get_available_crosswalks()

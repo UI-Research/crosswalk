@@ -50,10 +50,12 @@ same parameters read from the cached files instead of re-downloading
 (see Details).}
 
 \item{weight}{Character. Weighting variable used to construct or select
-allocation factors. One of c("population", "housing", "land"). Applies to
-GeoCorr crosswalks and to the selection of the NHGIS interpolation weight
-(block-based NHGIS crosswalks provide a single combined weight, which is
-used regardless of this argument).}
+allocation factors. Defaults to "population". The accepted values depend
+on the source that serves each step (see "Available weights" below):
+GeoCorr accepts c("population", "housing", "land"); NHGIS additionally
+accepts c("household", "housing_owned", "housing_rented") for block group
+and tract based crosswalks. A weight that a step cannot provide raises
+an error, except as described under "Available weights".}
 
 \item{silent}{Logical. If \code{TRUE}, suppresses all informational messages and
 warnings. Defaults to \code{getOption("crosswalk.silent", FALSE)}. Set
@@ -171,6 +173,41 @@ source. Use \code{usethis::edit_r_environ(scope = "user")} to save your API key
 to your .Renviron; the name of the key should be "IPUMS_API_KEY". You can
 obtain a key from: https://account.ipums.org/api_keys.
 }
+\section{Available weights}{
+
+The \code{weight} argument chooses the attribute used to split a source unit
+across the target units it overlaps. What each source offers:
+\describe{
+\item{GeoCorr (same-year crosswalks)}{"population", "housing" (all
+housing units), and "land" (land area). Requesting any other weight
+raises an error that lists these three.}
+\item{NHGIS, block group and tract based files}{"population",
+"housing" (all housing units, NHGIS \code{wt_hu}), "household"
+(households, NHGIS \code{wt_hh}; use for household-level measures such as
+HUD CHAS data), "housing_owned" (owner-occupied housing units, NHGIS
+\code{wt_ownhu}), and "housing_rented" (renter-occupied housing units,
+NHGIS \code{wt_renthu}).}
+\item{NHGIS, block-based files}{A single combined weight, recorded as
+\code{weighting_factor = "housing_population"}, which is used (with a
+message) when "population" or "housing" is requested. Some files also
+carry a land-area weight ("land"). Requesting "household",
+"housing_owned", or "housing_rented" raises an error that lists the
+weights the file provides; another weight is never substituted.}
+\item{CT Data Collaborative (2020 <-> 2022) and county-events
+crosswalks}{No choice of weight. Units whose boundaries did not
+change have an allocation factor of 1 (\code{weighting_factor = "identity"}); units whose boundaries changed use population-based
+allocation factors. Any accepted \code{weight} is allowed for these steps;
+a message notes when population-based factors are used instead of
+the requested weight.}
+}
+In a multi-step chain, every step must be able to use the requested
+weight. For example, \code{weight = "household"} cannot be used for 2010 tracts
+to 2020 ZCTAs, because the second step (2020 tracts to 2020 ZCTAs) comes from
+GeoCorr; the error names that step. The check runs before any crosswalk is
+downloaded. The \code{weighting_factor} column and the \code{weighting_variable}
+metadata field record the weight actually used.
+}
+
 \section{Crosswalk metadata}{
 
 The \code{crosswalk_metadata} attribute attached to each crosswalk tibble is a
@@ -191,8 +228,13 @@ requested geographies and years, plus \code{source_geography_standardized} /
 \code{target_geography_standardized} (the source-specific codes they resolved
 to) and \code{reference_year} (the source's reference vintage, e.g., the
 GeoCorr version).}
-\item{weighting_variable}{The weighting variable used to construct or
-select allocation factors.}
+\item{weighting_variable}{The weighting variable actually used to
+construct or select allocation factors. For GeoCorr this is the
+requested \code{weight}. For NHGIS it is the \code{weighting_factor} value kept
+from the file (e.g., "household", "housing_all", or
+"housing_population"). For CT Data Collaborative and county-events
+crosswalks it lists the weighting factors present (e.g., "identity,
+population").}
 \item{state_coverage, notes}{Geographic coverage notes and source-specific
 caveats.}
 \item{retrieved_at, cached, cache_path, read_from_cache}{When the

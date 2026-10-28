@@ -8,7 +8,8 @@
 #' @param target_geography Character. Target geography name.
 #' @param source_year Numeric or NULL. Year of the source geography.
 #' @param target_year Numeric or NULL. Year of the target geography.
-#' @param weight Character or NULL. Weighting variable for Geocorr crosswalks.
+#' @param weight Character. Weighting variable; see `get_crosswalk()` for the
+#'    values each source accepts.
 #' @param cache Directory path or NULL. Where to cache crosswalks.
 #'
 #' @return A list with:
@@ -40,6 +41,10 @@ get_crosswalk_chain <- function(
   if (!is.null(plan$error)) {
     stop(plan$error)
   }
+
+  # Confirm every step can use the requested weight before downloading any
+  # step, so a chain does not fail partway through
+  validate_weight_for_plan(weight = weight, plan = plan)
 
   # Initialize result
   result <- list(

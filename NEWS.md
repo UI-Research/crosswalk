@@ -2,6 +2,19 @@
 
 ## New features
 
+* **Household and tenure weights for NHGIS crosswalks (#20).**
+  `get_crosswalk()` and `crosswalk_data()` now accept
+  `weight = "household"`, `"housing_owned"`, and `"housing_rented"`, which
+  select the NHGIS household (`wt_hh`), owner-occupied housing unit
+  (`wt_ownhu`), and renter-occupied housing unit (`wt_renthu`) interpolation
+  weights from block group and tract based crosswalks. Requesting one of these
+  weights for a GeoCorr step, or from an NHGIS file that does not carry it
+  (such as block-based files), raises an error that lists the weights that
+  are available; for multi-step chains the check runs before anything is
+  downloaded. The `weighting_variable` metadata field now records the weight
+  actually used (e.g., `"household"`, `"housing_all"`, or
+  `"housing_population"` for NHGIS; `"identity, population"` for CT Data
+  Collaborative and county-events crosswalks).
 * **Arbitrary-year county crosswalks.** `get_crosswalk()` now supports
   county -> county crosswalks between any pair of years from 2000 through 2025
   (e.g., `2014 -> 2019` or `2014 -> 2023`), accounting for counties redefined

@@ -6,6 +6,7 @@
 
 test_that("get_crosswalk returns list with expected structure for single-step", {
   skip_if_offline()
+  skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
 
   result <- get_crosswalk(
     source_geography = "tract",
@@ -33,6 +34,7 @@ test_that("get_crosswalk returns list with expected structure for single-step", 
 
 test_that("get_crosswalk attaches comprehensive metadata attribute to crosswalk tibble", {
   skip_if_offline()
+  skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
 
   result <- get_crosswalk(
     source_geography = "tract",
@@ -64,6 +66,7 @@ test_that("get_crosswalk attaches comprehensive metadata attribute to crosswalk 
 
 test_that("get_crosswalk routes 2020-2022 to CTData", {
   skip_if_offline()
+  skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
 
   result <- get_crosswalk(
     source_geography = "tract",
@@ -198,6 +201,7 @@ test_that("get_crosswalk multi-step plan is correct", {
 
 test_that("get_crosswalk 2020-2022 metadata contains correct info", {
   skip_if_offline()
+  skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
 
   result <- get_crosswalk(
     source_geography = "tract",
