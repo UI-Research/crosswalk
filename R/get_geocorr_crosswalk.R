@@ -1,8 +1,8 @@
 #' Get GeoCorr Version Configuration
 #'
-#' Returns configuration for a specific GeoCorr version (2022 or 2018).
+#' Returns configuration for a specific GeoCorr version (2022, 2018, or 2000).
 #'
-#' @param version Character. Either "2022" or "2018".
+#' @param version Character. One of "2022", "2018", or "2000".
 #' @return A named list with version-specific configuration.
 #' @keywords internal
 #' @noRd
@@ -40,7 +40,12 @@ get_geocorr_config <- function(version = "2022") {
       puma_col = "puma22",
       cd_pattern = "^cd11[89]",
       has_name_columns = TRUE,
+      ## columns holding real geography names, as new name = name in the
+      ## GeoCorr CSV (after janitor::clean_names); none needed for 2022
+      name_columns = character(0),
       include_pr = TRUE,
+      ## GeoCorr limits how many states a block-level request may include
+      block_states_per_request = 13,
       # GeoCorr 2022 uses fileout=1 + filefmt=csv for CSV output
       csv_params = list(`fileout` = "1", `filefmt` = "csv"),
       extra_params = list(`afacts2` = "on", `sort2` = "on"))
@@ -76,12 +81,67 @@ get_geocorr_config <- function(version = "2022") {
       puma_col = "puma12",
       cd_pattern = "^cd11[56]",
       has_name_columns = FALSE,
+      name_columns = character(0),
       include_pr = FALSE,
+      block_states_per_request = 13,
       # GeoCorr 2018 uses csvout=1 for CSV output (different from 2022)
       csv_params = list(`csvout` = "1"),
       extra_params = list(`namoptf` = "b", `namoptr` = "b"))
+  } else if (version == "2000") {
+    ## GeoCorr 2000 uses Census 2000 geography. Its web form offers PUMAs for
+    ## the 5% sample ("puma5") only; requests for 1% sample PUMAs ("puma1")
+    ## return no rows. Metro areas are the 1999 Metropolitan Statistical Areas
+    ## and Consolidated Metropolitan Statistical Areas ("msacmsa").
+    list(
+      program = "apps.geocorr2000.sas",
+      documentation_url = "https://mcdc.missouri.edu/applications/geocorr2000.html",
+      reference_year = "2000",
+      census_year = "2000",
+      weight_map = list(
+        "population" = "pop2k",
+        "housing" = "hus2k",
+        "land" = "LandSQMI"),
+      ## janitor::clean_names() turns "LandSQMI" into "land_sqmi"
+      weight_rename = c(
+        "hus2k" = "housing_2000",
+        "pop2k" = "population_2000",
+        "land_sqmi" = "land_area_sqmi"),
+      geography_api_codes = list(
+        "place" = "placefp",
+        "placefp" = "placefp",
+        "county" = "county",
+        "tract" = "tract",
+        "block" = "block",
+        "blockgroup" = "bg",
+        "block_group" = "bg",
+        "bg" = "bg",
+        "zcta" = "zcta5",
+        "zcta5" = "zcta5",
+        "puma" = "puma5",
+        "puma5" = "puma5",
+        "msacmsa" = "msacmsa"),
+      puma_col = "puma5",
+      ## congressional districts are not offered for GeoCorr 2000 in this
+      ## package; this pattern matches the codes GeoCorr 2000 would use
+      cd_pattern = "^cd1(06|08|09|10)",
+      has_name_columns = FALSE,
+      name_columns = c(
+        "county_name" = "cntyname",
+        "zcta5_name" = "zipname",
+        "placefp_name" = "placenm",
+        "msacmsa_name" = "msaname"),
+      ## GeoCorr 2000 has no Puerto Rico data
+      include_pr = FALSE,
+      block_states_per_request = 10,
+      csv_params = list(`csvout` = "1"),
+      ## GeoCorr 2000 fails unless the urban area filter field (uaucs) is sent,
+      ## even when empty; afacts2 adds target-to-source allocation factors
+      extra_params = list(
+        `namoptf` = "b", `namoptr` = "b", `uaucs` = "", `afacts2` = "on"))
   } else {
-    stop("Invalid GeoCorr version: '", version, "'. Must be '2022' or '2018'.")
+    stop(
+      "Invalid GeoCorr version: '", version,
+      "'. Must be '2022', '2018', or '2000'.")
   }
 }
 
@@ -92,7 +152,7 @@ get_geocorr_config <- function(version = "2022") {
 #' for the specified GeoCorr version.
 #'
 #' @param geography Character. User-facing geography name.
-#' @param geocorr_version Character. "2022" or "2018".
+#' @param geocorr_version Character. "2022", "2018", or "2000".
 #' @return Character. The API code for the geography.
 #' @keywords internal
 #' @noRd
@@ -102,6 +162,14 @@ resolve_geocorr_geography <- function(geography, geocorr_version = "2022") {
 
   if (is.null(api_code)) {
     valid_names <- paste(names(config$geography_api_codes), collapse = ", ")
+    ## PUMAs for the 2000 1% sample are listed in older GeoCorr 2000
+    ## documentation, but the current web tool returns no rows for them
+    if (identical(geography, "puma1")) {
+      stop(
+        "PUMAs for the 2000 1% sample ('puma1') are not available: the ",
+        "GeoCorr 2000 web tool returns no rows for them. Use 'puma5' (PUMAs ",
+        "for the 2000 5% sample) instead.")
+    }
     stop(
       "Geography '", geography, "' is not supported by GeoCorr ", geocorr_version,
       ". Supported geographies: ", valid_names)
@@ -114,8 +182,9 @@ resolve_geocorr_geography <- function(geography, geocorr_version = "2022") {
 #' Obtain a GeoCorr Crosswalk
 #'
 #' Query GeoCorr (Missouri Census Data Center) for a crosswalk between two
-#' geographies for all 51 states and Puerto Rico. Supports both GeoCorr 2022
-#' (2020 Census geography) and GeoCorr 2018 (2010 Census geography).
+#' geographies for all 51 states and Puerto Rico. Supports GeoCorr 2022
+#' (2020 Census geography), GeoCorr 2018 (2010 Census geography), and GeoCorr
+#' 2000 (2000 Census geography).
 #'
 #' @details Note: this function is under development but does not yet support all
 #'    of the geographies supported by GeoCorr.
@@ -128,6 +197,14 @@ resolve_geocorr_geography <- function(geography, geocorr_version = "2022") {
 #'    "puma12", "cd115", "cd116"). Tribal areas (aiannh) are not available in
 #'    GeoCorr 2018.
 #'
+#'    For GeoCorr 2000: c("placefp", "county", "tract", "bg", "block",
+#'    "zcta5", "puma5", "msacmsa"). "puma5" is the PUMA for the 2000 5% sample
+#'    (the PUMA used by 2000 Census and 2005-2011 ACS microdata). "msacmsa" is
+#'    the 1999 Metropolitan Statistical Area or Consolidated Metropolitan
+#'    Statistical Area, identified by its four-digit code; GeoCorr 2000 assigns
+#'    the code "9999" to areas outside any metro area. GeoCorr 2000 has no
+#'    Puerto Rico data.
+#'
 #'    User-facing names like "puma", "zcta", "place", "blockgroup" are
 #'    automatically resolved to the correct API code for the version.
 #'
@@ -136,12 +213,14 @@ resolve_geocorr_geography <- function(geography, geocorr_version = "2022") {
 #' @param weight Character. Weighting variable. One of c("population", "housing", "land").
 #' @param cache Directory path. Where to download the crosswalk to. If NULL (default),
 #'    crosswalk is returned but not saved to disk.
-#' @param geocorr_version Character. GeoCorr version to use. One of "2022" (default)
-#'    or "2018". GeoCorr 2022 uses 2020 Census geography; GeoCorr 2018 uses 2010
-#'    Census geography.
+#' @param geocorr_version Character. GeoCorr version to use. One of "2022"
+#'    (default), "2018", or "2000". GeoCorr 2022 uses 2020 Census geography;
+#'    GeoCorr 2018 uses 2010 Census geography; GeoCorr 2000 uses 2000 Census
+#'    geography.
 #'
 #' @return A dataframe representing the requested GeoCorr crosswalk for all 51
-#'    states and Puerto Rico (GeoCorr 2018 excludes Puerto Rico).
+#'    states and Puerto Rico (GeoCorr 2018 and GeoCorr 2000 exclude Puerto
+#'    Rico).
 #' @importFrom rlang :=
 #' @keywords internal
 #' @noRd
@@ -179,7 +258,7 @@ get_geocorr_crosswalk <- function(
   geocorr_numeric_columns <- c(
     "allocation_factor_source_to_target", "allocation_factor_target_to_source",
     "population_2020", "housing_2020", "population_2010", "housing_2010",
-    "land_area_sqmi")
+    "population_2000", "housing_2000", "land_area_sqmi")
 
   ## if the file exists and the user does not wish to overwrite it
   if (file.exists(outpath) & !is.null(cache)) {
@@ -336,14 +415,39 @@ get_geocorr_crosswalk <- function(
         httr2::req_perform(path = path)
     }
 
-    csv_path <- httr2::request(base_url) |>
+    response_html <- httr2::request(base_url) |>
       httr2::req_url_query(!!!params, .multi = "explode") |>
       perform_with_retry() |>
-      httr2::resp_body_html() |>
+      httr2::resp_body_html()
+
+    response_text <- response_html |>
       rvest::html_element("body") |>
-      rvest::html_text2() |>
+      rvest::html_text2()
+
+    ## GeoCorr reports "0 observations" (and links to a file that does not
+    ## exist) when a request is valid but matches nothing
+    if (stringr::str_detect(response_text, "\\b0 observations on output")) {
+      stop(
+        "GeoCorr ", config$reference_year, " returned no rows for this ",
+        "request (", source_api_code, " to ", target_api_code, ").")
+    }
+
+    ## GeoCorr 2022 and 2018 print the CSV file name in the page text;
+    ## GeoCorr 2000 shows it only in the link address
+    csv_path_from_text <- response_text |>
       stringr::str_extract("geocorr.*.csv") |>
       trimws()
+
+    csv_path <- if (!is.na(csv_path_from_text)) {
+      csv_path_from_text
+    } else {
+      response_html |>
+        rvest::html_elements("a") |>
+        rvest::html_attr("href") |>
+        stringr::str_extract("geocorr[^/]*\\.csv$") |>
+        stats::na.omit() |>
+        dplyr::first(default = NA_character_)
+    }
 
     if (is.na(csv_path)) { stop("Unable to acquire the specified crosswalk; please file an issue.") }
 
@@ -361,10 +465,13 @@ get_geocorr_crosswalk <- function(
       dplyr::slice(-1)
   }
 
-  ## for block-level crosswalks, the maximum number of states per query is 13
+  ## for block-level crosswalks, GeoCorr limits the number of states per
+  ## query (13 for GeoCorr 2022 and 2018; 10 for GeoCorr 2000)
   if ("block" %in% c(source_api_code, target_api_code)) {
 
-    states_chunked = split(states_data, ceiling(seq_along(states_data) / 13))
+    states_chunked = split(
+      states_data,
+      ceiling(seq_along(states_data) / config$block_states_per_request))
 
     df1 = purrr::map_dfr(
       states_chunked,
@@ -376,6 +483,9 @@ get_geocorr_crosswalk <- function(
   weight_rename_pattern <- paste(names(config$weight_rename), collapse = "|")
 
   df2 = df1 |>
+    ## GeoCorr 2000 returns real geography names under its own column names;
+    ## rename them to the "{geography code}_name" pattern used below
+    dplyr::rename(dplyr::any_of(config$name_columns)) |>
     ## naming conventions for some geographies are inconsistent; we standardize
     dplyr::rename_with(
       .cols = dplyr::matches("zip_name"),
@@ -420,16 +530,13 @@ get_geocorr_crosswalk <- function(
       ## we standardize here so that subsequent workflows are uniform
       dplyr::across(
         .cols = dplyr::matches("^block$"),
-        .fns = ~ stringr::str_c(state, county, tract, block) |>
-          stringr::str_remove_all("\\.")),
+        .fns = ~ stringr::str_c(build_tract_geoid(state, county, tract), .x)),
       dplyr::across(
         .cols = dplyr::matches(stringr::str_c("^", bg_api_col, "$")),
-        .fns = ~ stringr::str_c(state, county, tract, !!rlang::sym(bg_api_col)) |>
-          stringr::str_remove_all("\\.")),
+        .fns = ~ stringr::str_c(build_tract_geoid(state, county, tract), .x)),
       dplyr::across(
         .cols = dplyr::matches("^tract$"),
-        .fns = ~ stringr::str_c(state, county, tract) |>
-          stringr::str_remove_all("\\.")),
+        .fns = ~ build_tract_geoid(state, county, tract)),
       dplyr::across(
         .cols = dplyr::matches(config$cd_pattern),
         .fns = ~ if ("stab" %in% colnames(df2)) {
@@ -470,16 +577,20 @@ get_geocorr_crosswalk <- function(
       df2 = df2 |> dplyr::mutate(tract_name = tract)
     }
     # For place, zcta, puma, county: use the GEOID as the name
+    ## (GeoCorr 2000 already provides real names for some of these; keep them)
     place_col <- config$geography_api_codes[["place"]]
-    if (place_col %in% colnames(df2)) {
+    if (place_col %in% colnames(df2) &&
+        !stringr::str_c(place_col, "_name") %in% colnames(df2)) {
       df2 = df2 |> dplyr::mutate(!!stringr::str_c(place_col, "_name") := !!rlang::sym(place_col))
     }
     zcta_col <- config$geography_api_codes[["zcta"]]
-    if (zcta_col %in% colnames(df2)) {
+    if (zcta_col %in% colnames(df2) &&
+        !stringr::str_c(zcta_col, "_name") %in% colnames(df2)) {
       df2 = df2 |> dplyr::mutate(!!stringr::str_c(zcta_col, "_name") := !!rlang::sym(zcta_col))
     }
     puma_col <- config$puma_col
-    if (puma_col %in% colnames(df2)) {
+    if (puma_col %in% colnames(df2) &&
+        !stringr::str_c(puma_col, "_name") %in% colnames(df2)) {
       df2 = df2 |> dplyr::mutate(!!stringr::str_c(puma_col, "_name") := !!rlang::sym(puma_col))
     }
     if ("county" %in% colnames(df2) && !"county_name" %in% colnames(df2)) {
@@ -488,6 +599,9 @@ get_geocorr_crosswalk <- function(
           nchar(county) == 3,
           stringr::str_c(state, county),
           county))
+    }
+    if ("msacmsa" %in% colnames(df2) && !"msacmsa_name" %in% colnames(df2)) {
+      df2 = df2 |> dplyr::mutate(msacmsa_name = msacmsa)
     }
   }
 
@@ -559,6 +673,34 @@ get_geocorr_crosswalk <- function(
     df2 <- df2 |> dplyr::filter(!is.na(target_geoid))
   }
 
+  ## GeoCorr 2000 leaves the MSA/CMSA code blank in some states. In New
+  ## England, 1999 metro areas were built from cities and towns rather than
+  ## whole counties, and GeoCorr 2000 does not assign them to these rows.
+  ## Rows without a code cannot be allocated, so we drop them and say so.
+  if ("msacmsa" %in% c(source_api_code, target_api_code)) {
+    missing_metro_rows <- df2 |>
+      dplyr::filter(is.na(source_geoid) | is.na(target_geoid))
+
+    if (nrow(missing_metro_rows) > 0) {
+      missing_metro_states <- if ("state_fips" %in% colnames(missing_metro_rows)) {
+        missing_metro_rows$state_fips |> unique() |> sort() |> paste(collapse = ", ")
+      } else {
+        "unknown"
+      }
+      cw_warning(stringr::str_c(
+        "GeoCorr ", config$reference_year, " has no MSA/CMSA code for ",
+        nrow(missing_metro_rows), " rows (state FIPS codes: ",
+        missing_metro_states, "). These rows were dropped, so the affected ",
+        "areas are missing from the crosswalk or have allocation factors that ",
+        "sum to less than 1. In New England, 1999 ",
+        "metro areas were defined with cities and towns, which GeoCorr 2000 ",
+        "does not assign to an MSA/CMSA code."), call. = FALSE)
+
+      df2 <- df2 |>
+        dplyr::filter(!is.na(source_geoid), !is.na(target_geoid))
+    }
+  }
+
   if (!is.null(cache) && !file.exists(outpath)) {
     readr::write_csv(df2, outpath)
   }
@@ -581,4 +723,41 @@ get_geocorr_crosswalk <- function(
   return(df2)
 }
 
-utils::globalVariables(c("afact", "afact2", "block", "county", "stab", "state", "tract"))
+#' Build an 11-Character Census Tract GEOID
+#'
+#' Combines a state FIPS code, a county code, and a tract code into the
+#' standard 11-character tract GEOID (2-digit state, 3-digit county, 6-digit
+#' tract). GeoCorr writes tract codes with a decimal point (for example,
+#' "0301.00" or "1234.56"); the decimal point is removed. Tract codes written
+#' without a decimal point and with four or fewer digits (for example, "0301")
+#' are treated as whole tract numbers and receive the "00" suffix. County codes
+#' may be either the 3-digit county code or the 5-digit state-and-county code;
+#' only the last three digits are used.
+#'
+#' @param state Character vector of 2-digit state FIPS codes.
+#' @param county Character vector of 3-digit county codes or 5-digit
+#'    state-and-county codes.
+#' @param tract Character vector of tract codes, such as "0301.00".
+#' @return Character vector of 11-character tract GEOIDs (NA where any input
+#'    is NA).
+#' @keywords internal
+#' @noRd
+build_tract_geoid <- function(state, county, tract) {
+  county_code <- stringr::str_sub(county, -3, -1)
+
+  tract_whole_number <- stringr::str_extract(tract, "^[0-9]+")
+  tract_suffix <- stringr::str_match(tract, "\\.([0-9]+)$")[, 2]
+
+  tract_code <- dplyr::case_when(
+    stringr::str_detect(tract, "\\.") ~ stringr::str_c(
+      stringr::str_pad(tract_whole_number, width = 4, side = "left", pad = "0"),
+      stringr::str_pad(tract_suffix, width = 2, side = "right", pad = "0")),
+    nchar(tract) == 6 ~ tract,
+    TRUE ~ stringr::str_c(
+      stringr::str_pad(tract, width = 4, side = "left", pad = "0"), "00"))
+
+  stringr::str_c(state, county_code, tract_code)
+}
+
+utils::globalVariables(c(
+  "afact", "afact2", "block", "county", "msacmsa", "stab", "state", "tract"))

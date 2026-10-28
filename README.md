@@ -26,7 +26,7 @@ Crosswalks are sourced from:
 
 - **Geocorr** (Missouri Census Data Center) – same-year crosswalks
   between geographies (Geocorr 2022 for 2020s geography; Geocorr 2018
-  for 2010s geography)
+  for 2010s geography; Geocorr 2000 for 2000s geography)
 - **IPUMS NHGIS** – inter-temporal (cross-decade) crosswalks
 - **CT Data Collaborative** – Connecticut’s 2020-2022 change from
   counties to planning regions
@@ -190,9 +190,9 @@ package:
 
 **For Geocorr**, a suggested citation (update the year):
 
-> Missouri Census Data Center, University of Missouri. (2022/2018).
-> Geocorr 2022/2018: Geographic Correspondence Engine. Retrieved from:
-> <https://mcdc.missouri.edu/applications/geocorr2022/2018.html>
+> Missouri Census Data Center, University of Missouri. (2022/2018/2000).
+> Geocorr 2022/2018/2000: Geographic Correspondence Engine. Retrieved
+> from: <https://mcdc.missouri.edu/applications/geocorr2022/2018/2000.html>
 
 **For CTData**, a suggested citation (adjust for alternate source
 geography):

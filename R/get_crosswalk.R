@@ -5,7 +5,7 @@
 #' structure containing one or more crosswalk tibbles.
 #'
 #' @details This function sources crosswalks from Geocorr 2022, Geocorr 2018,
-#'    IPUMS NHGIS, CT Data Collaborative, and a curated registry of county
+#'    Geocorr 2000, IPUMS NHGIS, CT Data Collaborative, and a curated registry of county
 #'    change events. Crosswalk weights are from the original sources and have
 #'    not been modified; this function merely standardizes the format of the
 #'    returned crosswalks and enables easy programmatic access and caching.
@@ -14,11 +14,30 @@
 #'    appropriate GeoCorr version is selected automatically based on the year:
 #'    - Years 2020+ (or no year specified): GeoCorr 2022 (2020 Census geography)
 #'    - Years 2010-2019: GeoCorr 2018 (2010 Census geography)
+#'    - Years 2000-2009: GeoCorr 2000 (2000 Census geography)
+#'
+#'    Years before 2000 are not supported for same-year crosswalks.
 #'
 #'    **Geography name resolution**: User-facing geography names like "puma",
 #'    "zcta", "place", and "blockgroup" are automatically resolved to the correct
 #'    API codes for the selected GeoCorr version. Version-specific names are also
-#'    accepted (e.g., "puma12" for GeoCorr 2018, "puma22" for GeoCorr 2022).
+#'    accepted (e.g., "puma5" for GeoCorr 2000, "puma12" for GeoCorr 2018,
+#'    "puma22" for GeoCorr 2022).
+#'
+#'    **2000 geography (GeoCorr 2000)**: Request 2000-vintage crosswalks with
+#'    `source_year = 2000, target_year = 2000` (e.g., 2000 tracts to 2000
+#'    PUMAs, which NHGIS does not provide directly). Supported geographies are
+#'    "block", "block group", "tract", "county", "place", "zcta", "puma" (or
+#'    "puma5": the PUMA for the 2000 5% sample, which 2005-2011 ACS microdata
+#'    also use), and "msacmsa" (1999 Metropolitan Statistical Areas and
+#'    Consolidated Metropolitan Statistical Areas, identified by four-digit
+#'    codes, with "9999" for areas outside any metro area). PUMAs for the 2000
+#'    1% sample ("puma1") are not available. GeoCorr 2000 has no Puerto Rico
+#'    data. GeoCorr 2000 leaves the MSA/CMSA code blank for New England areas,
+#'    where 1999 metro areas were built from cities and towns; those rows are
+#'    dropped with a warning. Years 2001-2009 also use GeoCorr 2000, so they
+#'    reflect 2000 boundaries, not later changes such as the creation of
+#'    Broomfield County, Colorado.
 #'
 #'    **Multi-step crosswalks**: When both geography AND year change (e.g.,
 #'    2010 tracts to 2020 ZCTAs), no single crosswalk source provides this directly.
@@ -79,7 +98,8 @@
 #' @param source_geography Character. Source geography name. For same-year
 #'    (GeoCorr) crosswalks, one of c("block", "block group", "tract", "county",
 #'    "place", "zcta", "puma", "puma12", "puma22", "cd115", "cd116", "cd118",
-#'    "cd119"). For cross-decade (NHGIS) crosswalks, sources are limited to
+#'    "cd119"), plus c("puma5", "msacmsa") for 2000 geography. For cross-decade
+#'    (NHGIS) crosswalks, sources are limited to
 #'    c("block", "block group", "tract"). Use `get_available_crosswalks()` for
 #'    the full listing of supported combinations.
 #' @param target_year Character or numeric. Year of the target geography, one of
@@ -91,7 +111,8 @@
 #' @param target_geography Character. Target geography name. For same-year
 #'    (GeoCorr) crosswalks, one of c("block", "block group", "tract", "county",
 #'    "place", "zcta", "puma", "puma12", "puma22", "cd115", "cd116", "cd118",
-#'    "cd119"). For cross-decade (NHGIS) crosswalks, targets additionally
+#'    "cd119"), plus c("puma5", "msacmsa") for 2000 geography. For cross-decade
+#'    (NHGIS) crosswalks, targets additionally
 #'    include c("urban_area", "core_based_statistical_area"). Use
 #'    `get_available_crosswalks()` for the full listing.
 #' @param weight Character. Weighting variable used to construct or select
@@ -138,8 +159,11 @@
 #'        from the source geography to the target geography}
 #'     \item{allocation_factor_target_to_source}{The weight to interpolate values
 #'        from the target geography to the source geography}
-#'     \item{population_2020}{The estimated overlap in population, if applicable}
-#'     \item{housing_2020}{The estimated overlap in housing units, if applicable}
+#'     \item{population_2020}{The estimated overlap in population, if applicable
+#'        (`population_2010` or `population_2000` for GeoCorr 2018 or GeoCorr
+#'        2000)}
+#'     \item{housing_2020}{The estimated overlap in housing units, if applicable
+#'        (`housing_2010` or `housing_2000` for GeoCorr 2018 or GeoCorr 2000)}
 #'     \item{land_area_sqmi}{The overlap in land area, if applicable}
 #'     \item{weighting_factor}{The attribute used to calculate allocation factors}
 #'     \item{state_fips}{Two-digit state FIPS code, if applicable}
@@ -255,6 +279,15 @@
 #'   crosswalk = result,
 #'   count_columns = "count_population",
 #'   return_intermediate = TRUE)
+#'
+#' # Same-year crosswalk for 2000 geography (uses Geocorr 2000), e.g., to
+#' # aggregate 2000 Census tract data to 2000 PUMAs
+#' result <- get_crosswalk(
+#'   source_geography = "tract",
+#'   target_geography = "puma",
+#'   source_year = 2000,
+#'   target_year = 2000,
+#'   weight = "population")
 #'
 #' # Arbitrary-year county crosswalk handling non-decennial county changes
 #' # (e.g., 2015 Shannon -> Oglala Lakota, SD; Valdez-Cordova, AK split)
@@ -606,7 +639,7 @@ get_crosswalk_single <- function(
   crosswalk_numeric_columns <- c(
     "allocation_factor_source_to_target", "allocation_factor_target_to_source",
     "population_2020", "housing_2020", "population_2010", "housing_2010",
-    "land_area_sqmi")
+    "population_2000", "housing_2000", "land_area_sqmi")
 
   result <- result |>
     dplyr::mutate(
@@ -625,11 +658,12 @@ get_crosswalk_single <- function(
 #'
 #' Internal function that selects the appropriate GeoCorr version based on the
 #' target year context. GeoCorr 2022 uses 2020 Census geography (for years >= 2020),
-#' while GeoCorr 2018 uses 2010 Census geography (for years 2010-2019).
+#' GeoCorr 2018 uses 2010 Census geography (for years 2010-2019), and GeoCorr
+#' 2000 uses 2000 Census geography (for years 2000-2009).
 #'
 #' @param year Numeric or NULL. The year to determine version for. If NULL,
 #'    defaults to "2022".
-#' @return Character. Either "2022" or "2018".
+#' @return Character. One of "2022", "2018", or "2000".
 #' @keywords internal
 #' @noRd
 determine_geocorr_version <- function(year) {
@@ -643,11 +677,14 @@ determine_geocorr_version <- function(year) {
     return("2022")
   } else if (year_num >= 2010) {
     return("2018")
+  } else if (year_num >= 2000) {
+    return("2000")
   } else {
     stop(
-      "GeoCorr crosswalks are not available for years before 2010. ",
+      "GeoCorr crosswalks are not available for years before 2000. ",
       "The requested year ", year, " is not supported. ",
-      "GeoCorr 2018 covers 2010-2019 (2010 Census geography) and ",
+      "GeoCorr 2000 covers 2000-2009 (2000 Census geography), ",
+      "GeoCorr 2018 covers 2010-2019 (2010 Census geography), and ",
       "GeoCorr 2022 covers 2020+ (2020 Census geography).")
   }
 }
@@ -711,10 +748,11 @@ and counties. The provided geography '", geography, "' is not supported.")}
 #' crosswalk translates between, not the only request years `get_crosswalk()`
 #' accepts:
 #' - **GeoCorr** (same-year geography changes) rows are listed under their
-#'   reference years: 2022 for 2020-Census geography and 2018 for 2010-Census
-#'   geography. Requests with other year contexts resolve to the matching
-#'   version -- years 2020 and later (or no years at all) use GeoCorr 2022,
-#'   and years 2010-2019 use GeoCorr 2018. For example, a request for 2021
+#'   reference years: 2022 for 2020-Census geography, 2018 for 2010-Census
+#'   geography, and 2000 for 2000-Census geography. Requests with other year
+#'   contexts resolve to the matching version -- years 2020 and later (or no
+#'   years at all) use GeoCorr 2022, years 2010-2019 use GeoCorr 2018, and
+#'   years 2000-2009 use GeoCorr 2000. For example, a request for 2021
 #'   tracts -> 2021 ZCTAs is served by the tract -> zcta 2022 row.
 #' - **County-events** rows enumerate every supported year pair explicitly
 #'   (county -> county: any forward pair from 2000 on; tract, block group, and
@@ -814,6 +852,22 @@ get_available_crosswalks <- function() {
       target_year = 2018L,
       crosswalk_source = "geocorr")
 
+  # 3b. Geocorr 2000: all pairwise combinations of 8 canonical geographies
+  # (2000 Census geography; "puma5" is the PUMA for the 2000 5% sample and
+  # "msacmsa" is the 1999 MSA/CMSA)
+  geocorr_2000_geographies <- c(
+    "block", "block_group", "tract", "county", "place",
+    "zcta", "puma5", "msacmsa")
+
+  geocorr_2000 <- tidyr::crossing(
+    source_geography = geocorr_2000_geographies,
+    target_geography = geocorr_2000_geographies) |>
+    dplyr::filter(source_geography != target_geography) |>
+    dplyr::mutate(
+      source_year = 2000L,
+      target_year = 2000L,
+      crosswalk_source = "geocorr")
+
   # 4. CTData: 7 manually specified combinations (2020<->2022)
   ctdata <- tibble::tibble(
     source_geography = c("block", "block_group", "tract", "county",
@@ -845,7 +899,8 @@ get_available_crosswalks <- function() {
   source_preference <- c(
     "geocorr" = 1L, "nhgis" = 2L, "ctdata_2020_2022" = 3L, "county_events" = 4L)
 
-  dplyr::bind_rows(nhgis, geocorr_2022, geocorr_2018, ctdata, county_events_combos) |>
+  dplyr::bind_rows(
+    nhgis, geocorr_2022, geocorr_2018, geocorr_2000, ctdata, county_events_combos) |>
     dplyr::distinct() |>
     dplyr::slice_min(
       source_preference[crosswalk_source],

@@ -202,7 +202,15 @@ plan_crosswalk_chain <- function(
     year_context_chr <- if (!is.na(target_year_chr)) target_year_chr else source_year_chr
     geocorr_ref <- if (!is.na(year_context_chr)) {
       year_context_num <- as.numeric(year_context_chr)
-      if (year_context_num >= 2020) "Geocorr 2022" else if (year_context_num >= 2010) "Geocorr 2018" else "Geocorr"
+      if (year_context_num >= 2020) {
+        "Geocorr 2022"
+      } else if (year_context_num >= 2010) {
+        "Geocorr 2018"
+      } else if (year_context_num >= 2000) {
+        "Geocorr 2000"
+      } else {
+        "Geocorr"
+      }
     } else {
       "Geocorr 2022"
     }
@@ -329,12 +337,18 @@ plan_crosswalk_chain <- function(
       tgt_year, " ", src_std, " -> ",
       tgt_year, " ", tgt_std, " (inter-geography via Geocorr)"))
 
-  # GeoCorr snapshots geography at its reference year (2018 or 2022); warn when
+  # GeoCorr snapshots geography at its reference year (2000, 2018, or 2022); warn when
   # county change events make the requested year's county codes differ from the
   # GeoCorr vintage's codes (county codes prefix block/bg/tract GEOIDs, so this
   # affects the join between the temporal steps and the GeoCorr step)
   tgt_year_num <- as.numeric(tgt_year)
-  geocorr_ref_year <- if (tgt_year_num >= 2020) 2022 else 2018
+  geocorr_ref_year <- if (tgt_year_num >= 2020) {
+    2022
+  } else if (tgt_year_num >= 2010) {
+    2018
+  } else {
+    2000
+  }
   if (tgt_year_num >= 2000 &&
       tgt_year_num <= county_events_meta$known_through_year &&
       !tgt_year_num %in% c(2010, 2020, geocorr_ref_year) &&
@@ -382,7 +396,7 @@ standardize_geography_for_chain <- function(geography) {
     geography %in% c("co", "county", "counties", "cnty") ~ "county",
     geography %in% c("pl", "place", "places", "placefp") ~ "place",
     geography %in% c("zcta", "zctas", "zcta5", "zip code", "zip code tabulation area") ~ "zcta",
-    geography %in% c("puma", "pumas", "puma22", "puma12", "public use microdata area") ~ "puma",
+    geography %in% c("puma", "pumas", "puma22", "puma12", "puma5", "public use microdata area") ~ "puma",
     geography %in% c("cbsa", "core based statistical area") ~ "cbsa",
     geography %in% c("ua", "urban area", "urban areas") ~ "urban_area",
     geography %in% c("cd115", "cd116", "cd118", "cd119", "congressional district") ~ geography,

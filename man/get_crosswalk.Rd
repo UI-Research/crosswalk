@@ -18,14 +18,16 @@ get_crosswalk(
 \item{source_geography}{Character. Source geography name. For same-year
 (GeoCorr) crosswalks, one of c("block", "block group", "tract", "county",
 "place", "zcta", "puma", "puma12", "puma22", "cd115", "cd116", "cd118",
-"cd119"). For cross-decade (NHGIS) crosswalks, sources are limited to
+"cd119"), plus c("puma5", "msacmsa") for 2000 geography. For cross-decade
+(NHGIS) crosswalks, sources are limited to
 c("block", "block group", "tract"). Use \code{get_available_crosswalks()} for
 the full listing of supported combinations.}
 
 \item{target_geography}{Character. Target geography name. For same-year
 (GeoCorr) crosswalks, one of c("block", "block group", "tract", "county",
 "place", "zcta", "puma", "puma12", "puma22", "cd115", "cd116", "cd118",
-"cd119"). For cross-decade (NHGIS) crosswalks, targets additionally
+"cd119"), plus c("puma5", "msacmsa") for 2000 geography. For cross-decade
+(NHGIS) crosswalks, targets additionally
 include c("urban_area", "core_based_statistical_area"). Use
 \code{get_available_crosswalks()} for the full listing.}
 
@@ -90,8 +92,11 @@ Columns in returned crosswalk dataframes (some may not be present depending on s
 from the source geography to the target geography}
 \item{allocation_factor_target_to_source}{The weight to interpolate values
 from the target geography to the source geography}
-\item{population_2020}{The estimated overlap in population, if applicable}
-\item{housing_2020}{The estimated overlap in housing units, if applicable}
+\item{population_2020}{The estimated overlap in population, if applicable
+(\code{population_2010} or \code{population_2000} for GeoCorr 2018 or GeoCorr
+2000)}
+\item{housing_2020}{The estimated overlap in housing units, if applicable
+(\code{housing_2010} or \code{housing_2000} for GeoCorr 2018 or GeoCorr 2000)}
 \item{land_area_sqmi}{The overlap in land area, if applicable}
 \item{weighting_factor}{The attribute used to calculate allocation factors}
 \item{state_fips}{Two-digit state FIPS code, if applicable}
@@ -104,7 +109,7 @@ structure containing one or more crosswalk tibbles.
 }
 \details{
 This function sources crosswalks from Geocorr 2022, Geocorr 2018,
-IPUMS NHGIS, CT Data Collaborative, and a curated registry of county
+Geocorr 2000, IPUMS NHGIS, CT Data Collaborative, and a curated registry of county
 change events. Crosswalk weights are from the original sources and have
 not been modified; this function merely standardizes the format of the
 returned crosswalks and enables easy programmatic access and caching.
@@ -114,12 +119,31 @@ appropriate GeoCorr version is selected automatically based on the year:
 \itemize{
 \item Years 2020+ (or no year specified): GeoCorr 2022 (2020 Census geography)
 \item Years 2010-2019: GeoCorr 2018 (2010 Census geography)
+\item Years 2000-2009: GeoCorr 2000 (2000 Census geography)
 }
+
+Years before 2000 are not supported for same-year crosswalks.
 
 \strong{Geography name resolution}: User-facing geography names like "puma",
 "zcta", "place", and "blockgroup" are automatically resolved to the correct
 API codes for the selected GeoCorr version. Version-specific names are also
-accepted (e.g., "puma12" for GeoCorr 2018, "puma22" for GeoCorr 2022).
+accepted (e.g., "puma5" for GeoCorr 2000, "puma12" for GeoCorr 2018,
+"puma22" for GeoCorr 2022).
+
+\strong{2000 geography (GeoCorr 2000)}: Request 2000-vintage crosswalks with
+\verb{source_year = 2000, target_year = 2000} (e.g., 2000 tracts to 2000
+PUMAs, which NHGIS does not provide directly). Supported geographies are
+"block", "block group", "tract", "county", "place", "zcta", "puma" (or
+"puma5": the PUMA for the 2000 5\% sample, which 2005-2011 ACS microdata
+also use), and "msacmsa" (1999 Metropolitan Statistical Areas and
+Consolidated Metropolitan Statistical Areas, identified by four-digit
+codes, with "9999" for areas outside any metro area). PUMAs for the 2000
+1\% sample ("puma1") are not available. GeoCorr 2000 has no Puerto Rico
+data. GeoCorr 2000 leaves the MSA/CMSA code blank for New England areas,
+where 1999 metro areas were built from cities and towns; those rows are
+dropped with a warning. Years 2001-2009 also use GeoCorr 2000, so they
+reflect 2000 boundaries, not later changes such as the creation of
+Broomfield County, Colorado.
 
 \strong{Multi-step crosswalks}: When both geography AND year change (e.g.,
 2010 tracts to 2020 ZCTAs), no single crosswalk source provides this directly.
@@ -282,6 +306,15 @@ output <- crosswalk_data(
   crosswalk = result,
   count_columns = "count_population",
   return_intermediate = TRUE)
+
+# Same-year crosswalk for 2000 geography (uses Geocorr 2000), e.g., to
+# aggregate 2000 Census tract data to 2000 PUMAs
+result <- get_crosswalk(
+  source_geography = "tract",
+  target_geography = "puma",
+  source_year = 2000,
+  target_year = 2000,
+  weight = "population")
 
 # Arbitrary-year county crosswalk handling non-decennial county changes
 # (e.g., 2015 Shannon -> Oglala Lakota, SD; Valdez-Cordova, AK split)
