@@ -95,10 +95,12 @@
 #'    include c("urban_area", "core_based_statistical_area"). Use
 #'    `get_available_crosswalks()` for the full listing.
 #' @param weight Character. Weighting variable used to construct or select
-#'    allocation factors. One of c("population", "housing", "land"). Applies to
-#'    GeoCorr crosswalks and to the selection of the NHGIS interpolation weight
-#'    (block-based NHGIS crosswalks provide a single combined weight, which is
-#'    used regardless of this argument).
+#'    allocation factors. Defaults to "population". The accepted values depend
+#'    on the source that serves each step (see "Available weights" below):
+#'    GeoCorr accepts c("population", "housing", "land"); NHGIS additionally
+#'    accepts c("household", "housing_owned", "housing_rented") for block group
+#'    and tract based crosswalks. A weight that a step cannot provide raises
+#'    an error, except as described under "Available weights".
 #' @param cache Directory path. Where to save the crosswalk. If NULL (default),
 #'    the crosswalk is returned but not saved to disk. When provided, individual
 #'    component crosswalks are cached separately, and subsequent calls with the
@@ -143,6 +145,40 @@
 #'     \item{state_fips}{Two-digit state FIPS code, if applicable}
 #'   }
 #'
+#' @section Available weights:
+#' The `weight` argument chooses the attribute used to split a source unit
+#' across the target units it overlaps. What each source offers:
+#' \describe{
+#'   \item{GeoCorr (same-year crosswalks)}{"population", "housing" (all
+#'      housing units), and "land" (land area). Requesting any other weight
+#'      raises an error that lists these three.}
+#'   \item{NHGIS, block group and tract based files}{"population",
+#'      "housing" (all housing units, NHGIS `wt_hu`), "household"
+#'      (households, NHGIS `wt_hh`; use for household-level measures such as
+#'      HUD CHAS data), "housing_owned" (owner-occupied housing units, NHGIS
+#'      `wt_ownhu`), and "housing_rented" (renter-occupied housing units,
+#'      NHGIS `wt_renthu`).}
+#'   \item{NHGIS, block-based files}{A single combined weight, recorded as
+#'      `weighting_factor = "housing_population"`, which is used (with a
+#'      message) when "population" or "housing" is requested. Some files also
+#'      carry a land-area weight ("land"). Requesting "household",
+#'      "housing_owned", or "housing_rented" raises an error that lists the
+#'      weights the file provides; another weight is never substituted.}
+#'   \item{CT Data Collaborative (2020 <-> 2022) and county-events
+#'      crosswalks}{No choice of weight. Units whose boundaries did not
+#'      change have an allocation factor of 1 (`weighting_factor =
+#'      "identity"`); units whose boundaries changed use population-based
+#'      allocation factors. Any accepted `weight` is allowed for these steps;
+#'      a message notes when population-based factors are used instead of
+#'      the requested weight.}
+#' }
+#' In a multi-step chain, every step must be able to use the requested
+#' weight. For example, `weight = "household"` cannot be used for 2010 tracts
+#' to 2020 ZCTAs, because the second step (2020 tracts to 2020 ZCTAs) comes from
+#' GeoCorr; the error names that step. The check runs before any crosswalk is
+#' downloaded. The `weighting_factor` column and the `weighting_variable`
+#' metadata field record the weight actually used.
+#'
 #' @section Crosswalk metadata:
 #' The `crosswalk_metadata` attribute attached to each crosswalk tibble is a
 #' list recording the crosswalk's provenance. Fields with no value for a given
@@ -162,8 +198,13 @@
 #'      `target_geography_standardized` (the source-specific codes they resolved
 #'      to) and `reference_year` (the source's reference vintage, e.g., the
 #'      GeoCorr version).}
-#'   \item{weighting_variable}{The weighting variable used to construct or
-#'      select allocation factors.}
+#'   \item{weighting_variable}{The weighting variable actually used to
+#'      construct or select allocation factors. For GeoCorr this is the
+#'      requested `weight`. For NHGIS it is the `weighting_factor` value kept
+#'      from the file (e.g., "household", "housing_all", or
+#'      "housing_population"). For CT Data Collaborative and county-events
+#'      crosswalks it lists the weighting factors present (e.g., "identity,
+#'      population").}
 #'   \item{state_coverage, notes}{Geographic coverage notes and source-specific
 #'      caveats.}
 #'   \item{retrieved_at, cached, cache_path, read_from_cache}{When the
@@ -355,30 +396,51 @@ get_crosswalk_single <- function(
     }
   }
 
+  # The weighting factor actually used to build this crosswalk's allocation
+  # factors, recorded in the metadata. NULL means the requested `weight` was
+  # used as given (GeoCorr).
+  weighting_variable_used <- NULL
+
   # Fetch the crosswalk from the appropriate source
-  if (crosswalk_source == "ctdata_2020_2022") {
-    result <- get_crosswalk_2020_2022(
-      geography = source_geography,
-      source_year = source_year,
-      target_year = target_year,
-      cache = cache)
+  if (crosswalk_source %in% c("ctdata_2020_2022", "county_events")) {
+    result <- if (crosswalk_source == "ctdata_2020_2022") {
+      get_crosswalk_2020_2022(
+        geography = source_geography,
+        source_year = source_year,
+        target_year = target_year,
+        cache = cache)
+    } else {
+      get_county_events_crosswalk(
+        geography = source_geography,
+        source_year = source_year,
+        target_year = target_year,
+        cache = cache)
+    }
 
-  } else if (crosswalk_source == "county_events") {
-    result <- get_county_events_crosswalk(
-      geography = source_geography,
-      source_year = source_year,
-      target_year = target_year,
-      cache = cache)
+    # These sources do not offer a choice of weight: areas whose boundaries
+    # did not change get an allocation factor of 1 ("identity"), and areas
+    # whose boundaries changed use population-based allocation factors.
+    # Record what was used, and tell the user when it differs from the
+    # requested weight.
+    if (nrow(result) > 0 && "weighting_factor" %in% names(result)) {
+      weighting_factors_used <- sort(unique(result$weighting_factor))
+      weighting_variable_used <- stringr::str_c(weighting_factors_used, collapse = ", ")
+      non_identity_factors_used <- setdiff(weighting_factors_used, "identity")
 
-    if (weight != "population") {
-      cw_message(stringr::str_c(
-        "County-events crosswalks use population-derived allocation factors ",
-        "for changed counties; the requested '", weight,
-        "' weight does not apply to this step."))
+      if (length(non_identity_factors_used) > 0 &&
+          !all(non_identity_factors_used == weight)) {
+        cw_message(stringr::str_c(
+          "The ", source_year, " -> ", target_year, " ", source_geography,
+          " crosswalk uses ",
+          stringr::str_c(non_identity_factors_used, collapse = ", "),
+          "-based allocation factors for areas whose boundaries changed. The ",
+          "requested '", weight, "' weight is not offered by this source and ",
+          "does not apply to this step."))
+      }
     }
 
   } else if (crosswalk_source == "nhgis") {
-    result <- get_nhgis_crosswalk(
+    nhgis_crosswalk <- get_nhgis_crosswalk(
       source_year = source_year,
       source_geography = source_geography,
       target_year = target_year,
@@ -388,15 +450,10 @@ get_crosswalk_single <- function(
     # NHGIS crosswalks are long format, with one row per source-target pair
     # per interpolation weight. Keep only the weight matching the `weight`
     # argument so each pair appears exactly once; otherwise downstream
-    # interpolation would multiply-count values. Candidates are ordered by
-    # preference: block-based crosswalks provide a single combined
-    # housing/population weight ("housing_population") rather than separate
-    # population and housing weights.
-    if (nrow(result) > 0 && "weighting_factor" %in% names(result)) {
-      nhgis_weight_map <- list(
-        "population" = c("population", "housing_population"),
-        "housing" = c("housing_all", "housing_population"),
-        "land" = c("landarea"))
+    # interpolation would count values more than once. See
+    # get_nhgis_weight_map() for the order of preference among candidates.
+    if (nrow(nhgis_crosswalk) > 0 && "weighting_factor" %in% names(nhgis_crosswalk)) {
+      nhgis_weight_map <- get_nhgis_weight_map()
 
       if (!weight %in% names(nhgis_weight_map)) {
         stop(
@@ -404,30 +461,45 @@ get_crosswalk_single <- function(
           paste(names(nhgis_weight_map), collapse = ", "), ".")
       }
 
-      available_weights <- unique(result$weighting_factor)
+      available_weights <- unique(nhgis_crosswalk$weighting_factor)
       candidate_weights <- intersect(nhgis_weight_map[[weight]], available_weights)
 
+      # The `weight` values that this particular NHGIS file can provide
+      usable_weight_arguments <- names(nhgis_weight_map)[
+        purrr::map_lgl(nhgis_weight_map, \(factors) any(factors %in% available_weights))]
+
       if (length(candidate_weights) > 0) {
-        selected_weight <- candidate_weights[1]
-        if (selected_weight != nhgis_weight_map[[weight]][1]) {
+        weighting_variable_used <- candidate_weights[1]
+        if (weighting_variable_used != nhgis_weight_map[[weight]][1]) {
           cw_message(stringr::str_c(
             "This NHGIS crosswalk does not provide a separate '", weight,
-            "' weight; using the combined '", selected_weight,
+            "' weight; using the combined '", weighting_variable_used,
             "' interpolation weight instead."))
         }
-        result <- result |>
-          dplyr::filter(weighting_factor == selected_weight)
-      } else if (length(available_weights) == 1) {
+        result <- nhgis_crosswalk |>
+          dplyr::filter(weighting_factor == weighting_variable_used)
+      } else if (length(available_weights) == 1 && weight %in% get_geocorr_weights()) {
+        weighting_variable_used <- available_weights
         cw_message(stringr::str_c(
           "This NHGIS crosswalk provides a single interpolation weight ('",
           available_weights,
           "'), which is used regardless of the requested weight."))
+        result <- nhgis_crosswalk
       } else {
+        # Household and tenure weights are never replaced by another weight:
+        # the caller asked for them specifically, so substituting a different
+        # weight would give misleading results.
         stop(
-          "The requested weight '", weight, "' is not available for this ",
-          "NHGIS crosswalk. Available weighting factors: ",
-          paste(available_weights, collapse = ", "), ".")
+          "The requested weight '", weight, "' is not available for the NHGIS ",
+          source_geography, " ", source_year, " -> ", target_geography, " ",
+          target_year, " crosswalk. This crosswalk provides these weighting ",
+          "factors: ", paste(sort(available_weights), collapse = ", "),
+          ". Use one of these values for `weight`: ",
+          paste(usable_weight_arguments, collapse = ", "), ".",
+          call. = FALSE)
       }
+    } else {
+      result <- nhgis_crosswalk
     }
 
   } else {
@@ -504,6 +576,8 @@ get_crosswalk_single <- function(
 
     weighting_variable = if (!is.null(internal_metadata$weighting_variable)) {
       internal_metadata$weighting_variable
+    } else if (!is.null(weighting_variable_used)) {
+      weighting_variable_used
     } else {
       weight
     },
@@ -664,6 +738,18 @@ and counties. The provided geography '", geography, "' is not supported.")}
 #'   require neither
 #' - `county_events`: no API key; the data ships with the package and works
 #'   offline
+#'
+#' **Weights by source.** The `weight` argument of [get_crosswalk()] accepts
+#' different values depending on `crosswalk_source` (see the "Available
+#' weights" section of [get_crosswalk()] for details):
+#' - `geocorr`: "population", "housing", "land"
+#' - `nhgis`: block group and tract based crosswalks offer "population",
+#'   "housing", "household", "housing_owned", and "housing_rented";
+#'   block-based crosswalks offer a single combined population and housing
+#'   weight (used for "population" or "housing") and, for some files, "land"
+#' - `ctdata_2020_2022` and `county_events`: no choice of weight; unchanged
+#'   units have an allocation factor of 1 and changed units use
+#'   population-based factors
 #'
 #' @return A tibble with columns: `source_geography`, `target_geography`,
 #'   `source_year`, `target_year`, `crosswalk_source`.

@@ -133,6 +133,9 @@ built from:
 | `"population"` (default) | Resident population in the overlap | People-denominated variables: population counts, poverty, demographic shares |
 | `"housing"` | Housing units in the overlap | Housing-stock variables: units, tenure, vacancy, home loans |
 | `"land"` | Land area of the overlap | Land-based variables, or when settlement patterns are irrelevant |
+| `"household"` (NHGIS only) | Households in the overlap | Household-level measures, such as HUD CHAS housing-need counts |
+| `"housing_owned"` (NHGIS only) | Owner-occupied housing units in the overlap | Variables about owner households or owned homes |
+| `"housing_rented"` (NHGIS only) | Renter-occupied housing units in the overlap | Variables about renter households or rented homes |
 
 Guidance:
 
@@ -142,11 +145,18 @@ Guidance:
 - Population and housing weights are usually similar; land-area weights can
   differ dramatically in sparsely settled areas (a target unit covering 90% of
   a source's land might hold 5% of its people).
+- **Which sources offer which weights**: GeoCorr (same-year crosswalks)
+  offers only `"population"`, `"housing"`, and `"land"`. Tract- and
+  block-group-level NHGIS crosswalks (between census decades) also offer
+  `"household"`, `"housing_owned"`, and `"housing_rented"`. Requesting one of
+  these three for a crosswalk, or for any step of a multi-step chain, that
+  cannot provide it raises an error rather than quietly using another weight.
 - **NHGIS caveat**: block-based NHGIS crosswalks publish a single combined
-  interpolation weight, so `weight` does not vary the allocation factors for
-  those crosswalks. Tract- and block-group-level NHGIS crosswalks do provide
-  distinct population and housing weights. The `weighting_factor` column of
-  the returned crosswalk always records what was actually used.
+  interpolation weight, so `"population"` and `"housing"` give the same
+  allocation factors for those crosswalks, and the household and tenure
+  weights are not available. The `weighting_factor` column of the returned
+  crosswalk, and the `weighting_variable` field of its `crosswalk_metadata`
+  attribute, always record what was actually used.
 - County-events crosswalks use `"identity"` weights for unchanged and renamed
   counties (factor 1) and population-based factors for splits and part
   transfers, regardless of `weight`.

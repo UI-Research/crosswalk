@@ -162,6 +162,7 @@ test_that("GeoCorr 2018 congressional district crosswalks have correct-length GE
 
 test_that("CTData 2020-2022 crosswalks have correct-length GEOIDs", {
   skip_if_offline()
+  skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
 
   for (geog in c("tract", "block_group")) {
     result <- get_crosswalk(

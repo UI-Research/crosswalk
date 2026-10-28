@@ -389,6 +389,7 @@ test_that("crosswalk_data works with NHGIS inter-temporal crosswalk", {
 
 test_that("crosswalk_data works with 2020-2022 CT crosswalk", {
   skip_if_offline()
+  skip_if(Sys.getenv("IPUMS_API_KEY") == "", "IPUMS_API_KEY not set")
 
   # Use CT tract GEOIDs
   mock_data <- tibble::tibble(

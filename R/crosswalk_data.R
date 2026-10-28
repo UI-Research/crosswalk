@@ -36,8 +36,11 @@
 #'    crosswalk is being fetched, uses same-year crosswalk via Geocorr.
 #' @param target_year Numeric or NULL. Year of the target geography. If NULL and
 #'    crosswalk is being fetched, uses same-year crosswalk via Geocorr.
-#' @param weight Character. Weighting variable for Geocorr crosswalks when fetching.
-#'    One of c("population", "housing", "land"). Default is "population".
+#' @param weight Character. Weighting variable used when fetching a crosswalk;
+#'    passed to `get_crosswalk()`. One of c("population", "housing", "land")
+#'    for any source, or c("household", "housing_owned", "housing_rented") for
+#'    NHGIS block group and tract based crosswalks. Default is "population".
+#'    See the "Available weights" section of `get_crosswalk()`.
 #' @param cache Directory path or NULL. Where to cache fetched crosswalks. If NULL
 #'    (default), crosswalk is fetched but not saved to disk. The directory must
 #'    already exist; a non-existent path raises an error rather than being
