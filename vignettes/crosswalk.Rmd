@@ -28,13 +28,14 @@ geographies to target geographies, with allocation factors describing what
 share of each source unit belongs to each target unit.
 
 The `crosswalk` package provides a consistent interface to crosswalks from
-four sources, plus tooling to apply them to your data:
+five sources, plus tooling to apply them to your data:
 
 | Source | What it covers | API key |
 |---|---|---|
 | **GeoCorr** (Missouri Census Data Center) | Same-year crosswalks between geographies (GeoCorr 2022 for 2020s geography; GeoCorr 2018 for 2010s geography; GeoCorr 2000 for 2000s geography) | None |
 | **IPUMS NHGIS** | Cross-decade crosswalks (e.g., 2010 tracts to 2020 tracts) | `IPUMS_API_KEY` |
 | **CT Data Collaborative** | Connecticut's 2020-2022 change from counties to planning regions | `CENSUS_API_KEY` (county requests only) |
+| **Longitudinal Tract Database (LTDB)** (Brown University) | 2010 tracts to 2000 tracts, which NHGIS does not publish | None |
 | **County events** (curated, ships with the package) | County redefinitions outside decennial censuses, supporting county crosswalks between any years from 2000 on | None |
 
 Two functions do most of the work:
@@ -276,6 +277,34 @@ Metropolitan Statistical Areas, with code `"9999"` for areas outside any metro
 area). It has no Puerto Rico data and no PUMAs for the 2000 1% sample. In New
 England, where 1999 metro areas were built from cities and towns, GeoCorr 2000
 assigns no MSA/CMSA code; those rows are dropped with a warning.
+
+### Tracts back to 2000 boundaries (LTDB)
+
+NHGIS does not publish any crosswalk that targets 2000 geography. For 2010
+tracts to 2000 tracts, the package uses the "Backwards LTDB" crosswalk from
+the Longitudinal Tract Database at Brown University. It needs no API key and
+no registration. Later tract years are chained through NHGIS first:
+
+```{r ltdb, eval = FALSE}
+tract_2020_to_tract_2000 <- get_crosswalk(
+  source_geography = "tract",
+  target_geography = "tract",
+  source_year = 2020,
+  target_year = 2000)
+
+# Step 1: 2020 tracts -> 2010 tracts (NHGIS)
+# Step 2: 2010 tracts -> 2000 tracts (LTDB)
+```
+
+LTDB weights are not the same as NHGIS weights. LTDB gives one weight per
+pair of tracts, built from a combination of land area and census block
+population. NHGIS builds its weights from census blocks and lets you choose
+population, household, or housing unit counts. Because LTDB has only one
+weight, requests that use it must keep the default `weight = "population"`;
+asking for any other weight produces an error. Because GeoCorr 2000 covers
+2000 geography, a request that also changes geography, such as 2010 tracts to
+2000 PUMAs, is planned as LTDB 2010 tracts -> 2000 tracts, then GeoCorr 2000
+tracts -> PUMAs.
 
 ## County crosswalks between any pair of years
 

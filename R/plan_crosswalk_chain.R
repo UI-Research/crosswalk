@@ -34,6 +34,10 @@
 #' base Census geographies (block, block group, tract, county), while Geocorr
 #' has broader geography coverage (ZCTA, PUMA, place, etc.).
 #'
+#' Temporal steps can also come from the county-events engine and from the
+#' Longitudinal Tract Database (LTDB, tract 2010 -> 2000 only). Plans that use
+#' LTDB require `weight = "population"` because LTDB has a single weight.
+#'
 #' @keywords internal
 #' @noRd
 plan_crosswalk_chain <- function(
@@ -145,6 +149,21 @@ plan_crosswalk_chain <- function(
         "'. NHGIS may not provide same-geography crosswalks for this ",
         "geography or year combination.",
         temporal_path_hint(source_geog_std))
+      return(result)
+    }
+
+    # LTDB crosswalks have a single weight that combines land area and block
+    # population. Rather than silently substituting it for a different
+    # requested weight, stop and ask the user to accept it explicitly.
+    uses_ltdb <- any(purrr::map_chr(temporal_path, ~ .x$crosswalk_source) == "ltdb")
+    requested_weight <- if (is.null(weight)) "population" else weight
+    if (uses_ltdb && !identical(requested_weight, "population")) {
+      result$error <- stringr::str_c(
+        "This request uses the Longitudinal Tract Database (LTDB) crosswalk for ",
+        "2010 tracts to 2000 tracts. LTDB provides only one weight, which ",
+        "combines land area and census block population, so the requested weight '",
+        requested_weight, "' is not available. Use weight = \"population\" to ",
+        "accept the LTDB weight.")
       return(result)
     }
 
@@ -297,6 +316,20 @@ plan_crosswalk_chain <- function(
       "'. NHGIS may not provide same-geography crosswalks for this ",
       "geography or year combination.",
       temporal_path_hint(src_std))
+    return(result)
+  }
+
+  # The final step of a combined plan changes geography with GeoCorr, which
+  # covers only 2000 and later geography. Stop here, before any download,
+  # rather than failing after the temporal steps have been fetched.
+  if (as.numeric(tgt_year) < 2000) {
+    result$error <- stringr::str_c(
+      "Multi-step crosswalk not possible: the final step would change geography ",
+      "(", src_std, " -> ", tgt_std, ") in ", tgt_year, ", but GeoCorr ",
+      "geography crosswalks are only available for 2000 and later. Request a ",
+      src_std, " -> ", src_std, " crosswalk to ", tgt_year, " instead; if the ",
+      "target geography contains whole ", src_std, "s (e.g., counties contain ",
+      "whole tracts), aggregate the result by GEOID prefix.")
     return(result)
   }
 
@@ -560,9 +593,10 @@ find_temporal_path <- function(geography_std,
   source_year_chr <- as.character(source_year)
   target_year_chr <- as.character(target_year)
 
-  # NHGIS same-geography temporal edges, then county-events edges. Insertion
-  # order matters: BFS prefers earlier edges on equal path length, so NHGIS
-  # remains the source for hops both can serve.
+  # NHGIS same-geography temporal edges, then county-events edges, then
+  # Longitudinal Tract Database (LTDB) edges. Insertion order matters: BFS
+  # prefers earlier edges on equal path length, so NHGIS remains the source
+  # for hops that more than one source can serve.
   edges <- dplyr::bind_rows(
     available_crosswalks |>
       dplyr::filter(
@@ -571,7 +605,13 @@ find_temporal_path <- function(geography_std,
       dplyr::transmute(
         source_year, target_year, crosswalk_source = "nhgis"),
     list_county_events_edges(geography_std) |>
-      dplyr::mutate(crosswalk_source = "county_events"))
+      dplyr::mutate(crosswalk_source = "county_events"),
+    list_ltdb_crosswalks() |>
+      dplyr::filter(
+        source_geography == geography_std,
+        target_geography == geography_std) |>
+      dplyr::transmute(
+        source_year, target_year, crosswalk_source = "ltdb"))
 
   if (nrow(edges) == 0) return(NULL)
 

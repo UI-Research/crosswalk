@@ -43,7 +43,8 @@ c(1990, 2000, 2010, 2020) for decennial crosswalks, or c(2011, 2012, 2014,
 2015, 2022) for non-census year crosswalks (limited to block groups, tracts,
 and counties). For county -> county crosswalks, any year from 2000 onward
 is supported; for same-decade tract/block group/block crosswalks, any year
-from 2010 onward (see Details).}
+from 2010 onward (see Details). Tracts can also target 2000 from 2010 or
+later tract years, using the LTDB crosswalk (see Details).}
 
 \item{cache}{Directory path. Where to save the crosswalk. If NULL (default),
 the crosswalk is returned but not saved to disk. When provided, individual
@@ -56,8 +57,9 @@ allocation factors. Defaults to "population". The accepted values depend
 on the source that serves each step (see "Available weights" below):
 GeoCorr accepts c("population", "housing", "land"); NHGIS additionally
 accepts c("household", "housing_owned", "housing_rented") for block group
-and tract based crosswalks. A weight that a step cannot provide raises
-an error, except as described under "Available weights".}
+and tract based crosswalks; LTDB (tracts to 2000) accepts only
+"population". A weight that a step cannot provide raises an error,
+except as described under "Available weights".}
 
 \item{silent}{Logical. If \code{TRUE}, suppresses all informational messages and
 warnings. Defaults to \code{getOption("crosswalk.silent", FALSE)}. Set
@@ -109,7 +111,8 @@ structure containing one or more crosswalk tibbles.
 }
 \details{
 This function sources crosswalks from Geocorr 2022, Geocorr 2018,
-Geocorr 2000, IPUMS NHGIS, CT Data Collaborative, and a curated registry of county
+Geocorr 2000, IPUMS NHGIS, CT Data Collaborative, the Longitudinal Tract
+Database (LTDB, Brown University), and a curated registry of county
 change events. Crosswalk weights are from the original sources and have
 not been modified; this function merely standardizes the format of the
 returned crosswalks and enables easy programmatic access and caching.
@@ -178,6 +181,25 @@ from 2010 onward (e.g., tract 2014 -> 2019); year pairs spanning a
 decennial census are planned automatically as chains through NHGIS
 crosswalks (e.g., tract 2014 -> 2023).
 
+\strong{Tracts back to 2000 boundaries (LTDB)}: NHGIS does not publish any
+crosswalk that targets 2000 geography. For tract 2010 -> tract 2000,
+the function uses the "Backwards LTDB" crosswalk from the Longitudinal
+Tract Database at Brown University, downloaded without registration from
+\url{https://s4.ad.brown.edu/Projects/Diversity/Researcher/LTBDDload/DataList.aspx}.
+Later tract years are planned as chains that end with this step (e.g.,
+tract 2020 -> 2000 plans NHGIS 2020 -> 2010, then LTDB 2010 -> 2000).
+LTDB weights differ from NHGIS weights: LTDB provides one weight per
+tract pair, built from a combination of land area and census block
+population, while NHGIS builds its weights from census blocks with a
+choice of population, household, or housing unit counts. Because LTDB
+has only that one weight, requests that use LTDB must use
+\code{weight = "population"} (the default); other weights produce an error.
+Changing geography in 2000 (e.g., tract 2010 -> ZCTA 2000) is not
+supported, because GeoCorr covers only 2010 and later geography. Use of
+LTDB crosswalks requires citing the US2010 Project webpage as the source
+of data and Logan, Xu, and Stults (2014) as the technical reference; see
+\url{https://s4.ad.brown.edu/Projects/Diversity/Researcher/LTBDDload/DataList.aspx}.
+
 \strong{Nested geographies}: When the source geography nests exactly within
 the target geography and the years match (e.g., tract -> county, block
 group -> tract), no crosswalk is needed: every source unit belongs to
@@ -223,6 +245,9 @@ change have an allocation factor of 1 (\code{weighting_factor = "identity"}); un
 allocation factors. Any accepted \code{weight} is allowed for these steps;
 a message notes when population-based factors are used instead of
 the requested weight.}
+\item{LTDB (tract 2010 -> 2000)}{A single weight that combines land area
+and census block population. Only "population" is accepted; any other
+weight raises an error before anything is downloaded.}
 }
 In a multi-step chain, every step must be able to use the requested
 weight. For example, \code{weight = "household"} cannot be used for 2010 tracts

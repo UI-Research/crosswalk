@@ -24,7 +24,7 @@ test_that("get_available_crosswalks has correct column types", {
   expect_type(result$target_year, "integer")
   expect_type(result$crosswalk_source, "character")
   expect_true(all(result$crosswalk_source %in%
-    c("geocorr", "nhgis", "ctdata_2020_2022", "county_events")))
+    c("geocorr", "nhgis", "ctdata_2020_2022", "county_events", "ltdb")))
 })
 
 test_that("get_available_crosswalks has no duplicate rows", {
