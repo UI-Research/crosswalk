@@ -32,7 +32,7 @@ four sources, plus tooling to apply them to your data:
 
 | Source | What it covers | API key |
 |---|---|---|
-| **GeoCorr** (Missouri Census Data Center) | Same-year crosswalks between geographies (GeoCorr 2022 for 2020s geography; GeoCorr 2018 for 2010s geography) | None |
+| **GeoCorr** (Missouri Census Data Center) | Same-year crosswalks between geographies (GeoCorr 2022 for 2020s geography; GeoCorr 2018 for 2010s geography; GeoCorr 2000 for 2000s geography) | None |
 | **IPUMS NHGIS** | Cross-decade crosswalks (e.g., 2010 tracts to 2020 tracts) | `IPUMS_API_KEY` |
 | **CT Data Collaborative** | Connecticut's 2020-2022 change from counties to planning regions | `CENSUS_API_KEY` (county requests only) |
 | **County events** (curated, ships with the package) | County redefinitions outside decennial censuses, supporting county crosswalks between any years from 2000 on | None |
@@ -253,6 +253,30 @@ tract_2010_to_zcta_2020 <- get_crosswalk(
 For a complete worked example -- standardizing six years of mortgage data to
 2020 tract definitions -- see `vignette("standardizing-longitudinal-data")`.
 
+### 2000 geography (GeoCorr 2000)
+
+NHGIS does not publish 2000 Census data for PUMAs, but 2000 tract data can be
+aggregated to 2000 PUMAs (the PUMAs that 2005-2011 ACS microdata also use).
+Setting both years to 2000 (any year from 2000 through 2009 works the same
+way) routes the request to GeoCorr 2000, which uses 2000 Census geography:
+
+```{r geocorr-2000, eval = FALSE}
+tract_2000_to_puma_2000 <- get_crosswalk(
+  source_geography = "tract",
+  target_geography = "puma",
+  source_year = 2000,
+  target_year = 2000,
+  weight = "population")
+```
+
+GeoCorr 2000 supports blocks, block groups, tracts, counties, places, ZCTAs,
+PUMAs for the 2000 5% sample (`"puma"` or `"puma5"`), and 1999 metropolitan
+areas (`"msacmsa"`: Metropolitan Statistical Areas and Consolidated
+Metropolitan Statistical Areas, with code `"9999"` for areas outside any metro
+area). It has no Puerto Rico data and no PUMAs for the 2000 1% sample. In New
+England, where 1999 metro areas were built from cities and towns, GeoCorr 2000
+assigns no MSA/CMSA code; those rows are dropped with a warning.
+
 ## County crosswalks between any pair of years
 
 Counties are occasionally redefined *outside* decennial censuses: renames
@@ -310,9 +334,9 @@ available |>
   head()
 ```
 
-One nuance: GeoCorr combinations are listed under their reference years (2022
-and 2018), but requests resolve by *decade* -- asking for 2021 tracts -> 2021
-ZCTAs is served by the tract -> zcta 2022 row. See
+One nuance: GeoCorr combinations are listed under their reference years (2022,
+2018, and 2000), but requests resolve by *decade* -- asking for 2021 tracts ->
+2021 ZCTAs is served by the tract -> zcta 2022 row. See
 `?get_available_crosswalks`.
 
 ## Caching

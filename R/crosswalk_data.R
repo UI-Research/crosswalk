@@ -953,6 +953,7 @@ apply_single_crosswalk <- function(
                       "weighting_factor", "source_year", "target_year",
                       "population_2020", "housing_2020",
                       "population_2010", "housing_2010",
+                      "population_2000", "housing_2000",
                       "land_area_sqmi")
   other_cols <- setdiff(
     names(data),

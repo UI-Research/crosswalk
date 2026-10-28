@@ -15,6 +15,18 @@
   actually used (e.g., `"household"`, `"housing_all"`, or
   `"housing_population"` for NHGIS; `"identity, population"` for CT Data
   Collaborative and county-events crosswalks).
+
+* **Same-year crosswalks for 2000 geography (GeoCorr 2000).** Requests with
+  years from 2000 through 2009 (e.g., `source_year = 2000, target_year = 2000`)
+  now use the Missouri Census Data Center's GeoCorr 2000 tool, which uses 2000
+  Census geography. Supported geographies are block, block group, tract,
+  county, place, ZCTA, PUMA for the 2000 5% sample (`"puma"` or `"puma5"`),
+  and 1999 MSA/CMSA (`"msacmsa"`), with population, housing, or land weights.
+  This makes it possible to aggregate 2000 tract data to 2000 PUMAs, which
+  NHGIS does not publish. GeoCorr 2000 has no Puerto Rico data and no PUMAs
+  for the 2000 1% sample; New England rows without an MSA/CMSA code are dropped
+  with a warning (#22).
+
 * **Arbitrary-year county crosswalks.** `get_crosswalk()` now supports
   county -> county crosswalks between any pair of years from 2000 through 2025
   (e.g., `2014 -> 2019` or `2014 -> 2023`), accounting for counties redefined

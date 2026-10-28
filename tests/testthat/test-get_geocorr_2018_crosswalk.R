@@ -352,8 +352,8 @@ test_that("determine_geocorr_version returns correct versions", {
   expect_equal(crosswalk:::determine_geocorr_version(2019), "2018")
 })
 
-test_that("determine_geocorr_version errors for pre-2010 years", {
+test_that("determine_geocorr_version errors for pre-2000 years", {
   expect_error(
-    crosswalk:::determine_geocorr_version(2000),
-    regexp = "not available for years before 2010")
+    crosswalk:::determine_geocorr_version(1990),
+    regexp = "not available for years before 2000")
 })

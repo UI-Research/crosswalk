@@ -21,10 +21,11 @@ crosswalk translates between, not the only request years \code{get_crosswalk()}
 accepts:
 \itemize{
 \item \strong{GeoCorr} (same-year geography changes) rows are listed under their
-reference years: 2022 for 2020-Census geography and 2018 for 2010-Census
-geography. Requests with other year contexts resolve to the matching
-version -- years 2020 and later (or no years at all) use GeoCorr 2022,
-and years 2010-2019 use GeoCorr 2018. For example, a request for 2021
+reference years: 2022 for 2020-Census geography, 2018 for 2010-Census
+geography, and 2000 for 2000-Census geography. Requests with other year
+contexts resolve to the matching version -- years 2020 and later (or no
+years at all) use GeoCorr 2022, years 2010-2019 use GeoCorr 2018, and
+years 2000-2009 use GeoCorr 2000. For example, a request for 2021
 tracts -> 2021 ZCTAs is served by the tract -> zcta 2022 row.
 \item \strong{County-events} rows enumerate every supported year pair explicitly
 (county -> county: any forward pair from 2000 on; tract, block group, and
